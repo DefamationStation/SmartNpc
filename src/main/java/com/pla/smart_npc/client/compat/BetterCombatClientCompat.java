@@ -7,6 +7,8 @@ import com.pla.smart_npc.compat.BetterCombatCompat;
 import com.pla.smart_npc.entity.PlayerNpcEntity;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.Pose;
@@ -15,6 +17,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ShieldItem;
+import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
 import java.lang.reflect.Array;
@@ -35,25 +38,31 @@ import java.util.WeakHashMap;
  * PlayerModel, so it never reaches that mixin. This bridge deliberately uses
  * reflection: Better Combat stays a truly optional dependency while, when it
  * is present, we can still use its already-resolved WeaponRegistry and its
- * already-loaded attack AnimationRegistry.
+ * PlayerAnimator animation registry.
  */
 public final class BetterCombatClientCompat {
-    private static final String BETTER_COMBAT_CLASS = "net.bettercombat.BetterCombat";
+    private static final String BETTER_COMBAT_CLASS = "net.bettercombat.BetterCombatMod";
     private static final String WEAPON_REGISTRY_CLASS = "net.bettercombat.logic.WeaponRegistry";
-    private static final String ANIMATION_REGISTRY_CLASS = "net.bettercombat.client.animation.AnimationRegistry";
+    private static final String ANIMATION_REGISTRY_CLASS = "dev.kosmx.playerAnim.minecraftApi.PlayerAnimationRegistry";
     private static final String CUSTOM_ANIMATION_PLAYER_CLASS = "net.bettercombat.client.animation.CustomAnimationPlayer";
     private static final String ANIMATION_APPLIER_CLASS = "dev.kosmx.playerAnim.impl.animation.AnimationApplier";
     private static final String MODIFIER_LAYER_CLASS = "dev.kosmx.playerAnim.api.layered.ModifierLayer";
     private static final String MIRROR_MODIFIER_CLASS = "dev.kosmx.playerAnim.api.layered.modifier.MirrorModifier";
     private static final String TRANSFORM_TYPE_CLASS = "dev.kosmx.playerAnim.api.TransformType";
     private static final String VEC3F_CLASS = "dev.kosmx.playerAnim.core.util.Vec3f";
+    private static final String TRAIL_PARTICLES_CLASS = "net.bettercombat.client.particle.TrailParticles";
+    private static final String SLASH_PARTICLE_EFFECT_CLASS = "net.bettercombat.particle.SlashParticleEffect";
+    private static final String BETTER_COMBAT_CLIENT_CLASS = "net.bettercombat.client.BetterCombatClientMod";
 
     private static final Map<PlayerNpcEntity, CachedAttack> ATTACK_CACHE = new WeakHashMap<>();
+    private static final Map<PlayerNpcEntity, Integer> SPAWNED_TRAIL_SEQUENCES = new WeakHashMap<>();
 
     private static Method weaponRegistryGetAttributes;
-    private static Field animationRegistryAnimations;
+    private static Method animationRegistryGetAnimation;
     private static boolean disabled;
     private static boolean warnedFailure;
+    private static boolean trailsDisabled;
+    private static boolean warnedTrailFailure;
 
     private BetterCombatClientCompat() {
     }
@@ -95,6 +104,7 @@ public final class BetterCombatClientCompat {
             Object animationApplier = sampled.animationApplier();
             // Match PlayerAnimator's PlayerModelMixin application order.
             applyBodyParts(animationApplier, model);
+            maybeSpawnAttackTrail(playerNpc, sampled.attack(), partialTick);
             return true;
         } catch (ReflectiveOperationException | LinkageError | RuntimeException exception) {
             disable("apply the NPC attack animation", exception);
@@ -249,7 +259,7 @@ public final class BetterCombatClientCompat {
                 : animationPlayer;
         Object animationApplier = newAnimationApplier(animationForApplier);
         setAnimationPartialTick(animationApplier, animationForApplier, animationPartialTick);
-        return new SampledAnimation(animationApplier);
+        return new SampledAnimation(animationApplier, attack);
     }
 
     private static TransformVector sampleTransform(Object animationApplier, String partName, String transformTypeName)
@@ -299,7 +309,7 @@ public final class BetterCombatClientCompat {
                 : animationPlayer;
         Object animationApplier = newAnimationApplier(animationForApplier);
         setAnimationPartialTick(animationApplier, animationForApplier, animationPartialTick);
-        return new SampledAnimation(animationApplier);
+        return new SampledAnimation(animationApplier, null);
     }
 
     /**
@@ -367,7 +377,7 @@ public final class BetterCombatClientCompat {
         if (!(poseNameValue instanceof String poseName) || poseName.isBlank()) {
             return null;
         }
-        Object animation = animationMap().get(poseName);
+        Object animation = animationByName(poseName);
         if (animation == null) {
             return null;
         }
@@ -433,11 +443,7 @@ public final class BetterCombatClientCompat {
      * speed at the upswing and cooldown boundaries.
      */
     private static float animationTime(PlayerNpcEntity playerNpc, ResolvedAttack attack, float partialTick) {
-        int duration = Math.max(1, playerNpc.getBetterCombatAttackAnimationDuration());
-        float elapsed = clamp(
-                duration - playerNpc.getBetterCombatAttackAnimationTicks() + partialTick,
-                0.0F,
-                duration);
+        float elapsed = attackElapsedTicks(playerNpc, partialTick);
 
         float length = Math.max(0.01F, attack.attackLength());
         float upswingRate = clamp(attack.upswingRate(), 0.0F, 0.9999F);
@@ -462,6 +468,14 @@ public final class BetterCombatClientCompat {
 
         float atCooldownEnd = atFirstGear + (length - firstGearTime) * downwindSpeed;
         return atCooldownEnd + (elapsed - length) * baseSpeed;
+    }
+
+    private static float attackElapsedTicks(PlayerNpcEntity playerNpc, float partialTick) {
+        int duration = Math.max(1, playerNpc.getBetterCombatAttackAnimationDuration());
+        return clamp(
+                duration - playerNpc.getBetterCombatAttackAnimationTicks() + partialTick,
+                0.0F,
+                duration);
     }
 
     @Nullable
@@ -552,7 +566,7 @@ public final class BetterCombatClientCompat {
             return null;
         }
 
-        Object animation = animationMap().get(animationName);
+        Object animation = animationByName(animationName);
         if (animation == null) {
             return null;
         }
@@ -569,14 +583,24 @@ public final class BetterCombatClientCompat {
         float attackLength = playerStyleAttackCooldownTicks(attackStack);
 
         // Better Combat mutates a copy before handing it to PlayerAnimator:
-        // activity-specific leg channels can be disabled, torso is explicitly
-        // enabled, and Minecraft keeps ownership of head pitch.
+        // activity-specific leg channels can be disabled and the torso is
+        // explicitly enabled. The NPC-specific head ownership is applied too.
         Object preparedAnimation = prepareAttackAnimation(animation, playerNpc);
 
         boolean mirror = offHandAttack;
         if (playerNpc.getMainArm() == HumanoidArm.LEFT) {
             mirror = !mirror;
         }
+
+        TrailData trail = resolveTrailDataSafely(
+                playerNpc,
+                attack,
+                attackAttributes,
+                attackStack,
+                animationName,
+                mirror,
+                attackLength,
+                upswingRate);
 
         return new ResolvedAttack(
                 animationName,
@@ -586,7 +610,8 @@ public final class BetterCombatClientCompat {
                 mirror,
                 attackLength,
                 upswingRate,
-                upswingMultiplier);
+                upswingMultiplier,
+                trail);
     }
 
     private static Object prepareAttackAnimation(Object animation, PlayerNpcEntity playerNpc) throws ReflectiveOperationException {
@@ -601,11 +626,285 @@ public final class BetterCombatClientCompat {
         Object torso = torsoField.get(builder);
         torso.getClass().getMethod("fullyEnablePart", boolean.class).invoke(torso, true);
 
-        Field headField = builder.getClass().getField("head");
-        Object head = headField.get(builder);
-        setStateEnabled(head, "pitch", false);
+        // Player NPC look control already owns the complete head transform.
+        // Better Combat only releases pitch for real players, whose vanilla
+        // renderer reconstructs the other channels differently. Releasing all
+        // head channels prevents the body attack from twisting the NPC head.
+        configureStateCollection(builder, "head", false, false);
 
         return builder.getClass().getMethod("build").invoke(builder);
+    }
+
+    @Nullable
+    private static TrailData resolveTrailDataSafely(
+            PlayerNpcEntity playerNpc,
+            Object attack,
+            Object weaponAttributes,
+            ItemStack weaponStack,
+            String animationName,
+            boolean mirrored,
+            float attackLength,
+            float upswingRate
+    ) {
+        if (trailsDisabled) {
+            return null;
+        }
+
+        try {
+            List<?> placements = resolveTrailPlacements(attack, animationName);
+            Object appearance = resolveTrailAppearance(weaponAttributes, weaponStack);
+            if (placements.isEmpty() || appearance == null) {
+                return null;
+            }
+
+            // ENTITY_INTERACTION_RANGE belongs to Player's attribute set and
+            // is not registered by PlayerNpcEntity (a PathfinderMob). Better
+            // Combat uses the player's vanilla 3-block reach as the base when
+            // sizing trails, so use that same value unless another integration
+            // has explicitly attached the attribute to this NPC.
+            var rangeAttribute = playerNpc.getAttribute(Attributes.ENTITY_INTERACTION_RANGE);
+            double baseRange = rangeAttribute == null ? 3.0D : rangeAttribute.getValue();
+            double fixedRange = readNumberMethod(weaponAttributes, "attackRange", 0.0F);
+            double rangeBonus = readNumberMethod(weaponAttributes, "rangeBonus", 0.0F);
+            float weaponRange = (float) (fixedRange != 0.0D ? fixedRange : baseRange + rangeBonus);
+            float spawnTime = Math.max(0.0F, attackLength * upswingRate);
+            return new TrailData(placements, appearance, mirrored, Math.max(0.25F, weaponRange), spawnTime);
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException exception) {
+            disableTrails("resolve the NPC weapon trail", exception);
+            return null;
+        }
+    }
+
+    private static List<?> resolveTrailPlacements(Object attack, String animationName)
+            throws ReflectiveOperationException {
+        Object attackPlacements = invokeNoArgs(attack, "trailParticles");
+        if (attackPlacements instanceof List<?> placements && !placements.isEmpty()) {
+            return placements;
+        }
+
+        Object trailConfig = betterCombatTrailConfig();
+        if (trailConfig == null) {
+            return List.of();
+        }
+        Object animationBased = trailConfig.getClass().getField("animation_based").get(trailConfig);
+        if (animationBased instanceof Map<?, ?> map) {
+            Object configured = map.get(animationName);
+            if (configured instanceof List<?> placements) {
+                return placements;
+            }
+        }
+        return List.of();
+    }
+
+    @Nullable
+    private static Object resolveTrailAppearance(Object weaponAttributes, ItemStack weaponStack)
+            throws ReflectiveOperationException {
+        Object trailConfig = betterCombatTrailConfig();
+        Object conditional = trailConfig == null
+                ? null
+                : trailConfig.getClass().getField("trail_appearance").get(trailConfig);
+        Object weaponConditional = invokeNoArgs(weaponAttributes, "trailAppearance");
+
+        if (conditional != null && weaponConditional != null) {
+            Method merge = conditional.getClass().getMethod("merge", conditional.getClass());
+            conditional = merge.invoke(conditional, weaponConditional);
+        } else if (conditional == null) {
+            conditional = weaponConditional;
+        }
+        if (conditional == null) {
+            return null;
+        }
+
+        return conditional.getClass().getMethod("resolve", ItemStack.class).invoke(conditional, weaponStack);
+    }
+
+    @Nullable
+    private static Object betterCombatTrailConfig() throws ReflectiveOperationException {
+        Class<?> betterCombatClass = Class.forName(BETTER_COMBAT_CLASS);
+        Object manager = betterCombatClass.getField("trailConfig").get(null);
+        return manager == null ? null : manager.getClass().getField("value").get(manager);
+    }
+
+    private static void maybeSpawnAttackTrail(
+            PlayerNpcEntity playerNpc,
+            @Nullable ResolvedAttack attack,
+            float partialTick
+    ) {
+        if (attack == null || trailsDisabled) {
+            return;
+        }
+
+        int sequence = playerNpc.getBetterCombatAttackSequence();
+        if (SPAWNED_TRAIL_SEQUENCES.getOrDefault(playerNpc, Integer.MIN_VALUE) == sequence) {
+            return;
+        }
+
+        TrailData trail = attack.trail();
+        if (trail == null || attackElapsedTicks(playerNpc, partialTick) < trail.spawnTime()) {
+            return;
+        }
+
+        // Mark first so multiple render passes in the same frame cannot emit
+        // duplicate trails. A disabled client trail setting also counts as a
+        // handled attack, matching Better Combat's own one-shot scheduling.
+        SPAWNED_TRAIL_SEQUENCES.put(playerNpc, sequence);
+        try {
+            if (betterCombatTrailsEnabled()) {
+                spawnTrailParticles(playerNpc, trail);
+            }
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException exception) {
+            disableTrails("spawn the NPC weapon trail", exception);
+        }
+    }
+
+    private static boolean betterCombatTrailsEnabled() throws ReflectiveOperationException {
+        Class<?> clientClass = Class.forName(BETTER_COMBAT_CLIENT_CLASS);
+        Object config = clientClass.getField("config").get(null);
+        return config == null || config.getClass().getField("isShowingWeaponTrails").getBoolean(config);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void spawnTrailParticles(PlayerNpcEntity playerNpc, TrailData trail)
+            throws ReflectiveOperationException {
+        Class<?> registryClass = Class.forName(TRAIL_PARTICLES_CLASS);
+        Object registryValue = registryClass.getField("ENTRIES").get(null);
+        if (!(registryValue instanceof Map<?, ?> registry)) {
+            throw new IllegalStateException("Better Combat TrailParticles.ENTRIES is not a Map");
+        }
+
+        float scale = trail.weaponRange() - 0.25F;
+        float sideSign = trail.mirrored() ? -1.0F : 1.0F;
+        float mirrorRoll = trail.mirrored() ? 180.0F : 0.0F;
+        float entityYaw = playerNpc.getYRot();
+        float entityPitch = playerNpc.getXRot();
+        Vec3 side = Vec3.directionFromRotation(0.0F, entityYaw + 90.0F).normalize();
+        Vec3 forward = Vec3.directionFromRotation(entityPitch, entityYaw).normalize();
+
+        for (Object placement : trail.placements()) {
+            if (placement == null) {
+                continue;
+            }
+            Object typeNameValue = invokeNoArgs(placement, "particle_type");
+            if (!(typeNameValue instanceof String typeName)) {
+                continue;
+            }
+            Object entriesValue = registry.get(typeName);
+            if (!(entriesValue instanceof List<?> entries)) {
+                continue;
+            }
+
+            float xAddition = numberValue(invokeNoArgs(placement, "x_addition"));
+            float yAddition = numberValue(invokeNoArgs(placement, "y_addition"));
+            float zAddition = numberValue(invokeNoArgs(placement, "z_addition"));
+            float localYaw = numberValue(invokeNoArgs(placement, "local_yaw"));
+            float pitchAddition = numberValue(invokeNoArgs(placement, "pitch_addition"));
+            float roll = numberValue(invokeNoArgs(placement, "roll_set"));
+
+            Vec3 origin = new Vec3(playerNpc.getX(), playerNpc.getEyeY() - 0.25D + yAddition, playerNpc.getZ())
+                    .add(forward.scale(zAddition))
+                    .add(side.scale(xAddition * sideSign));
+            Vec3 stabOrigin = origin.add(forward.scale(scale - 1.5F));
+
+            for (Object entry : entries) {
+                if (entry == null) {
+                    continue;
+                }
+                boolean stabPosition = Boolean.TRUE.equals(invokeNoArgs(entry, "stabPosition"));
+                Vec3 particlePosition = stabPosition ? stabOrigin : origin;
+                float entryRoll = numberValue(invokeNoArgs(entry, "rollOffset"));
+                Object layeredParticles = invokeNoArgs(entry, "particles");
+                if (!(layeredParticles instanceof List<?> layers)) {
+                    continue;
+                }
+
+                for (Object layer : layers) {
+                    Object primary = trail.appearance().getClass().getField("primary").get(trail.appearance());
+                    Object secondary = trail.appearance().getClass().getField("secondary").get(trail.appearance());
+                    spawnTrailLayer(
+                            playerNpc,
+                            layer,
+                            "bottom",
+                            primary,
+                            particlePosition,
+                            scale,
+                            entityPitch + pitchAddition,
+                            entityYaw,
+                            localYaw * sideSign,
+                            (roll + entryRoll + mirrorRoll) * sideSign);
+                    spawnTrailLayer(
+                            playerNpc,
+                            layer,
+                            "top",
+                            secondary,
+                            particlePosition,
+                            scale,
+                            entityPitch + pitchAddition,
+                            entityYaw,
+                            localYaw * sideSign,
+                            (roll + entryRoll + mirrorRoll) * sideSign);
+                }
+            }
+        }
+    }
+
+    private static void spawnTrailLayer(
+            PlayerNpcEntity playerNpc,
+            Object layeredParticle,
+            String particleAccessor,
+            @Nullable Object appearancePart,
+            Vec3 position,
+            float scale,
+            float pitch,
+            float yaw,
+            float localYaw,
+            float roll
+    ) throws ReflectiveOperationException {
+        if (layeredParticle == null || appearancePart == null) {
+            return;
+        }
+
+        Object particleType = invokeNoArgs(layeredParticle, particleAccessor);
+        boolean glows = Boolean.TRUE.equals(invokeNoArgs(appearancePart, "glows"));
+        Object colorValue = invokeNoArgs(appearancePart, "color_rgba");
+        if (!(colorValue instanceof Number color)) {
+            throw new IllegalStateException("Better Combat trail color is not numeric");
+        }
+
+        Class<?> effectClass = Class.forName(SLASH_PARTICLE_EFFECT_CLASS);
+        Object effect = null;
+        for (Constructor<?> constructor : effectClass.getConstructors()) {
+            if (constructor.getParameterCount() == 8) {
+                effect = constructor.newInstance(
+                        particleType,
+                        scale,
+                        pitch,
+                        yaw,
+                        localYaw,
+                        roll,
+                        glows,
+                        color.longValue());
+                break;
+            }
+        }
+        if (!(effect instanceof ParticleOptions particleOptions)) {
+            throw new NoSuchMethodException("No compatible Better Combat SlashParticleEffect constructor");
+        }
+
+        playerNpc.level().addParticle(
+                particleOptions,
+                position.x,
+                position.y,
+                position.z,
+                0.0D,
+                0.0D,
+                0.0D);
+    }
+
+    private static float numberValue(Object value) {
+        if (!(value instanceof Number number)) {
+            throw new IllegalStateException("Better Combat trail value is not numeric");
+        }
+        return number.floatValue();
     }
 
     private static void configureStateCollection(
@@ -777,17 +1076,13 @@ public final class BetterCombatClientCompat {
         return weaponRegistryGetAttributes;
     }
 
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> animationMap() throws ReflectiveOperationException {
-        if (animationRegistryAnimations == null) {
+    @Nullable
+    private static Object animationByName(String animationName) throws ReflectiveOperationException {
+        if (animationRegistryGetAnimation == null) {
             Class<?> registryClass = Class.forName(ANIMATION_REGISTRY_CLASS);
-            animationRegistryAnimations = registryClass.getField("animations");
+            animationRegistryGetAnimation = registryClass.getMethod("getAnimation", ResourceLocation.class);
         }
-        Object value = animationRegistryAnimations.get(null);
-        if (!(value instanceof Map<?, ?> map)) {
-            throw new IllegalStateException("Better Combat AnimationRegistry.animations is not a Map");
-        }
-        return (Map<String, Object>) map;
+        return animationRegistryGetAnimation.invoke(null, ResourceLocation.parse(animationName));
     }
 
     private static Object newCustomAnimationPlayer(Object animation, int animationTick) throws ReflectiveOperationException {
@@ -929,10 +1224,23 @@ public final class BetterCombatClientCompat {
     private static void disable(String action, Throwable exception) {
         disabled = true;
         ATTACK_CACHE.clear();
+        SPAWNED_TRAIL_SEQUENCES.clear();
         if (!warnedFailure) {
             warnedFailure = true;
             SmartNpc.LOGGER.warn(
                     "Smart NPC Better Combat compat could not {}; disabling Better Combat NPC animations.",
+                    action,
+                    unwrap(exception));
+        }
+    }
+
+    private static void disableTrails(String action, Throwable exception) {
+        trailsDisabled = true;
+        SPAWNED_TRAIL_SEQUENCES.clear();
+        if (!warnedTrailFailure) {
+            warnedTrailFailure = true;
+            SmartNpc.LOGGER.warn(
+                    "Smart NPC Better Combat compat could not {}; disabling NPC weapon trails only.",
                     action,
                     unwrap(exception));
         }
@@ -946,7 +1254,7 @@ public final class BetterCombatClientCompat {
         return exception;
     }
 
-    private record SampledAnimation(Object animationApplier) {
+    private record SampledAnimation(Object animationApplier, @Nullable ResolvedAttack attack) {
     }
 
     private record TransformVector(float x, float y, float z) {
@@ -973,7 +1281,17 @@ public final class BetterCombatClientCompat {
             boolean mirror,
             float attackLength,
             float upswingRate,
-            float upswingMultiplier
+            float upswingMultiplier,
+            @Nullable TrailData trail
+    ) {
+    }
+
+    private record TrailData(
+            List<?> placements,
+            Object appearance,
+            boolean mirrored,
+            float weaponRange,
+            float spawnTime
     ) {
     }
 }
