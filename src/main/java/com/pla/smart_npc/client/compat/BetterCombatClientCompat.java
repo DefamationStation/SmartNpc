@@ -5,14 +5,13 @@ import com.mojang.math.Axis;
 import com.pla.smart_npc.SmartNpc;
 import com.pla.smart_npc.compat.BetterCombatCompat;
 import com.pla.smart_npc.entity.PlayerNpcEntity;
+import com.pla.smart_npc.entity.ai.VanillaMeleeAttackAi;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.Pose;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ItemStack;
@@ -1015,10 +1014,7 @@ public final class BetterCombatClientCompat {
      * attack-speed calculation (base 4.0 + held-item MAINHAND modifiers).
      */
     private static float playerStyleAttackCooldownTicks(ItemStack stack) {
-        double attackSpeed = Math.max(0.1D,
-                stack.getAttributeModifiers().compute(4.0D, EquipmentSlot.MAINHAND));
-
-        float cooldown = (float) (20.0D / attackSpeed);
+        float cooldown = (float) (20.0D / VanillaMeleeAttackAi.weaponAttackSpeed(stack));
         return Math.max(betterCombatAttackIntervalCap(), cooldown);
     }
 

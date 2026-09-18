@@ -7,10 +7,12 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ShieldItem;
 
 /** Vanilla damage keeps enchantments, armor, hurt immunity, and held-weapon durability. */
@@ -19,6 +21,35 @@ public final class VanillaMeleeAttackAi {
     private static final int SHIELD_DISABLE_TICKS = 100;
 
     private VanillaMeleeAttackAi() {
+    }
+
+    /**
+     * Calculates the player's attack-speed attribute for the held item.
+     *
+     * ItemAttributeModifiers.compute() cannot be used here because it applies
+     * every main-hand modifier, including attack damage, to the supplied base.
+     */
+    public static double weaponAttackSpeed(ItemStack stack) {
+        final double baseAttackSpeed = 4.0D;
+        double[] modifiers = {0.0D, 0.0D, 1.0D};
+        stack.forEachModifier(EquipmentSlot.MAINHAND, (attribute, modifier) -> {
+            if (!attribute.equals(Attributes.ATTACK_SPEED)) {
+                return;
+            }
+            switch (modifier.operation()) {
+                case ADD_VALUE -> modifiers[0] += modifier.amount();
+                case ADD_MULTIPLIED_BASE -> modifiers[1] += modifier.amount();
+                case ADD_MULTIPLIED_TOTAL -> modifiers[2] *= 1.0D + modifier.amount();
+            }
+        });
+
+        double withAdditions = baseAttackSpeed + modifiers[0];
+        return Math.max(0.1D, (withAdditions + withAdditions * modifiers[1]) * modifiers[2]);
+    }
+
+    /** Returns the first whole tick on which a player's held-item attack is fully charged. */
+    public static int weaponAttackIntervalTicks(ItemStack stack) {
+        return Math.max(1, (int) Math.ceil(20.0D / weaponAttackSpeed(stack)));
     }
 
     public static boolean attack(PlayerNpcEntity npc, LivingEntity target, boolean critical) {
