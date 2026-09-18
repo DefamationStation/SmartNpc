@@ -359,7 +359,7 @@ public class LootNearbyChestGoal extends Goal {
         for (int i = 0; i < inventory.getContainerSize() && !source.isEmpty(); i++) {
             ItemStack existing = inventory.getItem(i);
             if (existing.isEmpty()
-                    || !ItemStack.isSameItemSameTags(existing, source)
+                    || !ItemStack.isSameItemSameComponents(existing, source)
                     || existing.getCount() >= existing.getMaxStackSize()) {
                 continue;
             }
@@ -426,7 +426,7 @@ public class LootNearbyChestGoal extends Goal {
             if (stack.isEmpty()) {
                 return true;
             }
-            if (ItemStack.isSameItemSameTags(stack, incoming) && stack.getCount() < stack.getMaxStackSize()) {
+            if (ItemStack.isSameItemSameComponents(stack, incoming) && stack.getCount() < stack.getMaxStackSize()) {
                 return true;
             }
         }

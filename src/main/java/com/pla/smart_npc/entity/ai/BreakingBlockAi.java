@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
@@ -210,10 +211,7 @@ public final class BreakingBlockAi {
         }
 
         if (speed > 1.0F && !stack.isEmpty()) {
-            int efficiency = EnchantmentHelper.getBlockEfficiency(playerNpc);
-            if (efficiency > 0) {
-                speed += efficiency * efficiency + 1.0F;
-            }
+            speed += (float) playerNpc.getAttributeValue(Attributes.MINING_EFFICIENCY);
         }
 
         MobEffectInstance haste = playerNpc.getEffect(MobEffects.DIG_SPEED);
@@ -226,8 +224,8 @@ public final class BreakingBlockAi {
             speed *= miningFatigueMultiplier(fatigue.getAmplifier());
         }
 
-        if (playerNpc.isEyeInFluid(FluidTags.WATER) && !EnchantmentHelper.hasAquaAffinity(playerNpc)) {
-            speed /= 5.0F;
+        if (playerNpc.isEyeInFluid(FluidTags.WATER)) {
+            speed *= (float) playerNpc.getAttributeValue(Attributes.SUBMERGED_MINING_SPEED);
         }
         if (!playerNpc.onGround()) {
             speed /= 5.0F;

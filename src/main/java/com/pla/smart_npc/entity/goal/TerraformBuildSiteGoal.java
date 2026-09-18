@@ -2343,7 +2343,7 @@ public class TerraformBuildSiteGoal extends Goal {
             this.previousMainHand = currentMainHand;
             this.usingTemporaryMainHand = true;
         } else if (!currentMainHand.isEmpty()
-                && !ItemStack.isSameItemSameTags(currentMainHand, this.previousMainHand)
+                && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousMainHand)
                 && !InventoryUtils.addItem(this.playerNpc, currentMainHand)) {
             this.playerNpc.spawnAtLocation(currentMainHand);
         }
@@ -2358,7 +2358,7 @@ public class TerraformBuildSiteGoal extends Goal {
 
         ItemStack currentMainHand = this.playerNpc.getMainHandItem().copy();
         if (!currentMainHand.isEmpty()
-                && !ItemStack.isSameItemSameTags(currentMainHand, this.previousMainHand)
+                && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousMainHand)
                 && !InventoryUtils.addItem(this.playerNpc, currentMainHand)) {
             this.playerNpc.spawnAtLocation(currentMainHand);
         }
@@ -2376,7 +2376,7 @@ public class TerraformBuildSiteGoal extends Goal {
 
         ItemStack currentMainHand = this.playerNpc.getMainHandItem().copy();
         if (!currentMainHand.isEmpty()
-                && !ItemStack.isSameItemSameTags(currentMainHand, this.previousMainHand)
+                && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousMainHand)
                 && !InventoryUtils.addItem(this.playerNpc, currentMainHand)) {
             this.playerNpc.spawnAtLocation(currentMainHand);
         }

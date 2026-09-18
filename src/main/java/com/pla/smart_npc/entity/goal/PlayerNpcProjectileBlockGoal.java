@@ -18,11 +18,14 @@ import net.minecraft.world.item.BedItem;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.alchemy.PotionUtils;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+
+import java.util.stream.StreamSupport;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -205,8 +208,12 @@ public class PlayerNpcProjectileBlockGoal extends Goal {
         }
 
         if (projectile instanceof ThrownPotion thrownPotion) {
-            var effects = PotionUtils.getMobEffects(thrownPotion.getItem());
-            if (effects.isEmpty() || effects.stream().allMatch(effect -> effect.getEffect().isBeneficial())) {
+            Iterable<net.minecraft.world.effect.MobEffectInstance> effects = thrownPotion.getItem()
+                    .getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY)
+                    .getAllEffects();
+            if (!effects.iterator().hasNext()
+                    || StreamSupport.stream(effects.spliterator(), false)
+                    .allMatch(effect -> effect.getEffect().value().isBeneficial())) {
                 return false;
             }
         }
@@ -297,7 +304,7 @@ public class PlayerNpcProjectileBlockGoal extends Goal {
     private boolean isDefensiveBlock(ItemStack stack) {
         if (stack.isEmpty()
                 || !(stack.getItem() instanceof BlockItem blockItem)
-                || stack.hasCustomHoverName()
+                || stack.has(net.minecraft.core.component.DataComponents.CUSTOM_NAME)
                 || stack.isEnchanted()
                 || stack.is(Items.CRAFTING_TABLE)
                 || stack.is(Items.CHEST)

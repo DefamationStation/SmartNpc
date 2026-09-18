@@ -8,7 +8,6 @@ import com.pla.smart_npc.network.PlayerNpcInspectatorCycleResultPacket;
 import com.pla.smart_npc.network.PlayerNpcInspectatorModePacket;
 import com.pla.smart_npc.network.PlayerNpcInspectorPacket;
 import com.pla.smart_npc.network.PlayerNpcInspectorRequestPacket;
-import com.pla.smart_npc.network.SmartNpcNetwork;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
@@ -20,6 +19,7 @@ import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -27,16 +27,18 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.MovementInputUpdateEvent;
-import net.minecraftforge.client.event.RenderGuiEvent;
-import net.minecraftforge.client.event.RenderGuiOverlayEvent;
-import net.minecraftforge.client.event.ScreenEvent;
-import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
+import net.neoforged.neoforge.client.event.RenderGuiEvent;
+import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
+import net.neoforged.neoforge.client.event.ScreenEvent;
+import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraft.core.registries.BuiltInRegistries;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -44,7 +46,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
-@Mod.EventBusSubscriber(modid = SmartNpc.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = SmartNpc.MODID, value = Dist.CLIENT)
 public class SmartNpcInspectorOverlay {
     private static final int PANEL_WIDTH = 196;
     private static final int PANEL_HEIGHT = 294;
@@ -240,11 +242,7 @@ public class SmartNpcInspectorOverlay {
     }
 
     @SubscribeEvent
-    public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) {
-            return;
-        }
-
+    public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null || minecraft.player == null) {
             clear();
@@ -286,8 +284,8 @@ public class SmartNpcInspectorOverlay {
     }
 
     @SubscribeEvent
-    public static void onRenderGuiOverlayPre(RenderGuiOverlayEvent.Pre event) {
-        if (inspectatorActive && VanillaGuiOverlay.JUMP_BAR.id().equals(event.getOverlay().id())) {
+    public static void onRenderGuiOverlayPre(RenderGuiLayerEvent.Pre event) {
+        if (inspectatorActive && VanillaGuiLayers.JUMP_METER.equals(event.getName())) {
             event.setCanceled(true);
         }
     }
@@ -887,7 +885,7 @@ public class SmartNpcInspectorOverlay {
                 continue;
             }
 
-            Item item = ForgeRegistries.ITEMS.getValue(itemId);
+            Item item = BuiltInRegistries.ITEM.get(itemId);
             if (item == null) {
                 continue;
             }
@@ -1023,7 +1021,7 @@ public class SmartNpcInspectorOverlay {
             return Component.translatable("gui.player_npc.inspector.empty");
         }
 
-        ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+        ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
         return id == null ? Component.literal("unknown") : Component.literal(id.toString());
     }
 
@@ -1585,13 +1583,13 @@ public class SmartNpcInspectorOverlay {
         snapshotTraceEnabled = false;
     }
 
-    private static void sendToServerIfConnected(Object packet) {
+    private static void sendToServerIfConnected(CustomPacketPayload packet) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.getConnection() == null) {
             return;
         }
 
-        SmartNpcNetwork.CHANNEL.sendToServer(packet);
+        PacketDistributor.sendToServer(packet);
     }
 
     private record RequirementPayload(boolean structured, Component layout, List<RequirementRow> rows, int more) {

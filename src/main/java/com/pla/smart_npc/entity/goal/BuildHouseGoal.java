@@ -46,7 +46,7 @@ import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -442,12 +442,10 @@ public class BuildHouseGoal extends Goal {
         if (stack.isEmpty()) {
             return 0;
         }
-        ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+        ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
         int hash = id == null ? 0 : id.hashCode();
         hash = 31 * hash + stack.getCount();
-        if (stack.hasTag()) {
-            hash = 31 * hash + stack.getTag().hashCode();
-        }
+        hash = 31 * hash + stack.getComponents().hashCode();
         return hash;
     }
 
@@ -1557,7 +1555,7 @@ public class BuildHouseGoal extends Goal {
         tag.putInt("x", pos.getX());
         tag.putInt("y", pos.getY());
         tag.putInt("z", pos.getZ());
-        blockEntity.load(tag);
+        blockEntity.loadWithComponents(tag, serverLevel.registryAccess());
         blockEntity.setChanged();
         serverLevel.sendBlockUpdated(pos, serverLevel.getBlockState(pos), serverLevel.getBlockState(pos), 3);
     }
@@ -2201,7 +2199,7 @@ public class BuildHouseGoal extends Goal {
     }
 
     private static String describeTaskState(BlockState state) {
-        ResourceLocation blockId = ForgeRegistries.BLOCKS.getKey(state.getBlock());
+        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
         if (blockId == null) {
             return state.getBlock().getDescriptionId();
         }

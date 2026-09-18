@@ -12,14 +12,15 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
-import net.minecraftforge.event.entity.living.LivingDeathEvent;
-import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.event.server.ServerStoppingEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -34,7 +35,7 @@ import java.util.WeakHashMap;
  * Population admission for natural Player NPC spawning. This is deliberately independent from
  * routine AI worker ownership and force-ticket management.
  */
-@Mod.EventBusSubscriber(modid = SmartNpc.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = SmartNpc.MODID)
 public final class PlayerNpcNaturalSpawnCap {
     private static final int STARTUP_AUTO_CAP = 4;
     private static final int MAX_EXPLORATION_AUTO_CAP = 16;
@@ -171,10 +172,7 @@ public final class PlayerNpcNaturalSpawnCap {
     }
 
     @SubscribeEvent
-    public static void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) {
-            return;
-        }
+    public static void onServerTick(ServerTickEvent.Post event) {
         PopulationState state = state(event.getServer());
         state.updatePolicy(event.getServer(), false);
         state.tryLoadedWorldSpawn(event.getServer());
@@ -291,7 +289,7 @@ public final class PlayerNpcNaturalSpawnCap {
                 if (!level.noCollision(npc)) {
                     return;
                 }
-                npc.finalizeSpawn(level, level.getCurrentDifficultyAt(pos), MobSpawnType.NATURAL, null, null);
+                npc.finalizeSpawn(level, level.getCurrentDifficultyAt(pos), MobSpawnType.NATURAL, null);
                 level.addFreshEntityWithPassengers(npc);
                 return;
             }

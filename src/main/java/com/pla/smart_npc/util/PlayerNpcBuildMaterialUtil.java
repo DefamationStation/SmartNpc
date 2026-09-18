@@ -36,7 +36,7 @@ import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.level.block.state.properties.ChestType;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.block.state.properties.Property;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -329,7 +329,7 @@ public final class PlayerNpcBuildMaterialUtil {
             return false;
         }
 
-        ResourceLocation key = ForgeRegistries.BLOCKS.getKey(state.getBlock());
+        ResourceLocation key = BuiltInRegistries.BLOCK.getKey(state.getBlock());
         return key != null
                 && "structurize".equals(key.getNamespace())
                 && "blocksolidsubstitution".equals(key.getPath());
@@ -573,12 +573,10 @@ public final class PlayerNpcBuildMaterialUtil {
         if (stack.isEmpty()) {
             return 0;
         }
-        ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+        ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
         int hash = id == null ? 0 : id.hashCode();
         hash = 31 * hash + stack.getCount();
-        if (stack.hasTag()) {
-            hash = 31 * hash + stack.getTag().hashCode();
-        }
+        hash = 31 * hash + stack.getComponents().hashCode();
         return hash;
     }
 
@@ -1057,7 +1055,7 @@ public final class PlayerNpcBuildMaterialUtil {
             }
 
             List<Item> result = new ArrayList<>();
-            for (Item item : ForgeRegistries.ITEMS.getValues()) {
+            for (Item item : BuiltInRegistries.ITEM) {
                 if (familyForItem(item) == key) {
                     result.add(item);
                 }
@@ -1222,7 +1220,7 @@ public final class PlayerNpcBuildMaterialUtil {
     }
 
     private static boolean isWoodNamedItem(Item item, String suffix) {
-        ResourceLocation key = ForgeRegistries.ITEMS.getKey(item);
+        ResourceLocation key = BuiltInRegistries.ITEM.getKey(item);
         if (key == null || !key.getPath().endsWith(suffix)) {
             return false;
         }
@@ -1290,7 +1288,7 @@ public final class PlayerNpcBuildMaterialUtil {
             return false;
         }
 
-        ResourceLocation key = ForgeRegistries.BLOCKS.getKey(state.getBlock());
+        ResourceLocation key = BuiltInRegistries.BLOCK.getKey(state.getBlock());
         return key != null && key.getPath().startsWith("potted_");
     }
 

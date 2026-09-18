@@ -7,7 +7,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -53,7 +52,7 @@ public final class PlayerNpcBlockBreakUtil {
             PlayerNpcChestProtectEvent.reportOffense(serverLevel, pos, playerNpc, "broke");
         }
 
-        awardExperienceDrop(serverLevel, pos, state, playerNpc, heldStack);
+        awardExperienceDrop(serverLevel, pos, state, blockEntity, playerNpc, heldStack);
 
         for (ItemStack drop : drops) {
             if (drop.isEmpty()) {
@@ -72,12 +71,12 @@ public final class PlayerNpcBlockBreakUtil {
             ServerLevel serverLevel,
             BlockPos pos,
             BlockState state,
+            BlockEntity blockEntity,
             PlayerNpcEntity playerNpc,
             ItemStack heldStack
     ) {
-        int fortune = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.BLOCK_FORTUNE, heldStack);
-        int silkTouch = EnchantmentHelper.hasSilkTouch(heldStack) ? 1 : 0;
-        int xp = state.getExpDrop(serverLevel, serverLevel.getRandom(), pos, fortune, silkTouch);
+        int xp = state.getExpDrop(serverLevel, pos, blockEntity, playerNpc, heldStack);
+        xp = EnchantmentHelper.processBlockExperience(serverLevel, heldStack, xp);
         if (xp <= 0) {
             return;
         }

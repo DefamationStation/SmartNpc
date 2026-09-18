@@ -102,7 +102,7 @@ public class EatHealingFoodGoal extends Goal {
 
     @Override
     public void start() {
-        ItemStack equippedFood = InventoryUtils.consumeItem(this.playerNpc, stack -> ItemStack.isSameItemSameTags(stack, this.foodStack), 1)
+        ItemStack equippedFood = InventoryUtils.consumeItem(this.playerNpc, stack -> ItemStack.isSameItemSameComponents(stack, this.foodStack), 1)
                 .orElse(ItemStack.EMPTY);
         if (equippedFood.isEmpty()) {
             this.foodStack = ItemStack.EMPTY;
@@ -140,7 +140,7 @@ public class EatHealingFoodGoal extends Goal {
                 this.giveOrDrop(currentMainHand);
             } else if (!currentMainHand.isEmpty()
                     && !this.isSameFood(currentMainHand)
-                    && !ItemStack.isSameItemSameTags(currentMainHand, this.previousMainHand)) {
+                    && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousMainHand)) {
                 this.giveOrDrop(currentMainHand);
             }
             this.playerNpc.setMainHandItemForAi(this.previousMainHand);
@@ -225,7 +225,7 @@ public class EatHealingFoodGoal extends Goal {
     }
 
     private boolean isSameFood(ItemStack stack) {
-        return !stack.isEmpty() && ItemStack.isSameItemSameTags(stack, this.foodStack);
+        return !stack.isEmpty() && ItemStack.isSameItemSameComponents(stack, this.foodStack);
     }
 
     private void updateEatingMovement() {
@@ -306,7 +306,7 @@ public class EatHealingFoodGoal extends Goal {
         score += this.itemPower(entity.getMainHandItem()) * 1.4D;
         score += this.itemPower(entity.getOffhandItem()) * 0.6D;
         for (EquipmentSlot slot : EquipmentSlot.values()) {
-            if (slot.getType() == EquipmentSlot.Type.ARMOR) {
+            if (slot.isArmor()) {
                 score += this.itemPower(entity.getItemBySlot(slot));
             }
         }
@@ -320,9 +320,9 @@ public class EatHealingFoodGoal extends Goal {
 
         double score = 0.0D;
         if (stack.getItem() instanceof SwordItem swordItem) {
-            score += swordItem.getDamage();
+            score += swordItem.getDamage(stack);
         } else if (stack.getItem() instanceof AxeItem axeItem) {
-            score += axeItem.getAttackDamage();
+            score += axeItem.getDamage(stack);
         } else if (stack.getItem() instanceof DiggerItem) {
             score += 3.0D;
         } else if (stack.getItem() instanceof TridentItem) {

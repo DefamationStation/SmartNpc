@@ -1,6 +1,7 @@
 package com.pla.smart_npc.util;
 
 import com.pla.smart_npc.SmartNpc;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -25,13 +26,10 @@ public final class PlayerNpcPopulationData extends SavedData {
 
     public static PlayerNpcPopulationData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(
-                PlayerNpcPopulationData::load,
-                PlayerNpcPopulationData::new,
-                DATA_NAME
-        );
+                new SavedData.Factory<>(PlayerNpcPopulationData::new, PlayerNpcPopulationData::load), DATA_NAME);
     }
 
-    public static PlayerNpcPopulationData load(CompoundTag tag) {
+    public static PlayerNpcPopulationData load(CompoundTag tag, HolderLookup.Provider registries) {
         PlayerNpcPopulationData data = new PlayerNpcPopulationData();
         data.initialized = tag.getBoolean(INITIALIZED_TAG);
         data.learnedAutoCap = Math.max(0, tag.getInt(LEARNED_AUTO_CAP_TAG));
@@ -46,7 +44,7 @@ public final class PlayerNpcPopulationData extends SavedData {
     }
 
     @Override
-    public CompoundTag save(CompoundTag tag) {
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         ListTag npcs = new ListTag();
         for (UUID npcId : this.npcIds) {
             CompoundTag npcTag = new CompoundTag();

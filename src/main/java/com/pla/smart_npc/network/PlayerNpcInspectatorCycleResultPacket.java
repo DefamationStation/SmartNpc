@@ -2,13 +2,14 @@ package com.pla.smart_npc.network;
 
 import com.pla.smart_npc.client.gui.SmartNpcInspectorOverlay;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.util.function.Supplier;
-
-public class PlayerNpcInspectatorCycleResultPacket {
+public class PlayerNpcInspectatorCycleResultPacket implements CustomPacketPayload {
+    public static final Type<PlayerNpcInspectatorCycleResultPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("smart_npc", "inspectator_cycle_result"));
+    public static final StreamCodec<FriendlyByteBuf, PlayerNpcInspectatorCycleResultPacket> STREAM_CODEC = StreamCodec.ofMember(PlayerNpcInspectatorCycleResultPacket::encode, PlayerNpcInspectatorCycleResultPacket::decode);
     private final boolean handledByServer;
     private final int entityId;
     private final int direction;
@@ -27,10 +28,10 @@ public class PlayerNpcInspectatorCycleResultPacket {
         return new PlayerNpcInspectatorCycleResultPacket(false, currentEntityId, direction);
     }
 
-    public static void encode(PlayerNpcInspectatorCycleResultPacket packet, FriendlyByteBuf buffer) {
-        buffer.writeBoolean(packet.handledByServer);
-        buffer.writeVarInt(packet.entityId);
-        buffer.writeVarInt(packet.direction);
+    public void encode(FriendlyByteBuf buffer) {
+        buffer.writeBoolean(this.handledByServer);
+        buffer.writeVarInt(this.entityId);
+        buffer.writeVarInt(this.direction);
     }
 
     public static PlayerNpcInspectatorCycleResultPacket decode(FriendlyByteBuf buffer) {
@@ -49,12 +50,10 @@ public class PlayerNpcInspectatorCycleResultPacket {
         return direction;
     }
 
-    public static void handle(PlayerNpcInspectatorCycleResultPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-        NetworkEvent.Context context = contextSupplier.get();
-        context.enqueueWork(() -> DistExecutor.unsafeRunWhenOn(
-                Dist.CLIENT,
-                () -> () -> SmartNpcInspectorOverlay.handleInspectatorCycleResult(packet)
-        ));
-        context.setPacketHandled(true);
+    public static void handle(PlayerNpcInspectatorCycleResultPacket packet, IPayloadContext context) {
+        context.enqueueWork(() -> SmartNpcInspectorOverlay.handleInspectatorCycleResult(packet));
     }
+
+    @Override
+    public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }

@@ -1,7 +1,9 @@
 package com.pla.smart_npc.util;
 
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.*;
+import net.minecraft.world.item.component.CustomData;
 
 /** Conservative inventory cleanup; a stack marker also prevents merging with ordinary loot. */
 public final class PlayerNpcTrashUtil {
@@ -20,12 +22,12 @@ public final class PlayerNpcTrashUtil {
     private PlayerNpcTrashUtil() {}
 
     public static boolean isDiscarded(ItemStack stack) {
-        return stack.hasTag() && stack.getTag().getBoolean(DISCARDED);
+        return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().getBoolean(DISCARDED);
     }
 
     public static ItemStack discardedCopy(ItemStack stack) {
         ItemStack copy = stack.copy();
-        copy.getOrCreateTag().putBoolean(DISCARDED, true);
+        CustomData.update(DataComponents.CUSTOM_DATA, copy, tag -> tag.putBoolean(DISCARDED, true));
         return copy;
     }
 
@@ -72,10 +74,10 @@ public final class PlayerNpcTrashUtil {
             ItemStack offHand,
             TrashProfile profile
     ) {
-        if (stack.isEmpty() || stack.hasCustomHoverName() || stack.isEnchanted()) return NOT_TRASH;
+        if (stack.isEmpty() || stack.has(DataComponents.CUSTOM_NAME) || stack.isEnchanted()) return NOT_TRASH;
         // Explicit harmful fishing loot is safe to discard even though vanilla marks it edible.
         if (stack.is(Items.ROTTEN_FLESH)) return EXPLICIT_JUNK_PRIORITY;
-        if (stack.isEdible()) return NOT_TRASH;
+        if (stack.has(net.minecraft.core.component.DataComponents.FOOD)) return NOT_TRASH;
         // Saplings are planting stock and valid furnace fuel; never classify them as generic junk.
         if (isCommonFlower(stack) || isDecorativePlant(stack)
                 || stack.is(Items.BOWL) || stack.is(Items.LILY_PAD) || stack.is(Items.TRIPWIRE_HOOK)) {
@@ -144,7 +146,7 @@ public final class PlayerNpcTrashUtil {
     private record TrashProfile(int waterBucketCount, int arrowCount, int enderPearlCount, int usableBowCount) {}
 
     private static boolean isDecorativePlant(ItemStack stack) {
-        return stack.is(Items.GRASS) || stack.is(Items.TALL_GRASS)
+        return stack.is(Items.SHORT_GRASS) || stack.is(Items.TALL_GRASS)
                 || stack.is(Items.FERN) || stack.is(Items.LARGE_FERN)
                 || stack.is(Items.DEAD_BUSH) || stack.is(Items.VINE)
                 || stack.is(Items.GLOW_LICHEN) || stack.is(Items.HANGING_ROOTS)
@@ -169,7 +171,7 @@ public final class PlayerNpcTrashUtil {
         // Never throw away a working tool for a nearly broken replacement, or guess modded tier ordering.
         if (!(oldTool.getTier() instanceof Tiers) || !(newTool.getTier() instanceof Tiers)) return false;
         if (replacement.getMaxDamage() - replacement.getDamageValue() < Math.max(16, replacement.getMaxDamage() / 10)) return false;
-        return newTool.getTier().getLevel() > oldTool.getTier().getLevel()
+        return newTool.getTier().getAttackDamageBonus() > oldTool.getTier().getAttackDamageBonus()
                 && newTool.getTier().getUses() > oldTool.getTier().getUses();
     }
 

@@ -1750,7 +1750,7 @@ public final class FarmSetupGoal extends Goal {
                 Vec3.atCenterOf(requestedTarget),
                 ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE,
-                null
+                net.minecraft.world.phys.shapes.CollisionContext.empty()
         ));
         if (hit.getType() != HitResult.Type.BLOCK) {
             return null;

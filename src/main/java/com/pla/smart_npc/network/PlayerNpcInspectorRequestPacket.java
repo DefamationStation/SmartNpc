@@ -3,14 +3,17 @@ package com.pla.smart_npc.network;
 import com.pla.smart_npc.entity.PlayerNpcEntity;
 import com.pla.smart_npc.util.PlayerNpcGoalTraceLogger;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraftforge.network.NetworkEvent;
-import net.minecraftforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.neoforged.neoforge.network.PacketDistributor;
 
-import java.util.function.Supplier;
-
-public class PlayerNpcInspectorRequestPacket {
+public class PlayerNpcInspectorRequestPacket implements CustomPacketPayload {
+    public static final Type<PlayerNpcInspectorRequestPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("smart_npc", "inspector_request"));
+    public static final StreamCodec<FriendlyByteBuf, PlayerNpcInspectorRequestPacket> STREAM_CODEC = StreamCodec.ofMember(PlayerNpcInspectorRequestPacket::encode, PlayerNpcInspectorRequestPacket::decode);
     private static final double MAX_REFRESH_DISTANCE_SQR = 64.0D * 64.0D;
 
     private final int entityId;
@@ -25,26 +28,22 @@ public class PlayerNpcInspectorRequestPacket {
         this.includeRequirements = includeRequirements;
     }
 
-    public static void encode(PlayerNpcInspectorRequestPacket packet, FriendlyByteBuf buffer) {
-        buffer.writeVarInt(packet.entityId);
-        buffer.writeBoolean(packet.includeRequirements);
+    public void encode(FriendlyByteBuf buffer) {
+        buffer.writeVarInt(this.entityId);
+        buffer.writeBoolean(this.includeRequirements);
     }
 
     public static PlayerNpcInspectorRequestPacket decode(FriendlyByteBuf buffer) {
         return new PlayerNpcInspectorRequestPacket(buffer.readVarInt(), buffer.readBoolean());
     }
 
-    public static void handle(PlayerNpcInspectorRequestPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-        NetworkEvent.Context context = contextSupplier.get();
+    public static void handle(PlayerNpcInspectorRequestPacket packet, IPayloadContext context) {
         context.enqueueWork(() -> {
-            ServerPlayer sender = context.getSender();
-            if (sender == null) {
-                return;
-            }
+            ServerPlayer sender = (ServerPlayer) context.player();
 
             if (packet.entityId == PlayerNpcInspectorPacket.OVERALL_ENTITY_ID) {
-                SmartNpcNetwork.CHANNEL.send(
-                        PacketDistributor.PLAYER.with(() -> sender),
+                PacketDistributor.sendToPlayer(
+                        sender,
                         PlayerNpcInspectorPacket.overall(PlayerNpcInspectorData.createAiResourceText(sender.server, null))
                 );
                 return;
@@ -54,15 +53,15 @@ public class PlayerNpcInspectorRequestPacket {
             if (!(entity instanceof PlayerNpcEntity playerNpc)
                     || !playerNpc.isAlive()
                     || sender.distanceToSqr(playerNpc) > MAX_REFRESH_DISTANCE_SQR) {
-                SmartNpcNetwork.CHANNEL.send(
-                        PacketDistributor.PLAYER.with(() -> sender),
+                PacketDistributor.sendToPlayer(
+                        sender,
                         PlayerNpcInspectorPacket.clear()
                 );
                 return;
             }
 
-            SmartNpcNetwork.CHANNEL.send(
-                    PacketDistributor.PLAYER.with(() -> sender),
+            PacketDistributor.sendToPlayer(
+                    sender,
                     new PlayerNpcInspectorPacket(
                             playerNpc.getId(),
                             PlayerNpcInspectorData.createSnapshot(playerNpc),
@@ -75,6 +74,8 @@ public class PlayerNpcInspectorRequestPacket {
                     )
             );
         });
-        context.setPacketHandled(true);
     }
+
+    @Override
+    public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }

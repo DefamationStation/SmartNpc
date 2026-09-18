@@ -4,8 +4,9 @@ import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.minecraft.MinecraftProfileTexture;
 import com.pla.smart_npc.config.SmartNpcNamesConfig;
 import com.pla.smart_npc.util.PlayerNpcForceTickManager;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -22,6 +23,7 @@ import net.minecraft.world.entity.SpawnGroupData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.block.entity.SkullBlockEntity;
+import net.minecraft.world.item.component.ResolvableProfile;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
@@ -73,9 +75,9 @@ public class FakePlayer extends PathfinderMob {
     }
 
     @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
-        this.entityData.define(NAME, "");
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(NAME, "");
     }
 
     @Override
@@ -125,8 +127,8 @@ public class FakePlayer extends PathfinderMob {
     }
 
     @Override
-    public @Nullable SpawnGroupData finalizeSpawn(@NotNull ServerLevelAccessor level, @NotNull DifficultyInstance difficulty, @NotNull MobSpawnType spawnType, @Nullable SpawnGroupData groupData, @Nullable CompoundTag tag) {
-        SpawnGroupData result = super.finalizeSpawn(level, difficulty, spawnType, groupData, tag);
+    public @Nullable SpawnGroupData finalizeSpawn(@NotNull ServerLevelAccessor level, @NotNull DifficultyInstance difficulty, @NotNull MobSpawnType spawnType, @Nullable SpawnGroupData groupData) {
+        SpawnGroupData result = super.finalizeSpawn(level, difficulty, spawnType, groupData);
         if (!this.hasUsername()) {
             FakePlayerName nextName = nextConfiguredName(level.getRandom(), level.getLevel().getServer());
             if (nextName == null) {
@@ -144,8 +146,10 @@ public class FakePlayer extends PathfinderMob {
         if (this.hasUsername()) {
             tag.putString("Username", this.getUsername().getCombinedNames());
         }
-        if (this.profile != null && this.profile.isComplete()) {
-            tag.put("Profile", NbtUtils.writeGameProfile(new CompoundTag(), this.profile));
+        if (isCompleteProfile(this.profile)) {
+            ResolvableProfile.CODEC.encodeStart(NbtOps.INSTANCE, new ResolvableProfile(this.profile))
+                    .result()
+                    .ifPresent(profileTag -> tag.put("Profile", profileTag));
         }
     }
 
@@ -164,7 +168,10 @@ public class FakePlayer extends PathfinderMob {
             }
         }
         if (tag.contains("Profile", CompoundTag.TAG_COMPOUND)) {
-            this.profile = NbtUtils.readGameProfile(tag.getCompound("Profile"));
+            this.profile = ResolvableProfile.CODEC.parse(NbtOps.INSTANCE, tag.get("Profile"))
+                    .result()
+                    .map(ResolvableProfile::gameProfile)
+                    .orElse(null);
         }
     }
 
@@ -239,7 +246,8 @@ public class FakePlayer extends PathfinderMob {
 
     public @Nullable GameProfile getProfile() {
         if (this.profile == null && this.hasUsername()) {
-            this.profile = new GameProfile(null, this.getUsername().getSkinName());
+            String skinName = this.getUsername().getSkinName();
+            this.profile = new GameProfile(UUIDUtil.createOfflinePlayerUUID(skinName), skinName);
             requestProfileUpdate(this);
         }
         return this.profile;
@@ -418,11 +426,19 @@ public class FakePlayer extends PathfinderMob {
             }
             try {
                 FakePlayer target = entity;
-                SkullBlockEntity.updateGameprofile(currentProfile, target::setProfile);
+                SkullBlockEntity.fetchGameProfile(currentProfile.getName())
+                        .thenAccept(resolved -> target.setProfile(resolved.orElse(currentProfile)));
             } catch (Exception ignored) {
                 entity.profileUpdateQueued = false;
             }
         }
+    }
+
+    private static boolean isCompleteProfile(@Nullable GameProfile profile) {
+        return profile != null
+                && profile.getId() != null
+                && !StringUtil.isNullOrEmpty(profile.getName())
+                && !profile.getId().equals(UUIDUtil.createOfflinePlayerUUID(profile.getName()));
     }
 
     public static final class FakePlayerName {

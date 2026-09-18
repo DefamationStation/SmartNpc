@@ -41,7 +41,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -2296,7 +2296,7 @@ public class GatherMaterialsGoal extends Goal {
             this.previousMainHand = currentMainHand;
             this.usingTemporaryTool = true;
         } else if (!currentMainHand.isEmpty()
-                && !ItemStack.isSameItemSameTags(currentMainHand, this.previousMainHand)
+                && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousMainHand)
                 && !InventoryUtils.addItem(this.playerNpc, currentMainHand)) {
             this.playerNpc.spawnAtLocation(currentMainHand);
         }
@@ -2311,7 +2311,7 @@ public class GatherMaterialsGoal extends Goal {
 
         ItemStack currentMainHand = this.playerNpc.getMainHandItem().copy();
         if (!currentMainHand.isEmpty()
-                && !ItemStack.isSameItemSameTags(currentMainHand, this.previousMainHand)
+                && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousMainHand)
                 && !InventoryUtils.addItem(this.playerNpc, currentMainHand)) {
             this.playerNpc.spawnAtLocation(currentMainHand);
         }
@@ -2329,7 +2329,7 @@ public class GatherMaterialsGoal extends Goal {
 
         ItemStack currentMainHand = this.playerNpc.getMainHandItem().copy();
         if (!currentMainHand.isEmpty()
-                && !ItemStack.isSameItemSameTags(currentMainHand, this.previousMainHand)) {
+                && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousMainHand)) {
             if (!InventoryUtils.addItem(this.playerNpc, currentMainHand)) {
                 this.playerNpc.spawnAtLocation(currentMainHand);
             }
@@ -2490,7 +2490,7 @@ public class GatherMaterialsGoal extends Goal {
         }
 
         BlockState state = serverLevel.getBlockState(this.targetPos);
-        ResourceLocation blockId = ForgeRegistries.BLOCKS.getKey(state.getBlock());
+        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
         String blockName = blockId == null ? state.getBlock().getDescriptionId() : blockId.toString();
         int requiredMineTicks = this.getRequiredMineTicks(serverLevel, state);
         boolean inBreakRange = this.playerNpc.distanceToSqr(
@@ -2515,7 +2515,7 @@ public class GatherMaterialsGoal extends Goal {
             return;
         }
 
-        ResourceLocation blockId = ForgeRegistries.BLOCKS.getKey(state.getBlock());
+        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
         String blockName = blockId == null ? state.getBlock().getDescriptionId() : blockId.toString();
         this.playerNpc.setCurrentAiDetail(String.format(
                 java.util.Locale.ROOT,

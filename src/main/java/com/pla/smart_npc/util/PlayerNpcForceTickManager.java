@@ -19,16 +19,17 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.common.util.FakePlayerFactory;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
-import net.minecraftforge.event.entity.living.LivingDeathEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.event.server.ServerStoppingEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.neoforge.common.util.FakePlayerFactory;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -44,7 +45,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-@Mod.EventBusSubscriber(modid = SmartNpc.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = SmartNpc.MODID)
 public final class PlayerNpcForceTickManager {
     // One distance-2 region ticket already propagates the center through the surrounding loaded
     // status levels. Anchoring every chunk in a 3x3 square made all nine chunks independent
@@ -147,10 +148,7 @@ public final class PlayerNpcForceTickManager {
     }
 
     @SubscribeEvent
-    public static void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) {
-            return;
-        }
+    public static void onServerTick(ServerTickEvent.Post event) {
         long performanceStartNanos = PlayerNpcPerformanceMonitor.beginAuxiliaryTiming();
 
         MinecraftServer server = event.getServer();
@@ -798,9 +796,9 @@ public final class PlayerNpcForceTickManager {
             com.mojang.authlib.properties.Property property = entry.getValue();
             entries.add(entry.getKey()
                     + "="
-                    + property.getValue()
+                    + property.value()
                     + "|"
-                    + Objects.toString(property.getSignature(), ""));
+                    + Objects.toString(property.signature(), ""));
         }
         entries.sort(String::compareTo);
         return String.join(";", entries);
@@ -857,7 +855,7 @@ public final class PlayerNpcForceTickManager {
         private final UUID npcId;
         private final Set<ChunkPos> forcedChunks = new LinkedHashSet<>();
         @Nullable
-        private net.minecraftforge.common.util.FakePlayer tabPlayer;
+        private net.neoforged.neoforge.common.util.FakePlayer tabPlayer;
         @Nullable
         private net.minecraft.resources.ResourceKey<Level> levelKey;
         @Nullable
@@ -1082,7 +1080,7 @@ public final class PlayerNpcForceTickManager {
             if (this.tabListed && !displayNameChanged && !profileChanged) {
                 return;
             }
-            net.minecraftforge.common.util.FakePlayer fakePlayer = this.tabPlayer(level, npc);
+            net.neoforged.neoforge.common.util.FakePlayer fakePlayer = this.tabPlayer(level, npc);
             if (!this.tabListed) {
                 server.getPlayerList().broadcastAll(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(List.of(fakePlayer)));
                 this.tabListed = true;
@@ -1104,13 +1102,12 @@ public final class PlayerNpcForceTickManager {
             }
         }
 
-        private net.minecraftforge.common.util.FakePlayer tabPlayer(ServerLevel level, PlayerNpcEntity npc) {
+        private net.neoforged.neoforge.common.util.FakePlayer tabPlayer(ServerLevel level, PlayerNpcEntity npc) {
             if (this.tabPlayer == null || !Objects.equals(this.tabPlayerLevelKey, level.dimension())) {
                 this.tabPlayer = FakePlayerFactory.get(level, createTabProfile(npc));
                 this.tabPlayerLevelKey = level.dimension();
             }
             copyProfileProperties(npc.getProfile(), this.tabPlayer.getGameProfile());
-            this.tabPlayer.latency = 0;
             if (this.tabPlayer.gameMode.getGameModeForPlayer() != GameType.SPECTATOR) {
                 this.tabPlayer.setGameMode(GameType.SPECTATOR);
             }

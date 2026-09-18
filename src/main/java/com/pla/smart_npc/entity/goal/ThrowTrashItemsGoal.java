@@ -11,6 +11,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
@@ -241,15 +242,17 @@ public final class ThrowTrashItemsGoal extends Goal {
                     || npc.distanceToSqr(drop) > 16 || !PlayerNpcTrashUtil.isDiscarded(drop.getItem())) continue;
             level.sendParticles(ParticleTypes.FLAME, drop.getX(), drop.getY() + 0.1D, drop.getZ(), 6, 0.1, 0.1, 0.1, 0.01);
             level.sendParticles(ParticleTypes.SMOKE, drop.getX(), drop.getY() + 0.2D, drop.getZ(), 4, 0.1, 0.1, 0.1, 0.01);
-            drop.setSecondsOnFire(2);
+            drop.igniteForSeconds(2.0F);
             drop.hurt(level.damageSources().inFire(), 5.0F);
             burned = true;
         }
         if (burned) {
             level.playSound(null, npc.blockPosition(), SoundEvents.FLINTANDSTEEL_USE, SoundSource.NEUTRAL, 0.7F, 1.0F);
-            flint.hurtAndBreak(1, npc, owner -> {
-                if (flint == owner.getMainHandItem()) owner.broadcastBreakEvent(InteractionHand.MAIN_HAND);
-                else if (flint == owner.getOffhandItem()) owner.broadcastBreakEvent(InteractionHand.OFF_HAND);
+            EquipmentSlot flintSlot = flint == npc.getMainHandItem()
+                    ? EquipmentSlot.MAINHAND
+                    : flint == npc.getOffhandItem() ? EquipmentSlot.OFFHAND : null;
+            flint.hurtAndBreak(1, level, npc, item -> {
+                if (flintSlot != null) npc.onEquippedItemBroken(item, flintSlot);
             });
             npc.getInventory().setChanged();
         }

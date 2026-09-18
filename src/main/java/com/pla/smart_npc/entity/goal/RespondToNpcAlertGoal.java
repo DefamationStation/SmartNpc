@@ -190,9 +190,9 @@ public class RespondToNpcAlertGoal extends Goal {
         }
         double score = 0.0D;
         if (stack.getItem() instanceof SwordItem swordItem) {
-            score += swordItem.getDamage();
+            score += swordItem.getDamage(stack);
         } else if (stack.getItem() instanceof AxeItem axeItem) {
-            score += axeItem.getAttackDamage();
+            score += axeItem.getDamage(stack);
         }
         if (stack.getItem() instanceof ArmorItem armorItem) {
             score += armorItem.getDefense() + armorItem.getToughness();

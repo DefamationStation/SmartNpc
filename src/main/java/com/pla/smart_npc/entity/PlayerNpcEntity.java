@@ -130,9 +130,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.NetworkHooks;
-import net.minecraftforge.network.PlayMessages;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.core.registries.BuiltInRegistries;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
@@ -329,6 +327,8 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     private long selectedDailyJobDay = -1L;
     private ItemStack mainWeaponItem = ItemStack.EMPTY;
     private ItemStack offWeaponItem = ItemStack.EMPTY;
+    private ItemStack temporaryBowPreviousMainHand = ItemStack.EMPTY;
+    private boolean temporaryBowEquipped = false;
     private boolean suppressHeldItemCacheUpdate = false;
     private boolean useBow = true;
     @Nullable
@@ -954,7 +954,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
 
     /** Stops only scheduler-owned routine work, preserving combat and other non-job goals. */
     public void interruptRoutineWork() {
-        List<WrappedGoal> runningGoals = this.goalSelector.getRunningGoals().toList();
+        List<WrappedGoal> runningGoals = this.goalSelector.getAvailableGoals().stream().filter(WrappedGoal::isRunning).toList();
         for (WrappedGoal runningGoal : runningGoals) {
             if (runningGoal.getGoal() instanceof StartupWorkGatedGoal) {
                 runningGoal.stop();
@@ -1320,7 +1320,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             if (slotStack.isEmpty()) {
                 return true;
             }
-            if (ItemStack.isSameItemSameTags(slotStack, incoming)
+            if (ItemStack.isSameItemSameComponents(slotStack, incoming)
                     && slotStack.getCount() < slotStack.getMaxStackSize()) {
                 return true;
             }
@@ -1465,10 +1465,6 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         return InventoryUtils.consumeItem(this.inventory, itemLike, count);
     }
 
-    public PlayerNpcEntity(PlayMessages.SpawnEntity spawnentity, Level level) {
-        this(SmartNpcModEntities.PLAYER_NPC.get(), level);
-    }
-
     public ItemStack getMainWeaponItem() {
         return mainWeaponItem;
     }
@@ -1505,7 +1501,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
 
     public boolean promoteMainWeaponItem(ItemStack stack) {
         if (!this.isCombatMainHandGear(stack)
-                || this.gearScore(stack) <= this.gearScore(this.mainWeaponItem) + 0.05D) {
+                || this.gearScore(stack) <= this.cachedCombatWeaponScore() + 0.05D) {
             return false;
         }
         this.setMainWeaponItem(stack);
@@ -1514,11 +1510,17 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
 
     private boolean promoteMainWeaponItemFromEquip(ItemStack newItem, ItemStack oldItem) {
         if (!this.isCombatMainHandGear(newItem)
-                || this.gearScore(newItem) <= this.gearScore(this.mainWeaponItem) + 0.05D) {
+                || this.gearScore(newItem) <= this.cachedCombatWeaponScore() + 0.05D) {
             return false;
         }
         this.replaceMainWeaponItem(newItem, true, oldItem);
         return true;
+    }
+
+    private double cachedCombatWeaponScore() {
+        return this.isCombatMainHandGear(this.mainWeaponItem)
+                ? this.gearScore(this.mainWeaponItem)
+                : 0.0D;
     }
 
     public void setMainHandItemForAi(ItemStack stack) {
@@ -1530,13 +1532,48 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         }
     }
 
+    public boolean equipTemporaryBowFromInventory() {
+        if (this.temporaryBowEquipped || this.getMainHandItem().getItem() instanceof BowItem) {
+            return true;
+        }
+
+        ItemStack bow = this.consumeInventoryItem(stack -> stack.getItem() instanceof BowItem, 1)
+                .orElse(ItemStack.EMPTY);
+        if (bow.isEmpty()) {
+            return false;
+        }
+
+        this.temporaryBowPreviousMainHand = this.getMainHandItem().copy();
+        this.temporaryBowEquipped = true;
+        this.setMainHandItemForAi(bow);
+        return true;
+    }
+
+    public void restoreMainHandAfterTemporaryBow() {
+        if (!this.temporaryBowEquipped) {
+            return;
+        }
+
+        ItemStack temporaryItem = this.getMainHandItem().copy();
+        ItemStack previousMainHand = this.temporaryBowPreviousMainHand.copy();
+        this.temporaryBowPreviousMainHand = ItemStack.EMPTY;
+        this.temporaryBowEquipped = false;
+
+        this.setMainHandItemForAi(previousMainHand);
+        if (!temporaryItem.isEmpty()
+                && !ItemStack.isSameItemSameComponents(temporaryItem, previousMainHand)) {
+            this.addOrDropInventoryItem(temporaryItem);
+        }
+        this.setSwapToBowCooldown();
+    }
+
     private void replaceMainWeaponItem(ItemStack stack, boolean moveOldToInventory, ItemStack oldEquippedItem) {
         ItemStack next = stack == null ? ItemStack.EMPTY : stack.copy();
         if (!next.isEmpty()) {
             next.setCount(1);
         }
 
-        if (ItemStack.isSameItemSameTags(this.mainWeaponItem, next)) {
+        if (ItemStack.isSameItemSameComponents(this.mainWeaponItem, next)) {
             this.mainWeaponItem = next;
             if (!this.mainWeaponItem.isEmpty()) {
                 this.mainWeaponDisarmed = false;
@@ -1553,9 +1590,9 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
 
         if (!moveOldToInventory
                 || previous.isEmpty()
-                || (!oldEquippedItem.isEmpty() && ItemStack.isSameItemSameTags(previous, oldEquippedItem))
+                || (!oldEquippedItem.isEmpty() && ItemStack.isSameItemSameComponents(previous, oldEquippedItem))
                 || this.isCurrentlyHeld(previous)
-                || ItemStack.isSameItemSameTags(previous, this.mainWeaponItem)) {
+                || ItemStack.isSameItemSameComponents(previous, this.mainWeaponItem)) {
             return;
         }
 
@@ -1564,8 +1601,8 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
 
     private boolean isCurrentlyHeld(ItemStack stack) {
         return !stack.isEmpty()
-                && (ItemStack.isSameItemSameTags(stack, this.getMainHandItem())
-                || ItemStack.isSameItemSameTags(stack, this.getOffhandItem()));
+                && (ItemStack.isSameItemSameComponents(stack, this.getMainHandItem())
+                || ItemStack.isSameItemSameComponents(stack, this.getOffhandItem()));
     }
 
     private void addOrDropInventoryItem(ItemStack stack) {
@@ -1575,6 +1612,36 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         ItemStack copy = stack.copy();
         if (!InventoryUtils.addItem(this.inventory, copy)) {
             this.spawnAtLocation(copy);
+        }
+    }
+
+    private void repairLegacyRangedMainHandAfterLoad() {
+        ItemStack rangedWeapon = this.getMainHandItem().copy();
+        if (!this.isRangedMainHandGear(rangedWeapon)) {
+            if (this.isCombatMainHandGear(this.getMainHandItem())
+                    && this.isRangedMainHandGear(this.mainWeaponItem)) {
+                this.mainWeaponItem = this.getMainHandItem().copy();
+                this.mainWeaponItem.setCount(1);
+                this.mainWeaponDisarmed = false;
+            }
+            return;
+        }
+
+        if (!this.mainWeaponItem.isEmpty()
+                && !this.isRangedMainHandGear(this.mainWeaponItem)
+                && this.isMainHandGear(this.mainWeaponItem)) {
+            this.setMainHandItemForAi(this.mainWeaponItem);
+            this.addOrDropInventoryItem(rangedWeapon);
+            this.setSwapToBowCooldown();
+            return;
+        }
+
+        if (this.isRangedMainHandGear(this.mainWeaponItem)) {
+            this.mainWeaponItem = ItemStack.EMPTY;
+        }
+        if (this.equipBestMainHandFromInventory()) {
+            this.inventory.setChanged();
+            this.setSwapToBowCooldown();
         }
     }
 
@@ -1617,7 +1684,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         // per-tick snapshot exact when the backing container changes instead of rescanning all
         // slots independently for logs, stone, and dirt.
         this.inventory.addListener(container -> ResourceAi.invalidate(this));
-        this.setMaxUpStep(1.0F);
+        Objects.requireNonNull(this.getAttribute(Attributes.STEP_HEIGHT)).setBaseValue(1.0D);
         this.xpReward = 50;
         this.setNoAi(false);
         this.setCustomNameVisible(true);
@@ -1643,29 +1710,29 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     @Override
-    public int getExperienceReward() {
-        long reward = (long) super.getExperienceReward() + this.storedExperience;
+    protected int getBaseExperienceReward() {
+        long reward = (long) super.getBaseExperienceReward() + this.storedExperience;
         return reward > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) Math.max(0L, reward);
     }
 
     @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
-        this.entityData.define(MAIN_HAND_ATTACK_ANIMATION_TICKS, 0);
-        this.entityData.define(HEALING, false);
-        this.entityData.define(BETTER_COMBAT_ATTACK_ANIMATION_TICKS, 0);
-        this.entityData.define(BETTER_COMBAT_ATTACK_SEQUENCE, 0);
-        this.entityData.define(AI_STATE, AI_IDLE);
-        this.entityData.define(AI_DETAIL, "");
-        this.entityData.define(DANCING, false);
-        this.entityData.define(EPIC_FIGHT_DIGGING, false);
-        this.entityData.define(SNEAKING_AI_HIDES_DISPLAY_NAME, false);
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(MAIN_HAND_ATTACK_ANIMATION_TICKS, 0);
+        builder.define(HEALING, false);
+        builder.define(BETTER_COMBAT_ATTACK_ANIMATION_TICKS, 0);
+        builder.define(BETTER_COMBAT_ATTACK_SEQUENCE, 0);
+        builder.define(AI_STATE, AI_IDLE);
+        builder.define(AI_DETAIL, "");
+        builder.define(DANCING, false);
+        builder.define(EPIC_FIGHT_DIGGING, false);
+        builder.define(SNEAKING_AI_HIDES_DISPLAY_NAME, false);
     }
 
     @Override
     public void addAdditionalSaveData(@NotNull CompoundTag tag) {
         super.addAdditionalSaveData(tag);
-        tag.put("Inventory", this.inventory.createTag());
+        tag.put("Inventory", this.inventory.createTag(this.registryAccess()));
         tag.putInt("GapCooldown", this.gapCooldown);
         tag.putInt("BucketCooldown", this.bucketCooldown);
         tag.putInt("FlintAndSteelCooldown", this.flintAndSteelCooldown);
@@ -1717,14 +1784,16 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         tag.putDouble("BlockProjectileChance", this.placeBlockToParryChance);
         tag.putInt("BlockParryCooldown", this.placeBlockParryCooldown);
         if (!this.mainWeaponItem.isEmpty()) {
-            CompoundTag itemTag = new CompoundTag();
-            this.mainWeaponItem.save(itemTag);
-            tag.put("MainHandItem", itemTag);
+            tag.put("MainHandItem", this.mainWeaponItem.save(this.registryAccess()));
         }
         if (!this.offWeaponItem.isEmpty()) {
-            CompoundTag itemTag = new CompoundTag();
-            this.offWeaponItem.save(itemTag);
-            tag.put("OffHandItem", itemTag);
+            tag.put("OffHandItem", this.offWeaponItem.save(this.registryAccess()));
+        }
+        if (this.temporaryBowEquipped) {
+            tag.putBoolean("TemporaryBowEquipped", true);
+            if (!this.temporaryBowPreviousMainHand.isEmpty()) {
+                tag.put("TemporaryBowPreviousMainHand", this.temporaryBowPreviousMainHand.save(this.registryAccess()));
+            }
         }
         if (this.ownedChestPos != null) {
             tag.putInt("OwnedChestX", this.ownedChestPos.getX());
@@ -1751,7 +1820,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         }
         ListTag temporarySupports = new ListTag();
         for (Map.Entry<BlockPos, Block> entry : this.temporaryPillarSupports.entrySet()) {
-            ResourceLocation blockId = ForgeRegistries.BLOCKS.getKey(entry.getValue());
+            ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(entry.getValue());
             if (blockId == null || entry.getValue() == Blocks.AIR) {
                 continue;
             }
@@ -1774,7 +1843,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     public void readAdditionalSaveData(@NotNull CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         if (tag.contains("Inventory", Tag.TAG_LIST)) {
-            this.inventory.fromTag(tag.getList("Inventory", Tag.TAG_COMPOUND));
+            this.inventory.fromTag(tag.getList("Inventory", Tag.TAG_COMPOUND), this.registryAccess());
         }
         this.gapCooldown = tag.getInt("GapCooldown");
         this.bucketCooldown = tag.getInt("BucketCooldown");
@@ -1871,7 +1940,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             for (int index = 0; index < supportCount; index++) {
                 CompoundTag supportTag = temporarySupports.getCompound(index);
                 ResourceLocation blockId = ResourceLocation.tryParse(supportTag.getString("Block"));
-                Block block = blockId == null ? null : ForgeRegistries.BLOCKS.getValue(blockId);
+                Block block = blockId == null ? null : BuiltInRegistries.BLOCK.get(blockId);
                 if (block != null && block != Blocks.AIR) {
                     BlockPos supportPos = BlockPos.of(supportTag.getLong("Pos")).immutable();
                     this.temporaryPillarSupports.put(supportPos, block);
@@ -1887,14 +1956,23 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         }
         this.placeBlockParryCooldown = tag.getInt("BlockParryCooldown");
         if (tag.contains("MainHandItem", Tag.TAG_COMPOUND)) {
-            this.mainWeaponItem = ItemStack.of(tag.getCompound("MainHandItem"));
+            this.mainWeaponItem = ItemStack.parseOptional(this.registryAccess(), tag.getCompound("MainHandItem"));
         } else {
             this.mainWeaponItem = ItemStack.EMPTY;
         }
         if (tag.contains("OffHandItem", Tag.TAG_COMPOUND)) {
-            this.offWeaponItem = ItemStack.of(tag.getCompound("OffHandItem"));
+            this.offWeaponItem = ItemStack.parseOptional(this.registryAccess(), tag.getCompound("OffHandItem"));
         } else {
             this.offWeaponItem = ItemStack.EMPTY;
+        }
+        this.temporaryBowEquipped = tag.getBoolean("TemporaryBowEquipped");
+        if (this.temporaryBowEquipped && tag.contains("TemporaryBowPreviousMainHand", Tag.TAG_COMPOUND)) {
+            this.temporaryBowPreviousMainHand = ItemStack.parseOptional(
+                    this.registryAccess(),
+                    tag.getCompound("TemporaryBowPreviousMainHand")
+            );
+        } else {
+            this.temporaryBowPreviousMainHand = ItemStack.EMPTY;
         }
         if (tag.contains("OwnedChestX", Tag.TAG_INT)
                 && tag.contains("OwnedChestY", Tag.TAG_INT)
@@ -1909,12 +1987,14 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         }
         PlayerNpcHomeUtil.readHomeFromTag(this, tag);
         this.mainWeaponDisarmed = tag.getBoolean("MainWeaponDisarmed");
+        this.restoreMainHandAfterTemporaryBow();
+        this.repairLegacyRangedMainHandAfterLoad();
         this.materializeCachedMainWeaponAfterLoad();
     }
 
     @Override
-    protected void dropCustomDeathLoot(@NotNull DamageSource source, int looting, boolean recentlyHit) {
-        super.dropCustomDeathLoot(source, looting, recentlyHit);
+    protected void dropCustomDeathLoot(@NotNull ServerLevel level, @NotNull DamageSource source, boolean recentlyHit) {
+        super.dropCustomDeathLoot(level, source, recentlyHit);
 
         for (int i = 0; i < this.inventory.getContainerSize(); i++) {
             ItemStack stack = this.inventory.getItem(i);
@@ -1929,9 +2009,9 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             return false;
         }
 
-        EquipmentSlot slot = LivingEntity.getEquipmentSlotForItem(stack);
+        EquipmentSlot slot = this.getEquipmentSlotForItem(stack);
 
-        if (slot.getType() == EquipmentSlot.Type.ARMOR) {
+        if (slot.isArmor()) {
             return !this.wantsToPickUp(stack);
         }
 
@@ -1958,15 +2038,11 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             return false;
         }
 
-        EquipmentSlot slot = LivingEntity.getEquipmentSlotForItem(stack);
-        if (slot.getType() != EquipmentSlot.Type.ARMOR) {
+        EquipmentSlot slot = this.getEquipmentSlotForItem(stack);
+        if (!slot.isArmor()) {
             return false;
         }
         return super.wantsToPickUp(stack);
-    }
-
-    public @NotNull Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return NetworkHooks.getEntitySpawningPacket(this);
     }
 
     public boolean isSmartNpcCompatPlayerLikeTarget(LivingEntity target) {
@@ -2309,10 +2385,6 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.addWorkGoal(8, new FillWaterBucketGoal(this, 1.0D));
     }
 
-    public @NotNull MobType getMobType() {
-        return MobType.UNDEFINED;
-    }
-
     public boolean removeWhenFarAway(double d0) {
         return false;
     }
@@ -2322,11 +2394,11 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     public @NotNull SoundEvent getHurtSound(@NotNull DamageSource damageSource) {
-        return Objects.requireNonNull(ForgeRegistries.SOUND_EVENTS.getValue(ResourceLocation.fromNamespaceAndPath("minecraft", "entity.generic.hurt")));
+        return Objects.requireNonNull(BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.fromNamespaceAndPath("minecraft", "entity.generic.hurt")));
     }
 
     public @NotNull SoundEvent getDeathSound() {
-        return Objects.requireNonNull(ForgeRegistries.SOUND_EVENTS.getValue(ResourceLocation.fromNamespaceAndPath("minecraft", "entity.generic.death")));
+        return Objects.requireNonNull(BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.fromNamespaceAndPath("minecraft", "entity.generic.death")));
     }
 
     public void jump() {
@@ -2452,7 +2524,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             return;
         }
 
-        stack.hurtAndBreak(amount, this, entity -> entity.broadcastBreakEvent(hand));
+        stack.hurtAndBreak(amount, this, hand == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
     }
 
     public boolean hurtHeldOrInventoryItem(Predicate<ItemStack> matcher, int amount) {
@@ -2472,7 +2544,9 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
                 continue;
             }
 
-            stack.hurtAndBreak(amount, this, entity -> {});
+            if (this.level() instanceof ServerLevel serverLevel) {
+                stack.hurtAndBreak(amount, serverLevel, this, item -> {});
+            }
             if (stack.isEmpty()) {
                 this.inventory.setItem(i, ItemStack.EMPTY);
             }
@@ -2528,14 +2602,15 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     public boolean isClearingCombatObstruction() {
-        return this.goalSelector.getRunningGoals()
+        return this.goalSelector.getAvailableGoals().stream().filter(WrappedGoal::isRunning)
                 .anyMatch(wrapped -> wrapped.getGoal() instanceof BreakTargetObstructionGoal);
     }
 
     public boolean isMainHandReservedForAi() {
         String state = this.getCurrentAiState();
-        return this.isHealing()
-                || this.goalSelector.getRunningGoals().anyMatch(wrapped -> {
+        return this.temporaryBowEquipped
+                || this.isHealing()
+                || this.goalSelector.getAvailableGoals().stream().filter(WrappedGoal::isRunning).anyMatch(wrapped -> {
                     Goal goal = wrapped.getGoal();
                     if (goal instanceof InterestGatedGoal gatedGoal) {
                         goal = gatedGoal.getDelegateGoal();
@@ -2573,8 +2648,8 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
                 continue;
             }
 
-            EquipmentSlot slot = LivingEntity.getEquipmentSlotForItem(stack);
-            if (slot.getType() != EquipmentSlot.Type.ARMOR) {
+            EquipmentSlot slot = this.getEquipmentSlotForItem(stack);
+            if (!slot.isArmor()) {
                 continue;
             }
 
@@ -2591,7 +2666,9 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
 
     private boolean equipBestMainHandFromInventory() {
         int bestSlot = -1;
-        double bestScore = this.gearScore(this.getMainHandItem());
+        double bestScore = this.isMainHandGear(this.getMainHandItem())
+                ? this.gearScore(this.getMainHandItem())
+                : 0.0D;
         for (int i = 0; i < this.inventory.getContainerSize(); i++) {
             ItemStack stack = this.inventory.getItem(i);
             if (!this.isMainHandGear(stack)) {
@@ -2638,18 +2715,19 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
                 && (stack.getItem() instanceof SwordItem
                 || stack.getItem() instanceof AxeItem
                 || stack.getItem() instanceof TridentItem
-                || stack.getItem() instanceof DiggerItem
-                || stack.getItem() instanceof BowItem
-                || stack.getItem() instanceof CrossbowItem
-                || stack.getItem() instanceof ProjectileWeaponItem);
+                || stack.getItem() instanceof DiggerItem);
     }
 
     private boolean isCombatMainHandGear(ItemStack stack) {
         return !stack.isEmpty()
                 && (stack.getItem() instanceof SwordItem
                 || stack.getItem() instanceof AxeItem
-                || stack.getItem() instanceof TridentItem
-                || stack.getItem() instanceof BowItem
+                || stack.getItem() instanceof TridentItem);
+    }
+
+    private boolean isRangedMainHandGear(ItemStack stack) {
+        return !stack.isEmpty()
+                && (stack.getItem() instanceof BowItem
                 || stack.getItem() instanceof CrossbowItem
                 || stack.getItem() instanceof ProjectileWeaponItem);
     }
@@ -2663,10 +2741,9 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         if (stack.getItem() instanceof ArmorItem armorItem) {
             score += armorItem.getDefense() * 3.0D;
             score += armorItem.getToughness() * 1.5D;
-        } else if (stack.getItem() instanceof SwordItem swordItem) {
-            score += swordItem.getDamage() + 4.0D;
-        } else if (stack.getItem() instanceof AxeItem axeItem) {
-            score += axeItem.getAttackDamage() + 3.0D;
+        } else if (stack.getItem() instanceof SwordItem || stack.getItem() instanceof AxeItem) {
+            score += stack.getAttributeModifiers().compute(
+                    this.getAttributeBaseValue(Attributes.ATTACK_DAMAGE), EquipmentSlot.MAINHAND);
         } else if (stack.getItem() instanceof TridentItem) {
             score += 9.0D;
         } else if (stack.getItem() instanceof BowItem || stack.getItem() instanceof CrossbowItem || stack.getItem() instanceof ProjectileWeaponItem) {
@@ -2817,9 +2894,9 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             return;
         }
 
-        AbstractArrow mobArrow = ProjectileUtil.getMobArrow(this, itemstack, pVelocity);
+        AbstractArrow mobArrow = ProjectileUtil.getMobArrow(this, itemstack, pVelocity, weaponStack);
         if (weaponStack.getItem() instanceof BowItem bowItem) {
-            mobArrow = bowItem.customArrow(mobArrow);
+            mobArrow = bowItem.customArrow(mobArrow, itemstack, weaponStack);
         }
 
         double x = pTarget.getX() - this.getX();
@@ -2958,7 +3035,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             ItemStack slotStack = this.inventory.getItem(i);
 
             if (!slotStack.isEmpty()
-                    && ItemStack.isSameItemSameTags(slotStack, remaining) &&
+                    && ItemStack.isSameItemSameComponents(slotStack, remaining) &&
                     slotStack.getCount() < slotStack.getMaxStackSize()) {
                 int transferable = Math.min(
                         remaining.getCount(),
@@ -4358,13 +4435,13 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             return;
         }
 
-        boolean healingGoalRunning = this.goalSelector.getRunningGoals()
+        boolean healingGoalRunning = this.goalSelector.getAvailableGoals().stream().filter(WrappedGoal::isRunning)
                 .map(WrappedGoal::getGoal)
                 .anyMatch(EatHealingFoodGoal.class::isInstance);
         if (healingGoalRunning
                 || ("ai.player_npc.eating".equals(this.getCurrentAiState())
                 && this.isUsingItem()
-                && this.getMainHandItem().isEdible())) {
+                && this.getMainHandItem().has(net.minecraft.core.component.DataComponents.FOOD))) {
             return;
         }
 
@@ -4449,8 +4526,8 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     private boolean hasRunningAiGoals() {
-        return this.goalSelector.getRunningGoals().findAny().isPresent()
-                || this.targetSelector.getRunningGoals().findAny().isPresent();
+        return this.goalSelector.getAvailableGoals().stream().filter(WrappedGoal::isRunning).findAny().isPresent()
+                || this.targetSelector.getAvailableGoals().stream().filter(WrappedGoal::isRunning).findAny().isPresent();
     }
 
     private void clearStaleIdleNavigation() {
@@ -4544,7 +4621,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         // Vanilla's recent-damage reference can expire before its retaliation goal finishes.
         // That running goal still owns a legitimate defensive fight, even for non-hunters.
         return target == this.getLastHurtByMob()
-                || target == this.getTarget() && this.targetSelector.getRunningGoals()
+                || target == this.getTarget() && this.targetSelector.getAvailableGoals().stream().filter(WrappedGoal::isRunning)
                 .anyMatch(wrapped -> wrapped.getGoal() instanceof HurtByTargetGoal);
     }
 
@@ -4579,8 +4656,8 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
                 || "ai.player_npc.protecting_chest".equals(state);
     }
 
-    public SpawnGroupData finalizeSpawn(@NotNull ServerLevelAccessor serverLevelAccessor, @NotNull DifficultyInstance difficultyInstance, @NotNull MobSpawnType mobSpawnType, @Nullable SpawnGroupData spawngroupdata, @Nullable CompoundTag compoundtag) {
-        SpawnGroupData returnSpawnGroupData = super.finalizeSpawn(serverLevelAccessor, difficultyInstance, mobSpawnType, spawngroupdata, compoundtag);
+    public SpawnGroupData finalizeSpawn(@NotNull ServerLevelAccessor serverLevelAccessor, @NotNull DifficultyInstance difficultyInstance, @NotNull MobSpawnType mobSpawnType, @Nullable SpawnGroupData spawngroupdata) {
+        SpawnGroupData returnSpawnGroupData = super.finalizeSpawn(serverLevelAccessor, difficultyInstance, mobSpawnType, spawngroupdata);
 
         if (this.isRemoved()) {
             return returnSpawnGroupData;
@@ -4791,7 +4868,9 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     public void awardKillScore(@NotNull Entity entity, int i, @NotNull DamageSource damageSource) {
         super.awardKillScore(entity, i, damageSource);
         if (entity instanceof LivingEntity livingEntity) {
-            this.awardStoredExperience(livingEntity.getExperienceReward());
+            if (this.level() instanceof ServerLevel serverLevel) {
+                this.awardStoredExperience(livingEntity.getExperienceReward(serverLevel, this));
+            }
         }
         if (ChatUtil.shouldPlayerNpcTauntKill(this, entity)) {
             ChatUtil.scheduleKillerTaunt(this, entity);
@@ -4844,6 +4923,9 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         builder = builder.add(Attributes.ARMOR, 0.0D);
         builder = builder.add(Attributes.ATTACK_DAMAGE, 1.0D);
         builder = builder.add(Attributes.FOLLOW_RANGE, 48.0D);
+        builder = builder.add(Attributes.MINING_EFFICIENCY, 0.0D);
+        builder = builder.add(Attributes.SUBMERGED_MINING_SPEED, 0.2D);
+        builder = builder.add(Attributes.STEP_HEIGHT, 1.0D);
         return builder;
     }
 }

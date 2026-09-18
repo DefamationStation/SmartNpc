@@ -128,7 +128,7 @@ public class ThrowEnderPearlGoal extends Goal {
                 this.giveOrDrop(currentOffHand);
             } else if (!currentOffHand.isEmpty()
                     && !this.isSamePearl(currentOffHand)
-                    && !ItemStack.isSameItemSameTags(currentOffHand, this.previousOffHand)) {
+                    && !ItemStack.isSameItemSameComponents(currentOffHand, this.previousOffHand)) {
                 this.giveOrDrop(currentOffHand);
             }
             this.playerNpc.setItemInHand(InteractionHand.OFF_HAND, this.previousOffHand.copy());
@@ -184,7 +184,7 @@ public class ThrowEnderPearlGoal extends Goal {
     }
 
     private boolean isSamePearl(ItemStack stack) {
-        return !stack.isEmpty() && ItemStack.isSameItemSameTags(stack, this.equippedPearl);
+        return !stack.isEmpty() && ItemStack.isSameItemSameComponents(stack, this.equippedPearl);
     }
 
     private void giveOrDrop(ItemStack stack) {

@@ -10,7 +10,7 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.RecordItem;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.ThrowablePotionItem;
 import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.block.state.BlockState;
@@ -63,7 +63,7 @@ public class InventoryUtils {
         for (int i = 0; i < inventory.getContainerSize() && !remaining.isEmpty(); i++) {
             ItemStack slotStack = inventory.getItem(i);
             if (slotStack.isEmpty()
-                    || !ItemStack.isSameItemSameTags(slotStack, remaining)
+                    || !ItemStack.isSameItemSameComponents(slotStack, remaining)
                     || slotStack.getCount() >= slotStack.getMaxStackSize()) {
                 continue;
             }
@@ -230,7 +230,7 @@ public class InventoryUtils {
                 || isUtilityMaterialStack(stack)
                 || isAnimalLootStack(stack)
                 || stack.is(ItemTags.SAPLINGS)
-                || stack.getItem() instanceof RecordItem
+                || stack.has(DataComponents.JUKEBOX_PLAYABLE)
                 || stack.getItem() instanceof ThrowablePotionItem);
     }
 
@@ -248,7 +248,7 @@ public class InventoryUtils {
                 || stack.is(Items.GLOW_INK_SAC)
                 || stack.is(Items.PHANTOM_MEMBRANE)
                 || stack.is(Items.SLIME_BALL)
-                || stack.is(Items.SCUTE)
+                || stack.is(Items.TURTLE_SCUTE)
                 || stack.is(Items.GOAT_HORN)
                 || stack.is(Items.HONEYCOMB));
     }
@@ -301,7 +301,7 @@ public class InventoryUtils {
         if (foodStack.isEmpty()) {
             return false;
         }
-        return consumeItem(entity, stack -> ItemStack.isSameItemSameTags(stack, foodStack), 1).isPresent();
+        return consumeItem(entity, stack -> ItemStack.isSameItemSameComponents(stack, foodStack), 1).isPresent();
     }
 
     public static BlockState getBlockState(ItemStack stack) {
@@ -364,7 +364,7 @@ public class InventoryUtils {
     private static boolean isRegularFoodStack(ItemStack stack) {
         return !stack.is(Items.GOLDEN_APPLE)
                 && !stack.is(Items.ENCHANTED_GOLDEN_APPLE)
-                && stack.isEdible();
+                && stack.has(net.minecraft.core.component.DataComponents.FOOD);
     }
 
     private static ItemStack oneOf(ItemStack stack) {

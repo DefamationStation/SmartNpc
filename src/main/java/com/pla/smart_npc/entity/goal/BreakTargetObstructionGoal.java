@@ -20,7 +20,7 @@ import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -442,7 +442,7 @@ public class BreakTargetObstructionGoal extends Goal {
         this.playerNpc.setCurrentAiDetail(String.format(
                 java.util.Locale.ROOT,
                 "%s @ %d %d %d",
-                ForgeRegistries.BLOCKS.getKey(state.getBlock()),
+                BuiltInRegistries.BLOCK.getKey(state.getBlock()),
                 this.obstructionPos.getX(),
                 this.obstructionPos.getY(),
                 this.obstructionPos.getZ()

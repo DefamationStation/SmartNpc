@@ -1588,7 +1588,7 @@ public class MiningNightCampGoal extends Goal {
                 || state.is(Blocks.WEEPING_VINES_PLANT)
                 || state.is(Blocks.TWISTING_VINES)
                 || state.is(Blocks.TWISTING_VINES_PLANT)
-                || state.is(Blocks.GRASS)
+                || state.is(Blocks.SHORT_GRASS)
                 || state.is(Blocks.TALL_GRASS)
                 || state.is(Blocks.FERN)
                 || state.is(Blocks.LARGE_FERN)
@@ -2150,7 +2150,7 @@ public class MiningNightCampGoal extends Goal {
             this.returnTemporaryMainHandOnRestore = returnCurrentOnRestore;
         } else if (!currentMainHand.isEmpty()
                 && this.returnTemporaryMainHandOnRestore
-                && !ItemStack.isSameItemSameTags(currentMainHand, this.previousMainHand)) {
+                && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousMainHand)) {
             this.returnStack(currentMainHand);
         }
 
@@ -2167,7 +2167,7 @@ public class MiningNightCampGoal extends Goal {
         ItemStack currentMainHand = this.playerNpc.getMainHandItem().copy();
         if (!currentMainHand.isEmpty()
                 && this.returnTemporaryMainHandOnRestore
-                && !ItemStack.isSameItemSameTags(currentMainHand, this.previousMainHand)) {
+                && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousMainHand)) {
             this.returnStack(currentMainHand);
         }
 

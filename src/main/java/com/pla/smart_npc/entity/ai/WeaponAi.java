@@ -25,7 +25,7 @@ public final class WeaponAi {
         }
 
         ItemStack mainHand = this.playerNpc.getMainHandItem();
-        if (ItemStack.isSameItemSameTags(mainHand, best.stack())) {
+        if (ItemStack.isSameItemSameComponents(mainHand, best.stack())) {
             this.playerNpc.promoteMainWeaponItem(best.stack());
             return true;
         }
@@ -40,7 +40,7 @@ public final class WeaponAi {
         }
 
         if (best.source() == MainHandSource.MAIN_WEAPON) {
-            ItemStack weapon = this.playerNpc.takeMainWeaponItem(stack -> ItemStack.isSameItemSameTags(stack, best.stack()));
+            ItemStack weapon = this.playerNpc.takeMainWeaponItem(stack -> ItemStack.isSameItemSameComponents(stack, best.stack()));
             if (weapon.isEmpty()) {
                 return false;
             }
@@ -49,7 +49,7 @@ public final class WeaponAi {
         }
 
         if (best.source() == MainHandSource.OFF_WEAPON) {
-            ItemStack weapon = this.playerNpc.takeOffWeaponItem(stack -> ItemStack.isSameItemSameTags(stack, best.stack()));
+            ItemStack weapon = this.playerNpc.takeOffWeaponItem(stack -> ItemStack.isSameItemSameComponents(stack, best.stack()));
             if (weapon.isEmpty()) {
                 return false;
             }
@@ -169,16 +169,16 @@ public final class WeaponAi {
             return 0.0D;
         }
         if (stack.getItem() instanceof SwordItem sword) {
-            return 100.0D + sword.getDamage() + tierBonus(stack);
+            return 100.0D + sword.getDamage(stack) + tierBonus(stack);
         }
         if (stack.getItem() instanceof AxeItem axe) {
-            return 90.0D + axe.getAttackDamage() + tierBonus(stack);
+            return 90.0D + axe.getDamage(stack) + tierBonus(stack);
         }
         return 0.0D;
     }
 
     private static double tierBonus(ItemStack stack) {
-        return stack.getItem() instanceof TieredItem tieredItem ? tieredItem.getTier().getLevel() * 0.25D : 0.0D;
+        return stack.getItem() instanceof TieredItem tieredItem ? tieredItem.getTier().getAttackDamageBonus() * 0.25D : 0.0D;
     }
 
     private enum MainHandSource {

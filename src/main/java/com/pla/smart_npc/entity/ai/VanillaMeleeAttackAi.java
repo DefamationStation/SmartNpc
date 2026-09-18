@@ -3,6 +3,7 @@ package com.pla.smart_npc.entity.ai;
 import com.pla.smart_npc.entity.PlayerNpcEntity;
 import com.pla.smart_npc.clazz.PlayerNpcInterest;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -12,11 +13,9 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ShieldItem;
 
-import java.util.UUID;
-
 /** Vanilla damage keeps enchantments, armor, hurt immunity, and held-weapon durability. */
 public final class VanillaMeleeAttackAi {
-    private static final UUID CRITICAL_DAMAGE_ID = UUID.fromString("b52eb904-9838-464d-8c6a-3c4c7317a159");
+    private static final ResourceLocation CRITICAL_DAMAGE_ID = ResourceLocation.fromNamespaceAndPath("smart_npc", "critical_damage");
     private static final int SHIELD_DISABLE_TICKS = 100;
 
     private VanillaMeleeAttackAi() {
@@ -35,7 +34,7 @@ public final class VanillaMeleeAttackAi {
         boolean modified = critical && damage != null;
         if (critical && target.isBlocking() && target.getUseItem().getItem() instanceof ShieldItem) {
             if (target instanceof Player player) {
-                player.disableShield(true);
+                player.disableShield();
             } else {
                 if (target instanceof PlayerNpcEntity otherNpc) {
                     otherNpc.setShieldGuardCooldown(Math.max(otherNpc.getShieldGuardCooldown(), SHIELD_DISABLE_TICKS));
@@ -46,8 +45,8 @@ public final class VanillaMeleeAttackAi {
             }
         }
         if (modified) {
-            damage.addTransientModifier(new AttributeModifier(CRITICAL_DAMAGE_ID,
-                    "Player NPC critical hit", 0.5D, AttributeModifier.Operation.MULTIPLY_TOTAL));
+            damage.addTransientModifier(new AttributeModifier(
+                    CRITICAL_DAMAGE_ID, 0.5D, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
         }
         boolean hit;
         try {

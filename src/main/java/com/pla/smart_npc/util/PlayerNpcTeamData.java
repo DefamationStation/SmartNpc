@@ -1,6 +1,7 @@
 package com.pla.smart_npc.util;
 
 import com.pla.smart_npc.SmartNpc;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -29,13 +30,10 @@ public final class PlayerNpcTeamData extends SavedData {
 
     public static PlayerNpcTeamData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(
-                PlayerNpcTeamData::load,
-                PlayerNpcTeamData::new,
-                DATA_NAME
-        );
+                new SavedData.Factory<>(PlayerNpcTeamData::new, PlayerNpcTeamData::load), DATA_NAME);
     }
 
-    public static PlayerNpcTeamData load(CompoundTag tag) {
+    public static PlayerNpcTeamData load(CompoundTag tag, HolderLookup.Provider registries) {
         PlayerNpcTeamData data = new PlayerNpcTeamData();
         ListTag redirects = tag.getList(REDIRECTS_TAG, Tag.TAG_COMPOUND);
         for (int index = 0; index < redirects.size(); index++) {
@@ -73,7 +71,7 @@ public final class PlayerNpcTeamData extends SavedData {
     }
 
     @Override
-    public CompoundTag save(CompoundTag tag) {
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         ListTag redirectTags = new ListTag();
         for (Map.Entry<UUID, TeamRedirect> entry : this.redirects.entrySet()) {
             CompoundTag value = new CompoundTag();

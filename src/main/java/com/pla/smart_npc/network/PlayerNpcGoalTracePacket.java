@@ -3,14 +3,17 @@ package com.pla.smart_npc.network;
 import com.pla.smart_npc.entity.PlayerNpcEntity;
 import com.pla.smart_npc.util.PlayerNpcGoalTraceLogger;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraftforge.network.NetworkEvent;
-import net.minecraftforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.neoforged.neoforge.network.PacketDistributor;
 
-import java.util.function.Supplier;
-
-public class PlayerNpcGoalTracePacket {
+public class PlayerNpcGoalTracePacket implements CustomPacketPayload {
+    public static final Type<PlayerNpcGoalTracePacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("smart_npc", "goal_trace"));
+    public static final StreamCodec<FriendlyByteBuf, PlayerNpcGoalTracePacket> STREAM_CODEC = StreamCodec.ofMember(PlayerNpcGoalTracePacket::encode, PlayerNpcGoalTracePacket::decode);
     private static final double MAX_TRACE_DISTANCE_SQR = 64.0D * 64.0D;
 
     private final int entityId;
@@ -21,9 +24,9 @@ public class PlayerNpcGoalTracePacket {
         this.enabled = enabled;
     }
 
-    public static void encode(PlayerNpcGoalTracePacket packet, FriendlyByteBuf buffer) {
-        buffer.writeVarInt(packet.entityId);
-        buffer.writeBoolean(packet.enabled);
+    public void encode(FriendlyByteBuf buffer) {
+        buffer.writeVarInt(this.entityId);
+        buffer.writeBoolean(this.enabled);
     }
 
     public static PlayerNpcGoalTracePacket decode(FriendlyByteBuf buffer) {
@@ -32,13 +35,9 @@ public class PlayerNpcGoalTracePacket {
         return new PlayerNpcGoalTracePacket(entityId, enabled);
     }
 
-    public static void handle(PlayerNpcGoalTracePacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-        NetworkEvent.Context context = contextSupplier.get();
+    public static void handle(PlayerNpcGoalTracePacket packet, IPayloadContext context) {
         context.enqueueWork(() -> {
-            ServerPlayer sender = context.getSender();
-            if (sender == null) {
-                return;
-            }
+            ServerPlayer sender = (ServerPlayer) context.player();
 
             Entity entity = sender.level().getEntity(packet.entityId);
             if (!(entity instanceof PlayerNpcEntity playerNpc)
@@ -54,8 +53,8 @@ public class PlayerNpcGoalTracePacket {
             } else {
                 PlayerNpcGoalTraceLogger.setTraceEnabled(sender, playerNpc, packet.enabled);
             }
-            SmartNpcNetwork.CHANNEL.send(
-                    PacketDistributor.PLAYER.with(() -> sender),
+            PacketDistributor.sendToPlayer(
+                    sender,
                     new PlayerNpcInspectorPacket(
                             playerNpc.getId(),
                             PlayerNpcInspectorData.createSnapshot(playerNpc),
@@ -68,8 +67,10 @@ public class PlayerNpcGoalTracePacket {
                     )
             );
         });
-        context.setPacketHandled(true);
     }
+
+    @Override
+    public Type<? extends CustomPacketPayload> type() { return TYPE; }
 
     private static boolean canTrace(ServerPlayer sender, PlayerNpcEntity playerNpc) {
         if (sender.distanceToSqr(playerNpc) <= MAX_TRACE_DISTANCE_SQR) {

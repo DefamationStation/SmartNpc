@@ -1255,7 +1255,7 @@ public final class ClearBlockAi {
                 breakRayTarget(serverLevel, eye, targetPos),
                 ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE,
-                null
+                net.minecraft.world.phys.shapes.CollisionContext.empty()
         ));
     }
 

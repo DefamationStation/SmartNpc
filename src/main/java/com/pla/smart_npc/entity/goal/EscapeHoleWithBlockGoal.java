@@ -710,7 +710,8 @@ public class EscapeHoleWithBlockGoal extends Goal {
                 || !this.combatTrapProbeThrottle.canCheck(this.playerNpc)
                 || this.countEscapeBlocks() <= 0
                 || !serverLevel.hasChunkAt(target.blockPosition())
-                || !this.canStandAt(serverLevel, feet)) {
+                || !this.canStandAt(serverLevel, feet)
+                || !this.isActuallyTrapped(serverLevel, feet)) {
             return false;
         }
         Path currentPath = this.playerNpc.getNavigation().getPath();
@@ -4599,7 +4600,7 @@ public class EscapeHoleWithBlockGoal extends Goal {
             this.previousMainHand = currentMainHand;
             this.usingTemporaryPickaxe = true;
         } else if (!currentMainHand.isEmpty()
-                && !ItemStack.isSameItemSameTags(currentMainHand, this.previousMainHand)
+                && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousMainHand)
                 && !InventoryUtils.addItem(this.playerNpc, currentMainHand)) {
             this.playerNpc.spawnAtLocation(currentMainHand);
         }
@@ -4635,7 +4636,7 @@ public class EscapeHoleWithBlockGoal extends Goal {
             this.previousMainHand = currentMainHand;
             this.usingTemporaryPickaxe = true;
         } else if (!currentMainHand.isEmpty()
-                && !ItemStack.isSameItemSameTags(currentMainHand, this.previousMainHand)
+                && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousMainHand)
                 && !InventoryUtils.addItem(this.playerNpc, currentMainHand)) {
             this.playerNpc.spawnAtLocation(currentMainHand);
         }
@@ -4710,7 +4711,7 @@ public class EscapeHoleWithBlockGoal extends Goal {
             this.previousPillarMainHand = currentMainHand;
             this.usingTemporaryBlock = true;
         } else if (!currentMainHand.isEmpty()
-                && !ItemStack.isSameItemSameTags(currentMainHand, this.previousPillarMainHand)
+                && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousPillarMainHand)
                 && !InventoryUtils.addItem(this.playerNpc, currentMainHand)) {
             this.playerNpc.spawnAtLocation(currentMainHand);
         }
@@ -4724,7 +4725,7 @@ public class EscapeHoleWithBlockGoal extends Goal {
 
         ItemStack currentMainHand = this.playerNpc.getMainHandItem().copy();
         if (!currentMainHand.isEmpty()
-                && !ItemStack.isSameItemSameTags(currentMainHand, this.previousMainHand)
+                && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousMainHand)
                 && !InventoryUtils.addItem(this.playerNpc, currentMainHand)) {
             this.playerNpc.spawnAtLocation(currentMainHand);
         }
@@ -4741,7 +4742,7 @@ public class EscapeHoleWithBlockGoal extends Goal {
 
         ItemStack currentMainHand = this.playerNpc.getMainHandItem().copy();
         if (!currentMainHand.isEmpty()
-                && !ItemStack.isSameItemSameTags(currentMainHand, this.previousPillarMainHand)
+                && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousPillarMainHand)
                 && !InventoryUtils.addItem(this.playerNpc, currentMainHand)) {
             this.playerNpc.spawnAtLocation(currentMainHand);
         }

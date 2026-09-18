@@ -543,7 +543,7 @@ public class PickupNearbyItemGoal extends Goal {
             if (slotStack.isEmpty()) {
                 return true;
             }
-            if (ItemStack.isSameItemSameTags(slotStack, incoming)
+            if (ItemStack.isSameItemSameComponents(slotStack, incoming)
                     && slotStack.getCount() < slotStack.getMaxStackSize()) {
                 return true;
             }

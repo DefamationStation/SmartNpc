@@ -1,30 +1,30 @@
 package com.pla.smart_npc.config;
 
-import net.minecraftforge.common.ForgeConfigSpec;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
 import java.util.List;
 
 public class SmartNpcConfig {
     public record SpawnConfig(int weight, int minCount, int maxCount) {}
 
-    public static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
-    public static final ForgeConfigSpec SPEC;
-    public static ForgeConfigSpec.BooleanValue REMOTE_NPC_DEPARTURE_ENABLED;
-    public static ForgeConfigSpec.IntValue REMOTE_NPC_DEPARTURE_MIN_MINUTES;
-    public static ForgeConfigSpec.IntValue REMOTE_NPC_DEPARTURE_MAX_MINUTES;
+    public static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
+    public static final ModConfigSpec SPEC;
+    public static ModConfigSpec.BooleanValue REMOTE_NPC_DEPARTURE_ENABLED;
+    public static ModConfigSpec.IntValue REMOTE_NPC_DEPARTURE_MIN_MINUTES;
+    public static ModConfigSpec.IntValue REMOTE_NPC_DEPARTURE_MAX_MINUTES;
     private static final SpawnConfig DEFAULT_PLAYER_NPC_SPAWN = new SpawnConfig(1, 1, 1);
     private static final int DEFAULT_MAX_NATURAL_PLAYER_NPCS = -1;
 
-    public static ForgeConfigSpec.ConfigValue<Boolean> TURN_ON_NPC_CHAT;
-    public static ForgeConfigSpec.ConfigValue<Boolean> SHOW_NPC_CHAT_PREFIX;
-    public static ForgeConfigSpec.ConfigValue<String> NPC_CHAT_LOCALE;
-    public static ForgeConfigSpec.IntValue FORCE_TICK_MANAGE;
-    public static ForgeConfigSpec.IntValue MAX_NATURAL_PLAYER_NPCS;
-    public static ForgeConfigSpec.IntValue AI_PROCESSING_NPC_LIMIT;
-    public static ForgeConfigSpec.DoubleValue AI_TARGET_SERVER_MSPT;
-    public static ForgeConfigSpec.ConfigValue<List<? extends Number>> PLAYER_NPC_SPAWN;
-    public static ForgeConfigSpec.ConfigValue<List<? extends String>> BLACKLIST_COMPAT_MOD_WEAPON;
-    public static ForgeConfigSpec.ConfigValue<Boolean> PERFORMANCE_MONITOR_ENABLED;
+    public static ModConfigSpec.ConfigValue<Boolean> TURN_ON_NPC_CHAT;
+    public static ModConfigSpec.ConfigValue<Boolean> SHOW_NPC_CHAT_PREFIX;
+    public static ModConfigSpec.ConfigValue<String> NPC_CHAT_LOCALE;
+    public static ModConfigSpec.IntValue FORCE_TICK_MANAGE;
+    public static ModConfigSpec.IntValue MAX_NATURAL_PLAYER_NPCS;
+    public static ModConfigSpec.IntValue AI_PROCESSING_NPC_LIMIT;
+    public static ModConfigSpec.DoubleValue AI_TARGET_SERVER_MSPT;
+    public static ModConfigSpec.ConfigValue<List<? extends Number>> PLAYER_NPC_SPAWN;
+    public static ModConfigSpec.ConfigValue<List<? extends String>> BLACKLIST_COMPAT_MOD_WEAPON;
+    public static ModConfigSpec.ConfigValue<Boolean> PERFORMANCE_MONITOR_ENABLED;
 
     static {
         BUILDER.push("remoteNpcDeparture");

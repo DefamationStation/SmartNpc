@@ -716,29 +716,8 @@ public final class BetterCombatClientCompat {
      * attack-speed calculation (base 4.0 + held-item MAINHAND modifiers).
      */
     private static float playerStyleAttackCooldownTicks(ItemStack stack) {
-        double base = 4.0D;
-        double additions = 0.0D;
-        double multiplyBase = 0.0D;
-        List<Double> multiplyTotal = new ArrayList<>();
-
-        for (var entry : stack.getAttributeModifiers(EquipmentSlot.MAINHAND).entries()) {
-            if (entry.getKey() != Attributes.ATTACK_SPEED) {
-                continue;
-            }
-            AttributeModifier modifier = entry.getValue();
-            switch (modifier.getOperation()) {
-                case ADDITION -> additions += modifier.getAmount();
-                case MULTIPLY_BASE -> multiplyBase += modifier.getAmount();
-                case MULTIPLY_TOTAL -> multiplyTotal.add(modifier.getAmount());
-            }
-        }
-
-        double withAdditions = base + additions;
-        double attackSpeed = withAdditions + withAdditions * multiplyBase;
-        for (double multiplier : multiplyTotal) {
-            attackSpeed *= 1.0D + multiplier;
-        }
-        attackSpeed = Math.max(0.1D, attackSpeed);
+        double attackSpeed = Math.max(0.1D,
+                stack.getAttributeModifiers().compute(4.0D, EquipmentSlot.MAINHAND));
 
         float cooldown = (float) (20.0D / attackSpeed);
         return Math.max(betterCombatAttackIntervalCap(), cooldown);

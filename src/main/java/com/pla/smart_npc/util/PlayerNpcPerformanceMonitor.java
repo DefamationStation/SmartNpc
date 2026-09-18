@@ -7,13 +7,14 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.server.ServerStoppedEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,7 +24,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.StringJoiner;
 
-@Mod.EventBusSubscriber(modid = SmartNpc.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = SmartNpc.MODID)
 public final class PlayerNpcPerformanceMonitor {
     private static final int ROLLING_WINDOW_TICKS = 100;
     private static final int MIN_AVERAGE_WARNING_SAMPLES = 20;
@@ -81,10 +82,7 @@ public final class PlayerNpcPerformanceMonitor {
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public static void onServerTickStart(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.START) {
-            return;
-        }
+    public static void onServerTickStart(ServerTickEvent.Pre event) {
         if (!SmartNpcConfig.PERFORMANCE_MONITOR_ENABLED.get()) {
             tickStartNanos = -1L;
             return;
@@ -115,10 +113,7 @@ public final class PlayerNpcPerformanceMonitor {
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onServerTickEnd(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) {
-            return;
-        }
+    public static void onServerTickEnd(ServerTickEvent.Post event) {
         if (!SmartNpcConfig.PERFORMANCE_MONITOR_ENABLED.get() || tickStartNanos < 0L) {
             tickStartNanos = -1L;
             return;

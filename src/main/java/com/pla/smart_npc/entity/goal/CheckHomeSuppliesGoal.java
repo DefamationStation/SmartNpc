@@ -457,7 +457,7 @@ public class CheckHomeSuppliesGoal extends Goal {
         for (int i = 0; i < inventory.getContainerSize() && !stack.isEmpty(); i++) {
             ItemStack slotStack = inventory.getItem(i);
             if (slotStack.isEmpty()
-                    || !ItemStack.isSameItemSameTags(slotStack, stack)
+                    || !ItemStack.isSameItemSameComponents(slotStack, stack)
                     || slotStack.getCount() >= slotStack.getMaxStackSize()) {
                 continue;
             }
@@ -489,7 +489,7 @@ public class CheckHomeSuppliesGoal extends Goal {
         return this.needsMissingTool(need, stack)
                 || need.fishingRod() && stack.getItem() instanceof FishingRodItem
                 || need.fishingString() && stack.is(Items.STRING)
-                || need.food() && stack.isEdible()
+                || need.food() && stack.has(net.minecraft.core.component.DataComponents.FOOD)
                 || need.wood() && this.isWoodSupply(stack)
                 || need.toolCraftingMaterials() && this.isToolCraftingSupply(stack)
                 || need.fuel() && (this.isTorchFuel(stack) || this.isFuel(stack))
@@ -507,7 +507,7 @@ public class CheckHomeSuppliesGoal extends Goal {
                     - this.countInventory(candidate -> candidate.is(Items.STRING));
             return Math.min(stack.getCount(), Math.max(1, missingString));
         }
-        if (stack.isEdible()) {
+        if (stack.has(net.minecraft.core.component.DataComponents.FOOD)) {
             return Math.min(stack.getCount(), 8);
         }
         if (this.isTorchFuel(stack) || this.isFuel(stack)) {
@@ -558,7 +558,7 @@ public class CheckHomeSuppliesGoal extends Goal {
     }
 
     private boolean needsFood() {
-        return this.countInventory(ItemStack::isEdible) < FOOD_RESERVE;
+        return this.countInventory(stack -> stack.has(net.minecraft.core.component.DataComponents.FOOD)) < FOOD_RESERVE;
     }
 
     private boolean needsWood() {

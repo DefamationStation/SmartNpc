@@ -1,6 +1,6 @@
 package com.pla.smart_npc.compat;
 
-import net.minecraftforge.fml.ModList;
+import net.neoforged.fml.ModList;
 
 /**
  * Common-side gate for the optional Better Combat integration.

@@ -305,7 +305,7 @@ public final class ChestAi {
 
         for (int slot = 0; slot < container.getContainerSize() && !remainder.isEmpty(); slot++) {
             ItemStack existing = container.getItem(slot);
-            if (existing.isEmpty() || !ItemStack.isSameItemSameTags(existing, remainder)) {
+            if (existing.isEmpty() || !ItemStack.isSameItemSameComponents(existing, remainder)) {
                 continue;
             }
 

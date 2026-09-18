@@ -1,10 +1,10 @@
 package com.pla.smart_npc.task;
 
 import com.pla.smart_npc.SmartNpc;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.server.ServerStoppedEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.bus.api.SubscribeEvent;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -77,7 +77,7 @@ public abstract class DelayedTask {
 
     private static synchronized void ensureSchedulerRegistered() {
         if (!schedulerRegistered) {
-            MinecraftForge.EVENT_BUS.register(SCHEDULER);
+            NeoForge.EVENT_BUS.register(SCHEDULER);
             schedulerRegistered = true;
         }
     }
@@ -94,11 +94,7 @@ public abstract class DelayedTask {
         private final List<DelayedTask> activeTasks = new ArrayList<>();
 
         @SubscribeEvent
-        public void onServerTick(TickEvent.ServerTickEvent event) {
-            if (event.phase != TickEvent.Phase.END) {
-                return;
-            }
-
+        public void onServerTick(ServerTickEvent.Post event) {
             DelayedTask pendingTask;
             while ((pendingTask = PENDING_ADD.poll()) != null) {
                 activeTasks.add(pendingTask);

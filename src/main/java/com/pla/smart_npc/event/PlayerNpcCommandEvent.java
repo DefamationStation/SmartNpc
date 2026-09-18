@@ -24,14 +24,15 @@ import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 
 import java.util.StringJoiner;
 import java.util.UUID;
 
-@Mod.EventBusSubscriber(modid = SmartNpc.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = SmartNpc.MODID)
 public final class PlayerNpcCommandEvent {
     private PlayerNpcCommandEvent() {
     }
@@ -104,7 +105,7 @@ public final class PlayerNpcCommandEvent {
         entity.moveTo(position.x, position.y, position.z, rotation.y, rotation.x);
         entity.setUsername(name);
         DifficultyInstance difficulty = level.getCurrentDifficultyAt(entity.blockPosition());
-        entity.finalizeSpawn(level, difficulty, MobSpawnType.COMMAND, null, null);
+        entity.finalizeSpawn(level, difficulty, MobSpawnType.COMMAND, null);
         level.addFreshEntity(entity);
         source.sendSuccess(() -> Component.literal("Spawned player NPC " + entity.getName().getString()), true);
         return 1;

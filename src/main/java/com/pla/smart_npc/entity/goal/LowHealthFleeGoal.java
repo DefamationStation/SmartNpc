@@ -337,7 +337,7 @@ public class LowHealthFleeGoal extends Goal {
     private boolean isEscapeSupportBlock(ItemStack stack) {
         if (stack.isEmpty()
                 || !(stack.getItem() instanceof BlockItem blockItem)
-                || stack.hasCustomHoverName()
+                || stack.has(net.minecraft.core.component.DataComponents.CUSTOM_NAME)
                 || stack.isEnchanted()
                 || stack.is(Items.CRAFTING_TABLE)
                 || stack.is(Items.CHEST)

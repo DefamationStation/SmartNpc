@@ -5,36 +5,22 @@ import net.minecraft.core.NonNullList;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.SimpleContainer;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.TransientCraftingContainer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.level.ItemLike;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Predicate;
 
 public final class PlayerNpcCraftingUtil {
-    private static final AbstractContainerMenu DUMMY_CRAFTING_MENU = new AbstractContainerMenu(null, -1) {
-        @Override
-        public ItemStack quickMoveStack(Player player, int slot) {
-            return ItemStack.EMPTY;
-        }
-
-        @Override
-        public boolean stillValid(Player player) {
-            return false;
-        }
-    };
-
     private PlayerNpcCraftingUtil() {
     }
 
@@ -224,7 +210,8 @@ public final class PlayerNpcCraftingUtil {
     ) {
         int width = craftingTable ? 3 : 2;
         int height = craftingTable ? 3 : 2;
-        for (CraftingRecipe recipe : serverLevel.getRecipeManager().getAllRecipesFor(RecipeType.CRAFTING)) {
+        for (var recipeHolder : serverLevel.getRecipeManager().getAllRecipesFor(RecipeType.CRAFTING)) {
+            CraftingRecipe recipe = recipeHolder.value();
             ItemStack recipeResult = recipe.getResultItem(serverLevel.registryAccess());
             if (recipeResult.isEmpty()
                     || !resultMatcher.test(recipeResult)
@@ -308,7 +295,7 @@ public final class PlayerNpcCraftingUtil {
     }
 
     private static Optional<CraftingPlan> validatePlan(ServerLevel serverLevel, CraftingRecipe recipe, int gridWidth, int gridHeight, NonNullList<ItemStack> gridItems, int[] inventorySlots) {
-        TransientCraftingContainer grid = new TransientCraftingContainer(DUMMY_CRAFTING_MENU, gridWidth, gridHeight, gridItems);
+        CraftingInput grid = CraftingInput.of(gridWidth, gridHeight, gridItems);
         if (!recipe.matches(grid, serverLevel)) {
             return Optional.empty();
         }
@@ -716,7 +703,7 @@ public final class PlayerNpcCraftingUtil {
     }
 
     private static Item getPlanksForLog(ItemStack stack) {
-        ResourceLocation key = ForgeRegistries.ITEMS.getKey(stack.getItem());
+        ResourceLocation key = BuiltInRegistries.ITEM.getKey(stack.getItem());
         if (key == null) {
             return null;
         }
@@ -743,19 +730,19 @@ public final class PlayerNpcCraftingUtil {
             return null;
         }
 
-        return ForgeRegistries.ITEMS.getValue(ResourceLocation.fromNamespaceAndPath(key.getNamespace(), plankPath));
+        return BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath(key.getNamespace(), plankPath));
     }
 
     private static Item getBedForWool(Item wool) {
-        ResourceLocation key = ForgeRegistries.ITEMS.getKey(wool);
+        ResourceLocation key = BuiltInRegistries.ITEM.getKey(wool);
         if (key == null || !key.getPath().endsWith("_wool")) {
             return null;
         }
 
         String bedPath = key.getPath().substring(0, key.getPath().length() - "_wool".length()) + "_bed";
-        return ForgeRegistries.ITEMS.getValue(ResourceLocation.fromNamespaceAndPath(key.getNamespace(), bedPath));
+        return BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath(key.getNamespace(), bedPath));
     }
 
-    private record CraftingPlan(CraftingRecipe recipe, TransientCraftingContainer grid, int[] inventorySlots) {
+    private record CraftingPlan(CraftingRecipe recipe, CraftingInput grid, int[] inventorySlots) {
     }
 }

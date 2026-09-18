@@ -150,7 +150,7 @@ public final class FarmCropGoal extends Goal {
             return state.getBlock() instanceof CropBlock crop
                     && !crop.isMaxAge(state)
                     && state.getBlock() instanceof BonemealableBlock bonemealable
-                    && bonemealable.isValidBonemealTarget(serverLevel, pos, state, false);
+                    && bonemealable.isValidBonemealTarget(serverLevel, pos, state);
         });
     }
 
@@ -566,7 +566,7 @@ public final class FarmCropGoal extends Goal {
                 || !(state.getBlock() instanceof BonemealableBlock bonemealable)
                 || !(state.getBlock() instanceof CropBlock crop)
                 || crop.isMaxAge(state)
-                || !bonemealable.isValidBonemealTarget(serverLevel, this.targetPos, state, false)) {
+                || !bonemealable.isValidBonemealTarget(serverLevel, this.targetPos, state)) {
             return false;
         }
         ItemStack boneMeal = this.playerNpc.consumeInventoryItem(Items.BONE_MEAL, 1).orElse(ItemStack.EMPTY);
@@ -716,7 +716,7 @@ public final class FarmCropGoal extends Goal {
         return state.getBlock() instanceof CropBlock crop
                 && !crop.isMaxAge(state)
                 && state.getBlock() instanceof BonemealableBlock bonemealable
-                && bonemealable.isValidBonemealTarget(serverLevel, pos, state, false);
+                && bonemealable.isValidBonemealTarget(serverLevel, pos, state);
     }
 
     private PlantingCrop findPlantingCrop() {

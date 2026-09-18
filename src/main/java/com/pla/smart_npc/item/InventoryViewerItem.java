@@ -4,7 +4,6 @@ import com.pla.smart_npc.entity.PlayerNpcEntity;
 import com.pla.smart_npc.network.PlayerNpcInspectorData;
 import com.pla.smart_npc.network.PlayerNpcInspectorPacket;
 import com.pla.smart_npc.network.PlayerNpcInspectatorModePacket;
-import com.pla.smart_npc.network.SmartNpcNetwork;
 import com.pla.smart_npc.util.PlayerNpcGoalTraceLogger;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -18,7 +17,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -44,8 +43,8 @@ public class InventoryViewerItem extends Item {
         }
 
         if (player instanceof ServerPlayer serverPlayer) {
-            SmartNpcNetwork.CHANNEL.send(
-                    PacketDistributor.PLAYER.with(() -> serverPlayer),
+            PacketDistributor.sendToPlayer(
+                    serverPlayer,
                     new PlayerNpcInspectorPacket(
                             target.getId(),
                             PlayerNpcInspectorData.createSnapshot(playerNpcEntity),
@@ -70,8 +69,8 @@ public class InventoryViewerItem extends Item {
             if (overall && PlayerNpcInspectatorModePacket.isInspectatorActive(serverPlayer)) {
                 PlayerNpcInspectatorModePacket.restorePlayer(serverPlayer);
             }
-            SmartNpcNetwork.CHANNEL.send(
-                    PacketDistributor.PLAYER.with(() -> serverPlayer),
+            PacketDistributor.sendToPlayer(
+                    serverPlayer,
                     overall
                             ? PlayerNpcInspectorPacket.overall(
                                     PlayerNpcInspectorData.createAiResourceText(serverPlayer.server, null))
@@ -84,11 +83,11 @@ public class InventoryViewerItem extends Item {
     @Override
     public void appendHoverText(
             @NotNull ItemStack stack,
-            Level level,
+            @NotNull Item.TooltipContext context,
             @NotNull List<Component> tooltip,
             @NotNull TooltipFlag flag
     ) {
-        super.appendHoverText(stack, level, tooltip, flag);
+        super.appendHoverText(stack, context, tooltip, flag);
         tooltip.add(Component.translatable("tooltip.player_npc.player_npc_inspector").withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.translatable("tooltip.player_npc.player_npc_inspector.inspectator").withStyle(ChatFormatting.DARK_AQUA));
     }

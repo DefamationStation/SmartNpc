@@ -2,21 +2,21 @@ package com.pla.smart_npc.config;
 
 import com.pla.smart_npc.SmartNpc;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.common.ForgeConfigSpec;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 public final class SmartNpcEpicFightConfig {
-    public static final ForgeConfigSpec SPEC;
-    public static final ForgeConfigSpec.ConfigValue<List<? extends String>> WEAPON_CAPABILITY_REDIRECTS;
+    public static final ModConfigSpec SPEC;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> WEAPON_CAPABILITY_REDIRECTS;
 
     private static volatile List<? extends String> cachedRawEntries = List.of();
     private static volatile Map<ResourceLocation, ResourceLocation> cachedRedirects = Map.of();
 
     static {
-        ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
+        ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
         builder.push("advancedMobPatch");
         WEAPON_CAPABILITY_REDIRECTS = builder.comment(
                         "Redirect an item's Epic Fight weapon capability preset only for Smart NPC combat.",

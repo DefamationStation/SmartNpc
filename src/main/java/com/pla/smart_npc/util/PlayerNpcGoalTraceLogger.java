@@ -24,12 +24,13 @@ import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.Path;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.event.server.ServerStoppingEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,7 +43,7 @@ import java.util.UUID;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
-@Mod.EventBusSubscriber(modid = SmartNpc.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = SmartNpc.MODID)
 public final class PlayerNpcGoalTraceLogger {
     private static final String ACTIVE_KEY = "PlayerNpcGoalTraceActive";
     private static final String ENTITY_UUID_KEY = "PlayerNpcGoalTraceEntityUuid";
@@ -69,10 +70,7 @@ public final class PlayerNpcGoalTraceLogger {
     }
 
     @SubscribeEvent
-    public static void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) {
-            return;
-        }
+    public static void onServerTick(ServerTickEvent.Post event) {
         long performanceStartNanos = PlayerNpcPerformanceMonitor.beginAuxiliaryTiming();
 
         long serverTick = event.getServer().getTickCount();
@@ -390,8 +388,8 @@ public final class PlayerNpcGoalTraceLogger {
                 cooldownsText(playerNpc),
                 verticalText(playerNpc),
                 buildingText(playerNpc),
-                runningGoalsText(playerNpc.goalSelector.getRunningGoals().collect(Collectors.toList())),
-                runningGoalsText(playerNpc.targetSelector.getRunningGoals().collect(Collectors.toList()))
+                runningGoalsText(playerNpc.goalSelector.getAvailableGoals().stream().filter(WrappedGoal::isRunning).collect(Collectors.toList())),
+                runningGoalsText(playerNpc.targetSelector.getAvailableGoals().stream().filter(WrappedGoal::isRunning).collect(Collectors.toList()))
         );
     }
 
@@ -420,7 +418,7 @@ public final class PlayerNpcGoalTraceLogger {
         }
 
         BlockState state = serverLevel.getBlockState(pos);
-        String blockId = String.valueOf(net.minecraftforge.registries.ForgeRegistries.BLOCKS.getKey(state.getBlock()));
+        String blockId = String.valueOf(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()));
         boolean insideHome = PlayerNpcHomeUtil.getHome(playerNpc)
                 .map(home -> PlayerNpcHomeUtil.isInside(home, pos))
                 .orElse(false);
@@ -520,8 +518,8 @@ public final class PlayerNpcGoalTraceLogger {
 
     private static String traceResult(PlayerNpcEntity playerNpc, String state) {
         boolean idle = state.isBlank() || PlayerNpcEntity.AI_IDLE.equals(state);
-        boolean hasRunningGoal = playerNpc.goalSelector.getRunningGoals().findAny().isPresent()
-                || playerNpc.targetSelector.getRunningGoals().findAny().isPresent();
+        boolean hasRunningGoal = playerNpc.goalSelector.getAvailableGoals().stream().filter(WrappedGoal::isRunning).findAny().isPresent()
+                || playerNpc.targetSelector.getAvailableGoals().stream().filter(WrappedGoal::isRunning).findAny().isPresent();
         if (idle && !hasRunningGoal) {
             return "idle_no_running_goal";
         }

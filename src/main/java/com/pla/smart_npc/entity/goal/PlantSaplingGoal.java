@@ -67,7 +67,7 @@ public class PlantSaplingGoal extends Goal {
             return;
         }
 
-        ItemStack consumed = this.playerNpc.consumeInventoryItem(stack -> ItemStack.isSameItemSameTags(stack, this.saplingStack), 1).orElse(ItemStack.EMPTY);
+        ItemStack consumed = this.playerNpc.consumeInventoryItem(stack -> ItemStack.isSameItemSameComponents(stack, this.saplingStack), 1).orElse(ItemStack.EMPTY);
         if (consumed.isEmpty() || !(consumed.getItem() instanceof BlockItem blockItem)) {
             this.clear();
             return;

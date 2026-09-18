@@ -930,7 +930,7 @@ public class CookFoodGoal extends Goal {
             this.returnTemporaryMainHandOnRestore = returnCurrentOnRestore;
         } else if (!currentMainHand.isEmpty()
                 && this.returnTemporaryMainHandOnRestore
-                && !ItemStack.isSameItemSameTags(currentMainHand, this.previousMainHand)
+                && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousMainHand)
                 && !InventoryUtils.addItem(this.playerNpc, currentMainHand)) {
             this.playerNpc.spawnAtLocation(currentMainHand);
         }
@@ -948,7 +948,7 @@ public class CookFoodGoal extends Goal {
         ItemStack currentMainHand = this.playerNpc.getMainHandItem().copy();
         if (!currentMainHand.isEmpty()
                 && this.returnTemporaryMainHandOnRestore
-                && !ItemStack.isSameItemSameTags(currentMainHand, this.previousMainHand)
+                && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousMainHand)
                 && !InventoryUtils.addItem(this.playerNpc, currentMainHand)) {
             this.playerNpc.spawnAtLocation(currentMainHand);
         }

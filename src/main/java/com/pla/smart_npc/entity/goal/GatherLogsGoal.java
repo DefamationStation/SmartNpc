@@ -1270,7 +1270,7 @@ public class GatherLogsGoal extends Goal {
                 || state.is(Blocks.VINE)
                 || state.is(Blocks.CAVE_VINES)
                 || state.is(Blocks.CAVE_VINES_PLANT)
-                || state.is(Blocks.GRASS)
+                || state.is(Blocks.SHORT_GRASS)
                 || state.is(Blocks.TALL_GRASS)
                 || state.is(Blocks.FERN)
                 || state.is(Blocks.LARGE_FERN)

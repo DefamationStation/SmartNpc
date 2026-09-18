@@ -12,7 +12,7 @@ import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.RecordItem;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.JukeboxBlock;
 import net.minecraft.world.level.block.entity.JukeboxBlockEntity;
@@ -201,19 +201,14 @@ public class JukeboxDanceGoal extends Goal {
             return;
         }
 
-        ItemStack disc = this.playerNpc.consumeInventoryItem(stack -> stack.getItem() instanceof RecordItem, 1).orElse(ItemStack.EMPTY);
+        ItemStack disc = this.playerNpc.consumeInventoryItem(stack -> stack.has(DataComponents.JUKEBOX_PLAYABLE), 1).orElse(ItemStack.EMPTY);
         if (disc.isEmpty()) {
             this.finishInstantAction();
             return;
         }
 
         disc.setCount(1);
-        jukebox.setItem(0, disc.copy());
-        jukebox.startPlaying();
-        serverLevel.setBlockAndUpdate(this.jukeboxPos, serverLevel.getBlockState(this.jukeboxPos).setValue(JukeboxBlock.HAS_RECORD, true));
-        if (disc.getItem() instanceof RecordItem recordItem) {
-            serverLevel.playSound(null, this.jukeboxPos, recordItem.getSound(), SoundSource.RECORDS, 4.0F, 1.0F);
-        }
+        jukebox.setTheItem(disc.copy());
         this.playerNpc.swing(InteractionHand.MAIN_HAND, true);
         this.playerNpc.getLookControl().setLookAt(this.jukeboxPos.getX() + 0.5D, this.jukeboxPos.getY() + 0.5D, this.jukeboxPos.getZ() + 0.5D, 40.0F, 40.0F);
         this.playerNpc.setCurrentAiState("ai.player_npc.setting_up_jukebox");
@@ -321,7 +316,7 @@ public class JukeboxDanceGoal extends Goal {
     }
 
     private boolean hasMusicDisc() {
-        return InventoryUtils.hasItem(this.playerNpc, stack -> stack.getItem() instanceof RecordItem);
+        return InventoryUtils.hasItem(this.playerNpc, stack -> stack.has(DataComponents.JUKEBOX_PLAYABLE));
     }
 
     private void moveAroundJukebox(ServerLevel serverLevel) {

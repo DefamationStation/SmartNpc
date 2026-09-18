@@ -1,13 +1,9 @@
 package com.pla.smart_npc.init;
 
 import com.pla.smart_npc.client.renderer.*;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.EntityRenderersEvent.RegisterRenderers;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers;
+import net.neoforged.bus.api.SubscribeEvent;
 
-@EventBusSubscriber(bus = Bus.MOD, value = {Dist.CLIENT})
 public class SmartNpcModEntityRenderers {
 
     @SubscribeEvent

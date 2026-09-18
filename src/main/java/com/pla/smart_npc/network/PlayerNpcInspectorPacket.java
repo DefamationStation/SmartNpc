@@ -1,17 +1,19 @@
 package com.pla.smart_npc.network;
 
 import com.pla.smart_npc.client.gui.SmartNpcInspectorOverlay;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 
-public class PlayerNpcInspectorPacket {
+public class PlayerNpcInspectorPacket implements CustomPacketPayload {
+    public static final Type<PlayerNpcInspectorPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("smart_npc", "inspector"));
+    public static final StreamCodec<RegistryFriendlyByteBuf, PlayerNpcInspectorPacket> STREAM_CODEC = StreamCodec.ofMember(PlayerNpcInspectorPacket::encode, PlayerNpcInspectorPacket::decode);
     public static final int OVERALL_ENTITY_ID = -2;
     private final int entityId;
     private final List<ItemStack> items;
@@ -174,29 +176,29 @@ public class PlayerNpcInspectorPacket {
         return teamInfo;
     }
 
-    public static void encode(PlayerNpcInspectorPacket packet, FriendlyByteBuf buffer) {
-        buffer.writeVarInt(packet.entityId);
-        buffer.writeVarInt(packet.items.size());
-        for (ItemStack stack : packet.items) {
-            buffer.writeItem(stack);
+    public void encode(RegistryFriendlyByteBuf buffer) {
+        buffer.writeVarInt(this.entityId);
+        buffer.writeVarInt(this.items.size());
+        for (ItemStack stack : this.items) {
+            ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, stack);
         }
-        buffer.writeUtf(packet.buildStatusText);
-        buffer.writeUtf(packet.performanceText);
-        buffer.writeUtf(packet.dailyJobText);
-        buffer.writeUtf(packet.requirementsText);
-        buffer.writeUtf(packet.aiResourceText);
-        buffer.writeUtf(packet.teamInfo.teamName());
-        buffer.writeUtf(packet.teamInfo.leaderName());
-        buffer.writeByte(packet.teamInfo.role().ordinal());
-        buffer.writeBoolean(packet.traceEnabled);
+        buffer.writeUtf(this.buildStatusText);
+        buffer.writeUtf(this.performanceText);
+        buffer.writeUtf(this.dailyJobText);
+        buffer.writeUtf(this.requirementsText);
+        buffer.writeUtf(this.aiResourceText);
+        buffer.writeUtf(this.teamInfo.teamName());
+        buffer.writeUtf(this.teamInfo.leaderName());
+        buffer.writeByte(this.teamInfo.role().ordinal());
+        buffer.writeBoolean(this.traceEnabled);
     }
 
-    public static PlayerNpcInspectorPacket decode(FriendlyByteBuf buffer) {
+    public static PlayerNpcInspectorPacket decode(RegistryFriendlyByteBuf buffer) {
         int entityId = buffer.readVarInt();
         int size = buffer.readVarInt();
         List<ItemStack> items = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
-            items.add(buffer.readItem());
+            items.add(ItemStack.OPTIONAL_STREAM_CODEC.decode(buffer));
         }
         String buildStatusText = buffer.readUtf();
         String performanceText = buffer.readUtf();
@@ -213,12 +215,10 @@ public class PlayerNpcInspectorPacket {
                 dailyJobText, requirementsText, aiResourceText, new TeamInfo(teamName, leaderName, role), traceEnabled);
     }
 
-    public static void handle(PlayerNpcInspectorPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-        NetworkEvent.Context context = contextSupplier.get();
-        context.enqueueWork(() -> DistExecutor.unsafeRunWhenOn(
-                Dist.CLIENT,
-                () -> () -> SmartNpcInspectorOverlay.handlePacket(packet)
-        ));
-        context.setPacketHandled(true);
+    public static void handle(PlayerNpcInspectorPacket packet, IPayloadContext context) {
+        context.enqueueWork(() -> SmartNpcInspectorOverlay.handlePacket(packet));
     }
+
+    @Override
+    public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }

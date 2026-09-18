@@ -2,6 +2,7 @@ package com.pla.smart_npc.util;
 
 import com.pla.smart_npc.SmartNpc;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -32,13 +33,10 @@ public final class PlayerNpcForceTickData extends SavedData {
 
     public static PlayerNpcForceTickData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(
-                PlayerNpcForceTickData::load,
-                PlayerNpcForceTickData::new,
-                DATA_NAME
-        );
+                new SavedData.Factory<>(PlayerNpcForceTickData::new, PlayerNpcForceTickData::load), DATA_NAME);
     }
 
-    public static PlayerNpcForceTickData load(CompoundTag tag) {
+    public static PlayerNpcForceTickData load(CompoundTag tag, HolderLookup.Provider registries) {
         PlayerNpcForceTickData data = new PlayerNpcForceTickData();
         ListTag npcs = tag.getList(NPCS_TAG, Tag.TAG_COMPOUND);
         for (int i = 0; i < npcs.size(); i++) {
@@ -64,7 +62,7 @@ public final class PlayerNpcForceTickData extends SavedData {
     }
 
     @Override
-    public CompoundTag save(CompoundTag tag) {
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         ListTag npcs = new ListTag();
         for (Entry entry : this.entries.values()) {
             CompoundTag npcTag = new CompoundTag();

@@ -275,7 +275,7 @@ public class PlayerNpcSmartTargetGoal extends TargetGoal {
         score += this.itemPower(entity.getMainHandItem()) * 1.4D;
         score += this.itemPower(entity.getOffhandItem()) * 0.6D;
         for (EquipmentSlot slot : EquipmentSlot.values()) {
-            if (slot.getType() == EquipmentSlot.Type.ARMOR) {
+            if (slot.isArmor()) {
                 score += this.itemPower(entity.getItemBySlot(slot));
             }
         }
@@ -289,9 +289,9 @@ public class PlayerNpcSmartTargetGoal extends TargetGoal {
 
         double score = 0.0D;
         if (stack.getItem() instanceof SwordItem swordItem) {
-            score += swordItem.getDamage();
+            score += swordItem.getDamage(stack);
         } else if (stack.getItem() instanceof AxeItem axeItem) {
-            score += axeItem.getAttackDamage();
+            score += axeItem.getDamage(stack);
         } else if (stack.getItem() instanceof DiggerItem) {
             score += 3.0D;
         } else if (stack.getItem() instanceof TridentItem) {

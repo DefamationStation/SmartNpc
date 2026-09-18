@@ -603,7 +603,7 @@ public final class FarmAi {
 
     public static boolean isForagePlant(BlockState state) {
         return state != null
-                && (state.is(Blocks.GRASS)
+                && (state.is(Blocks.SHORT_GRASS)
                 || state.is(Blocks.TALL_GRASS)
                 || state.is(Blocks.FERN)
                 || state.is(Blocks.LARGE_FERN));

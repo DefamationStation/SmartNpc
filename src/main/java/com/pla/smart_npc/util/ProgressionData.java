@@ -1,6 +1,7 @@
 package com.pla.smart_npc.util;
 
 import com.pla.smart_npc.clazz.Difficulty;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -14,10 +15,11 @@ public class ProgressionData extends SavedData {
     private boolean manualDifficulty;
 
     public static ProgressionData get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(ProgressionData::load, ProgressionData::new, DATA_NAME);
+        return server.overworld().getDataStorage().computeIfAbsent(
+                new SavedData.Factory<>(ProgressionData::new, ProgressionData::load), DATA_NAME);
     }
 
-    public static ProgressionData load(CompoundTag tag) {
+    public static ProgressionData load(CompoundTag tag, HolderLookup.Provider registries) {
         ProgressionData data = new ProgressionData();
         data.difficulty = Difficulty.byName(tag.getString(DIFFICULTY_TAG));
         data.manualDifficulty = tag.getBoolean(MANUAL_DIFFICULTY_TAG);
@@ -25,7 +27,7 @@ public class ProgressionData extends SavedData {
     }
 
     @Override
-    public CompoundTag save(CompoundTag tag) {
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.putString(DIFFICULTY_TAG, this.difficulty.id());
         tag.putBoolean(MANUAL_DIFFICULTY_TAG, this.manualDifficulty);
         return tag;

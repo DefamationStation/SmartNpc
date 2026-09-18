@@ -19,9 +19,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ShieldItem;
 import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.item.TridentItem;
-import net.minecraftforge.fml.ModList;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.server.ServerLifecycleHooks;
+import net.neoforged.fml.ModList;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -88,6 +88,9 @@ public class EquipmentDataLoader extends SimpleJsonResourceReloadListener {
                 }
             }
         }
+
+        int loadedEntries = EQUIP_ITEMS.values().stream().mapToInt(List::size).sum();
+        LOGGER.info("Loaded {} Player NPC equipment entries", loadedEntries);
     }
 
     private static Optional<EquipmentEntry> parseEquipmentEntry(String modId, String slot, JsonElement element) {
@@ -133,11 +136,12 @@ public class EquipmentDataLoader extends SimpleJsonResourceReloadListener {
             return null;
         }
 
-        return ForgeRegistries.ITEMS.getValue(ResourceLocation.fromNamespaceAndPath(parts[0], parts[1]));
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(parts[0], parts[1]);
+        return BuiltInRegistries.ITEM.containsKey(id) ? BuiltInRegistries.ITEM.get(id) : null;
     }
 
     public static String getItemId(ItemStack stack) {
-        ResourceLocation key = ForgeRegistries.ITEMS.getKey(stack.getItem());
+        ResourceLocation key = BuiltInRegistries.ITEM.getKey(stack.getItem());
         return key == null ? "" : key.toString();
     }
 
@@ -404,16 +408,17 @@ public class EquipmentDataLoader extends SimpleJsonResourceReloadListener {
             }
 
             String[] parts = itemId.split(":", 2);
-            Item item = ForgeRegistries.ITEMS.getValue(ResourceLocation.fromNamespaceAndPath(parts[0], parts[1]));
+            Item item = BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath(parts[0], parts[1]));
             if (item == null) continue;
 
-            int damage = 0;
-            if (item.canBeDepleted()) {
-                damage = getRandomDamage(new ItemStack(item));
-            }
-            cmds.add(String.format("item replace entity @s %s with %s{Damage:%d}", mapSlot(slot), itemId, damage));
-
             ItemStack itemStack = new ItemStack(item);
+            String itemArgument = itemId;
+            if (itemStack.isDamageableItem()) {
+                int damage = getRandomDamage(itemStack);
+                itemArgument += "[minecraft:damage=" + damage + "]";
+            }
+            cmds.add(String.format("item replace entity @s %s with %s", mapSlot(slot), itemArgument));
+
             if (slot.equals("MAINHAND")) {
                 generatedOffhandItem = getGeneratedOffhandItem(itemStack, difficulty, allowOffhandShield).orElse(null);
             }
@@ -431,15 +436,17 @@ public class EquipmentDataLoader extends SimpleJsonResourceReloadListener {
 
         String itemId = pool.get(RANDOM.nextInt(pool.size()));
         String[] parts = itemId.split(":", 2);
-        Item item = ForgeRegistries.ITEMS.getValue(ResourceLocation.fromNamespaceAndPath(parts[0], parts[1]));
+        Item item = BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath(parts[0], parts[1]));
         if (item == null) return Optional.empty();
 
-        int damage = 0;
-        if (item.canBeDepleted()) {
-            damage = getRandomDamage(new ItemStack(item));
+        ItemStack itemStack = new ItemStack(item);
+        String itemArgument = itemId;
+        if (itemStack.isDamageableItem()) {
+            int damage = getRandomDamage(itemStack);
+            itemArgument += "[minecraft:damage=" + damage + "]";
         }
 
-        return Optional.of(String.format("item replace entity @s %s with %s{Damage:%d}", mapSlot(slot), itemId, damage));
+        return Optional.of(String.format("item replace entity @s %s with %s", mapSlot(slot), itemArgument));
     }
 
     private record EquipmentEntry(String itemId, Difficulty minDifficulty) {

@@ -10,7 +10,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.fml.ModList;
+import net.neoforged.fml.ModList;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -36,7 +36,7 @@ public final class PlayerNpcBlueprintLayoutReader {
     }
 
     public static Optional<PlayerNpcBuildLayout> read(ResourceLocation id, InputStream inputStream) throws IOException {
-        CompoundTag tag = NbtIo.readCompressed(inputStream);
+        CompoundTag tag = NbtIo.readCompressed(inputStream, net.minecraft.nbt.NbtAccounter.unlimitedHeap());
         if (tag == null) {
             return Optional.empty();
         }

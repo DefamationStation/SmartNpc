@@ -4,13 +4,16 @@ import com.pla.smart_npc.entity.PlayerNpcEntity;
 import com.pla.smart_npc.util.PlayerNpcForceTickManager;
 import com.pla.smart_npc.util.PlayerNpcGoalTraceLogger;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkEvent;
-import net.minecraftforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.neoforged.neoforge.network.PacketDistributor;
 
-import java.util.function.Supplier;
-
-public class PlayerNpcInspectatorCyclePacket {
+public class PlayerNpcInspectatorCyclePacket implements CustomPacketPayload {
+    public static final Type<PlayerNpcInspectatorCyclePacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("smart_npc", "inspectator_cycle"));
+    public static final StreamCodec<FriendlyByteBuf, PlayerNpcInspectatorCyclePacket> STREAM_CODEC = StreamCodec.ofMember(PlayerNpcInspectatorCyclePacket::encode, PlayerNpcInspectatorCyclePacket::decode);
     private final int currentEntityId;
     private final int direction;
     private final boolean includeRequirements;
@@ -21,23 +24,19 @@ public class PlayerNpcInspectatorCyclePacket {
         this.includeRequirements = includeRequirements;
     }
 
-    public static void encode(PlayerNpcInspectatorCyclePacket packet, FriendlyByteBuf buffer) {
-        buffer.writeVarInt(packet.currentEntityId);
-        buffer.writeVarInt(packet.direction);
-        buffer.writeBoolean(packet.includeRequirements);
+    public void encode(FriendlyByteBuf buffer) {
+        buffer.writeVarInt(this.currentEntityId);
+        buffer.writeVarInt(this.direction);
+        buffer.writeBoolean(this.includeRequirements);
     }
 
     public static PlayerNpcInspectatorCyclePacket decode(FriendlyByteBuf buffer) {
         return new PlayerNpcInspectatorCyclePacket(buffer.readVarInt(), buffer.readVarInt(), buffer.readBoolean());
     }
 
-    public static void handle(PlayerNpcInspectatorCyclePacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-        NetworkEvent.Context context = contextSupplier.get();
+    public static void handle(PlayerNpcInspectatorCyclePacket packet, IPayloadContext context) {
         context.enqueueWork(() -> {
-            ServerPlayer sender = context.getSender();
-            if (sender == null) {
-                return;
-            }
+            ServerPlayer sender = (ServerPlayer) context.player();
 
             if (!PlayerNpcInspectatorModePacket.isInspectatorActive(sender)) {
                 sendResult(sender, PlayerNpcInspectatorCycleResultPacket.handled(packet.currentEntityId));
@@ -69,8 +68,8 @@ public class PlayerNpcInspectatorCyclePacket {
             PlayerNpcEntity target = nextNpc.get();
             PlayerNpcInspectatorModePacket.beginInspectator(sender, target, true);
             sendResult(sender, PlayerNpcInspectatorCycleResultPacket.handled(target.getId()));
-            SmartNpcNetwork.CHANNEL.send(
-                    PacketDistributor.PLAYER.with(() -> sender),
+            PacketDistributor.sendToPlayer(
+                    sender,
                     new PlayerNpcInspectorPacket(
                             target.getId(),
                             PlayerNpcInspectorData.createSnapshot(target),
@@ -83,10 +82,12 @@ public class PlayerNpcInspectatorCyclePacket {
                     )
             );
         });
-        context.setPacketHandled(true);
     }
 
+    @Override
+    public Type<? extends CustomPacketPayload> type() { return TYPE; }
+
     private static void sendResult(ServerPlayer player, PlayerNpcInspectatorCycleResultPacket packet) {
-        SmartNpcNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
+        PacketDistributor.sendToPlayer(player, packet);
     }
 }

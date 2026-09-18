@@ -4,16 +4,19 @@ import com.pla.smart_npc.entity.PlayerNpcEntity;
 import com.pla.smart_npc.util.PlayerNpcGoalTraceLogger;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.GameType;
-import net.minecraftforge.network.NetworkEvent;
-import net.minecraftforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.neoforged.neoforge.network.PacketDistributor;
 
-import java.util.function.Supplier;
-
-public class PlayerNpcInspectatorModePacket {
+public class PlayerNpcInspectatorModePacket implements CustomPacketPayload {
+    public static final Type<PlayerNpcInspectatorModePacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("smart_npc", "inspectator_mode"));
+    public static final StreamCodec<FriendlyByteBuf, PlayerNpcInspectatorModePacket> STREAM_CODEC = StreamCodec.ofMember(PlayerNpcInspectatorModePacket::encode, PlayerNpcInspectatorModePacket::decode);
     private static final String ACTIVE_KEY = "PlayerNpcInspectatorActive";
     private static final String ORIGINAL_GAME_MODE_KEY = "PlayerNpcInspectatorOriginalGameMode";
     private static final String TARGET_UUID_KEY = "PlayerNpcInspectatorTarget";
@@ -27,22 +30,18 @@ public class PlayerNpcInspectatorModePacket {
         this.entityId = entityId;
     }
 
-    public static void encode(PlayerNpcInspectatorModePacket packet, FriendlyByteBuf buffer) {
-        buffer.writeBoolean(packet.active);
-        buffer.writeVarInt(packet.entityId);
+    public void encode(FriendlyByteBuf buffer) {
+        buffer.writeBoolean(this.active);
+        buffer.writeVarInt(this.entityId);
     }
 
     public static PlayerNpcInspectatorModePacket decode(FriendlyByteBuf buffer) {
         return new PlayerNpcInspectatorModePacket(buffer.readBoolean(), buffer.readVarInt());
     }
 
-    public static void handle(PlayerNpcInspectatorModePacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-        NetworkEvent.Context context = contextSupplier.get();
+    public static void handle(PlayerNpcInspectatorModePacket packet, IPayloadContext context) {
         context.enqueueWork(() -> {
-            ServerPlayer sender = context.getSender();
-            if (sender == null) {
-                return;
-            }
+            ServerPlayer sender = (ServerPlayer) context.player();
 
             if (!packet.active) {
                 restorePlayer(sender);
@@ -59,8 +58,10 @@ public class PlayerNpcInspectatorModePacket {
 
             beginInspectator(sender, playerNpc);
         });
-        context.setPacketHandled(true);
     }
+
+    @Override
+    public Type<? extends CustomPacketPayload> type() { return TYPE; }
 
     public static void restorePlayer(ServerPlayer player) {
         CompoundTag data = player.getPersistentData();
@@ -87,8 +88,8 @@ public class PlayerNpcInspectatorModePacket {
     public static void restorePlayerAndClearInspector(ServerPlayer player) {
         restorePlayer(player);
         if (player.connection != null) {
-            SmartNpcNetwork.CHANNEL.send(
-                    PacketDistributor.PLAYER.with(() -> player),
+            PacketDistributor.sendToPlayer(
+                    player,
                     PlayerNpcInspectorPacket.clear()
             );
         }

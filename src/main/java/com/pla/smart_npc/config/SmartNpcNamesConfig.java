@@ -4,9 +4,9 @@ import com.electronwill.nightconfig.core.CommentedConfig;
 import com.electronwill.nightconfig.core.UnmodifiableConfig;
 import com.electronwill.nightconfig.toml.TomlFormat;
 import com.pla.smart_npc.clazz.PlayerNpcInterest;
-import net.minecraftforge.common.ForgeConfigSpec;
-import net.minecraftforge.fml.config.ModConfig;
-import net.minecraftforge.fml.event.config.ModConfigEvent;
+import net.neoforged.neoforge.common.ModConfigSpec;
+import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.event.config.ModConfigEvent;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -72,11 +72,11 @@ public final class SmartNpcNamesConfig {
     );
     private static final CommentedConfig DEFAULT_PLAYER_NPC_ROSTER = createRosterConfig(DEFAULT_PLAYER_NPC_NAMES);
 
-    public static final ForgeConfigSpec SPEC;
-    public static final ForgeConfigSpec.ConfigValue<Object> PLAYER_NPC_NAMES;
+    public static final ModConfigSpec SPEC;
+    public static final ModConfigSpec.ConfigValue<Object> PLAYER_NPC_NAMES;
 
     static {
-        ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
+        ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
         PLAYER_NPC_NAMES = builder.comment(
                         "Player NPC roster. Each line uses: skinName = [\"INTEREST\", \"INTEREST\", ...]",
                         "The key must be a valid Minecraft username (1-16 letters, numbers, or underscores).",
@@ -249,11 +249,11 @@ public final class SmartNpcNamesConfig {
     }
 
     private static void migrateLegacyList(ModConfig config) {
-        if (config.getSpec() != SPEC || config.getConfigData() == null) {
+        if (config.getSpec() != SPEC || config.getLoadedConfig() == null) {
             return;
         }
 
-        Object currentValue = config.getConfigData().get("playerNpcNames");
+        Object currentValue = config.getLoadedConfig().config().get("playerNpcNames");
         if (currentValue instanceof List<?> legacyEntries) {
             List<String> entries = new ArrayList<>();
             for (Object legacyEntry : legacyEntries) {
@@ -261,7 +261,7 @@ public final class SmartNpcNamesConfig {
                     entries.add(entry);
                 }
             }
-            config.getConfigData().set("playerNpcNames", createRosterConfig(entries));
+            config.getLoadedConfig().config().set("playerNpcNames", createRosterConfig(entries));
         }
     }
 

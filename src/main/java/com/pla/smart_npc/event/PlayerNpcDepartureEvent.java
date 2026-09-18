@@ -8,17 +8,18 @@ import com.pla.smart_npc.util.ExternalChunkActivity;
 import com.pla.smart_npc.util.PlayerNpcForceTickManager;
 import com.pla.smart_npc.util.RemoteNpcDeparture;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraftforge.event.entity.living.LivingEvent;
-import net.minecraftforge.event.server.ServerStoppingEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.neoforge.event.tick.EntityTickEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 
-@Mod.EventBusSubscriber(modid = SmartNpc.MODID)
+@EventBusSubscriber(modid = SmartNpc.MODID)
 public final class PlayerNpcDepartureEvent {
     private PlayerNpcDepartureEvent() {}
 
     @SubscribeEvent
-    public static void tick(LivingEvent.LivingTickEvent event) {
+    public static void tick(EntityTickEvent.Post event) {
         if (!(event.getEntity() instanceof PlayerNpcEntity npc)
                 || !(npc.level() instanceof ServerLevel) || !npc.isAlive() || npc.isRemoved()
                 || Math.floorMod(npc.tickCount, 20) != Math.floorMod(npc.getUUID().hashCode(), 20)) return;

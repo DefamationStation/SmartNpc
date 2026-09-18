@@ -29,7 +29,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.pathfinder.Path;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -572,7 +572,7 @@ public class BurnNearbyItemGoal extends Goal {
             previousMainHand = currentMainHand;
             usingTemporaryTool = true;
         } else if (!currentMainHand.isEmpty()
-                && !ItemStack.isSameItemSameTags(currentMainHand, previousMainHand)
+                && !ItemStack.isSameItemSameComponents(currentMainHand, previousMainHand)
                 && !InventoryUtils.addItem(mob, currentMainHand)) {
             mob.spawnAtLocation(currentMainHand);
         }
@@ -587,7 +587,7 @@ public class BurnNearbyItemGoal extends Goal {
 
         ItemStack currentMainHand = mob.getMainHandItem().copy();
         if (!currentMainHand.isEmpty()
-                && !ItemStack.isSameItemSameTags(currentMainHand, previousMainHand)
+                && !ItemStack.isSameItemSameComponents(currentMainHand, previousMainHand)
                 && !InventoryUtils.addItem(mob, currentMainHand)) {
             mob.spawnAtLocation(currentMainHand);
         }
@@ -605,7 +605,7 @@ public class BurnNearbyItemGoal extends Goal {
 
         ItemStack currentMainHand = mob.getMainHandItem().copy();
         if (!currentMainHand.isEmpty()
-                && !ItemStack.isSameItemSameTags(currentMainHand, previousMainHand)
+                && !ItemStack.isSameItemSameComponents(currentMainHand, previousMainHand)
                 && !InventoryUtils.addItem(mob, currentMainHand)) {
             mob.spawnAtLocation(currentMainHand);
         }
@@ -651,7 +651,7 @@ public class BurnNearbyItemGoal extends Goal {
             return;
         }
 
-        ResourceLocation blockId = ForgeRegistries.BLOCKS.getKey(state.getBlock());
+        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
         String blockName = blockId == null ? state.getBlock().getDescriptionId() : blockId.toString();
         playerNpcEntity.setCurrentAiDetail(String.format(
                 java.util.Locale.ROOT,
@@ -736,7 +736,7 @@ public class BurnNearbyItemGoal extends Goal {
                 && itemEntity.isAlive()
                 && itemEntity.onGround()
                 && !itemEntity.getItem().isEmpty()
-                && !itemEntity.getItem().getItem().isFireResistant()
+                && !itemEntity.getItem().has(net.minecraft.core.component.DataComponents.FIRE_RESISTANT)
                 && !isSuppressedPickupCandidate(itemEntity.getItem())
                 && (PlayerNpcTrashUtil.isDiscarded(itemEntity.getItem())
                 || !shouldReserveInsteadOfBurn(itemEntity.getItem()))
@@ -1034,9 +1034,9 @@ public class BurnNearbyItemGoal extends Goal {
             return false;
         }
 
-        EquipmentSlot slot = LivingEntity.getEquipmentSlotForItem(groundStack);
+        EquipmentSlot slot = mob.getEquipmentSlotForItem(groundStack);
 
-        if (slot.getType() != EquipmentSlot.Type.ARMOR) {
+        if (!slot.isArmor()) {
             return false;
         }
 
@@ -1089,7 +1089,7 @@ public class BurnNearbyItemGoal extends Goal {
             ItemStack slotStack = inventory.getItem(i);
 
             if (!slotStack.isEmpty()
-                    && ItemStack.isSameItemSameTags(slotStack, remaining)
+                    && ItemStack.isSameItemSameComponents(slotStack, remaining)
                     && slotStack.getCount() < slotStack.getMaxStackSize()) {
                 int transferable = Math.min(
                         remaining.getCount(),
@@ -1159,7 +1159,7 @@ public class BurnNearbyItemGoal extends Goal {
                 return true;
             }
 
-            if (ItemStack.isSameItemSameTags(slotStack, incoming)
+            if (ItemStack.isSameItemSameComponents(slotStack, incoming)
                     && slotStack.getCount() < slotStack.getMaxStackSize()) {
                 return true;
             }
@@ -1252,9 +1252,9 @@ public class BurnNearbyItemGoal extends Goal {
             return false;
         }
 
-        EquipmentSlot slot = LivingEntity.getEquipmentSlotForItem(stack);
+        EquipmentSlot slot = mob.getEquipmentSlotForItem(stack);
 
-        if (slot.getType() != EquipmentSlot.Type.ARMOR) {
+        if (!slot.isArmor()) {
             return false;
         }
 

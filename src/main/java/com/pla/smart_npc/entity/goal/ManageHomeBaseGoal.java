@@ -838,7 +838,7 @@ public class ManageHomeBaseGoal extends Goal {
         for (int i = 0; i < container.getContainerSize() && !remaining.isEmpty(); i++) {
             ItemStack existing = container.getItem(i);
             if (existing.isEmpty()
-                    || !ItemStack.isSameItemSameTags(existing, remaining)
+                    || !ItemStack.isSameItemSameComponents(existing, remaining)
                     || existing.getCount() >= existing.getMaxStackSize()) {
                 continue;
             }
@@ -860,7 +860,7 @@ public class ManageHomeBaseGoal extends Goal {
         for (int i = 0; i < container.getContainerSize() && !remaining.isEmpty(); i++) {
             ItemStack existing = container.getItem(i);
             if (existing.isEmpty()
-                    || !ItemStack.isSameItemSameTags(existing, remaining)
+                    || !ItemStack.isSameItemSameComponents(existing, remaining)
                     || existing.getCount() >= existing.getMaxStackSize()) {
                 continue;
             }
@@ -901,7 +901,7 @@ public class ManageHomeBaseGoal extends Goal {
                 || stack.getItem() instanceof ShieldItem
                 || (playerNpc.hasInterest(PlayerNpcInterest.FISHING)
                 && (stack.getItem() instanceof FishingRodItem || stack.is(Items.STRING)))
-                || stack.isEdible()
+                || stack.has(net.minecraft.core.component.DataComponents.FOOD)
                 || stack.is(Items.ARROW)
                 || stack.is(Items.ENDER_PEARL)
                 || stack.is(Items.WATER_BUCKET)
@@ -1246,7 +1246,7 @@ public class ManageHomeBaseGoal extends Goal {
             this.returnTemporaryMainHandOnRestore = returnCurrentOnRestore;
         } else if (!currentMainHand.isEmpty()
                 && this.returnTemporaryMainHandOnRestore
-                && !ItemStack.isSameItemSameTags(currentMainHand, this.previousMainHand)
+                && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousMainHand)
                 && !InventoryUtils.addItem(this.playerNpc, currentMainHand)) {
             this.playerNpc.spawnAtLocation(currentMainHand);
         }
@@ -1264,7 +1264,7 @@ public class ManageHomeBaseGoal extends Goal {
         ItemStack currentMainHand = this.playerNpc.getMainHandItem().copy();
         if (!currentMainHand.isEmpty()
                 && this.returnTemporaryMainHandOnRestore
-                && !ItemStack.isSameItemSameTags(currentMainHand, this.previousMainHand)
+                && !ItemStack.isSameItemSameComponents(currentMainHand, this.previousMainHand)
                 && !InventoryUtils.addItem(this.playerNpc, currentMainHand)) {
             this.playerNpc.spawnAtLocation(currentMainHand);
         }

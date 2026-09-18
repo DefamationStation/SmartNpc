@@ -382,7 +382,7 @@ public final class FurnaceAi {
         int count = 0;
         for (int i = 0; i < inventory.getContainerSize(); i++) {
             ItemStack stack = inventory.getItem(i);
-            if (!stack.isEmpty() && ItemStack.isSameItemSameTags(stack, template)) {
+            if (!stack.isEmpty() && ItemStack.isSameItemSameComponents(stack, template)) {
                 count += stack.getCount();
             }
         }
@@ -392,11 +392,11 @@ public final class FurnaceAi {
     private int countMatchingHeldItems(ItemStack template) {
         int count = 0;
         ItemStack mainHand = this.playerNpc.getMainHandItem();
-        if (!mainHand.isEmpty() && ItemStack.isSameItemSameTags(mainHand, template)) {
+        if (!mainHand.isEmpty() && ItemStack.isSameItemSameComponents(mainHand, template)) {
             count += mainHand.getCount();
         }
         ItemStack offhand = this.playerNpc.getOffhandItem();
-        if (!offhand.isEmpty() && ItemStack.isSameItemSameTags(offhand, template)) {
+        if (!offhand.isEmpty() && ItemStack.isSameItemSameComponents(offhand, template)) {
             count += offhand.getCount();
         }
         return count;
@@ -405,7 +405,7 @@ public final class FurnaceAi {
     private int consumeInventoryItems(SimpleContainer inventory, ItemStack template, int remaining, ItemStack consumed) {
         for (int i = 0; i < inventory.getContainerSize() && remaining > 0; i++) {
             ItemStack stack = inventory.getItem(i);
-            if (stack.isEmpty() || !ItemStack.isSameItemSameTags(stack, template)) {
+            if (stack.isEmpty() || !ItemStack.isSameItemSameComponents(stack, template)) {
                 continue;
             }
 
@@ -433,7 +433,7 @@ public final class FurnaceAi {
         ItemStack held = slot == EquipmentSlot.MAINHAND
                 ? this.playerNpc.getMainHandItem()
                 : this.playerNpc.getOffhandItem();
-        if (held.isEmpty() || !ItemStack.isSameItemSameTags(held, template)) {
+        if (held.isEmpty() || !ItemStack.isSameItemSameComponents(held, template)) {
             return remaining;
         }
 

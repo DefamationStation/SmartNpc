@@ -15,12 +15,10 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.ToolActions;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.neoforge.common.ItemAbilities;
 import org.jetbrains.annotations.NotNull;
-import org.joml.Matrix3f;
-import org.joml.Matrix4f;
 
 @OnlyIn(Dist.CLIENT)
 public class PlayerNpcFishingBobberRenderer extends EntityRenderer<PlayerNpcFishingBobberEntity> {
@@ -44,13 +42,11 @@ public class PlayerNpcFishingBobberRenderer extends EntityRenderer<PlayerNpcFish
         poseStack.mulPose(this.entityRenderDispatcher.cameraOrientation());
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
         PoseStack.Pose pose = poseStack.last();
-        Matrix4f poseMatrix = pose.pose();
-        Matrix3f normalMatrix = pose.normal();
         VertexConsumer hookConsumer = buffer.getBuffer(RENDER_TYPE);
-        vertex(hookConsumer, poseMatrix, normalMatrix, packedLight, 0.0F, 0, 0, 1);
-        vertex(hookConsumer, poseMatrix, normalMatrix, packedLight, 1.0F, 0, 1, 1);
-        vertex(hookConsumer, poseMatrix, normalMatrix, packedLight, 1.0F, 1, 1, 0);
-        vertex(hookConsumer, poseMatrix, normalMatrix, packedLight, 0.0F, 1, 0, 0);
+        vertex(hookConsumer, pose, packedLight, 0.0F, 0, 0, 1);
+        vertex(hookConsumer, pose, packedLight, 1.0F, 0, 1, 1);
+        vertex(hookConsumer, pose, packedLight, 1.0F, 1, 1, 0);
+        vertex(hookConsumer, pose, packedLight, 0.0F, 1, 0, 0);
         poseStack.popPose();
 
         Vec3 handPosition = getHandPosition(angler, partialTicks);
@@ -86,7 +82,7 @@ public class PlayerNpcFishingBobberRenderer extends EntityRenderer<PlayerNpcFish
     private static int getLineHandSide(PlayerNpcEntity angler) {
         int handSide = angler.getMainArm() == HumanoidArm.RIGHT ? 1 : -1;
         ItemStack mainHand = angler.getMainHandItem();
-        if (!mainHand.canPerformAction(ToolActions.FISHING_ROD_CAST)) {
+        if (!mainHand.canPerformAction(ItemAbilities.FISHING_ROD_CAST)) {
             handSide = -handSide;
         }
         return handSide;
@@ -96,14 +92,13 @@ public class PlayerNpcFishingBobberRenderer extends EntityRenderer<PlayerNpcFish
         return (float) numerator / (float) denominator;
     }
 
-    private static void vertex(VertexConsumer consumer, Matrix4f pose, Matrix3f normal, int lightmapUv, float x, int y, int u, int v) {
-        consumer.vertex(pose, x - 0.5F, y - 0.5F, 0.0F)
-                .color(255, 255, 255, 255)
-                .uv(u, v)
-                .overlayCoords(OverlayTexture.NO_OVERLAY)
-                .uv2(lightmapUv)
-                .normal(normal, 0.0F, 1.0F, 0.0F)
-                .endVertex();
+    private static void vertex(VertexConsumer consumer, PoseStack.Pose pose, int lightmapUv, float x, int y, int u, int v) {
+        consumer.addVertex(pose, x - 0.5F, y - 0.5F, 0.0F)
+                .setColor(-1)
+                .setUv(u, v)
+                .setOverlay(OverlayTexture.NO_OVERLAY)
+                .setLight(lightmapUv)
+                .setNormal(pose, 0.0F, 1.0F, 0.0F);
     }
 
     private static void stringVertex(float x, float y, float z, VertexConsumer consumer, PoseStack.Pose pose, float fromStep, float toStep) {
@@ -117,10 +112,9 @@ public class PlayerNpcFishingBobberRenderer extends EntityRenderer<PlayerNpcFish
         normalX /= normalLength;
         normalY /= normalLength;
         normalZ /= normalLength;
-        consumer.vertex(pose.pose(), fromX, fromY, fromZ)
-                .color(0, 0, 0, 255)
-                .normal(pose.normal(), normalX, normalY, normalZ)
-                .endVertex();
+        consumer.addVertex(pose, fromX, fromY, fromZ)
+                .setColor(-16777216)
+                .setNormal(pose, normalX, normalY, normalZ);
     }
 
     @Override

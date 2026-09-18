@@ -14,7 +14,7 @@ import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.core.registries.BuiltInRegistries;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -181,7 +181,7 @@ public class PlayerNpcBuildLayoutLoader extends SimpleJsonResourceReloadListener
             throw new IllegalArgumentException("invalid block id " + blockName);
         }
 
-        Block parsedBlock = ForgeRegistries.BLOCKS.getValue(blockId);
+        Block parsedBlock = BuiltInRegistries.BLOCK.get(blockId);
         if (parsedBlock == null) {
             throw new IllegalArgumentException("unknown block " + blockName);
         }
@@ -202,7 +202,7 @@ public class PlayerNpcBuildLayoutLoader extends SimpleJsonResourceReloadListener
                 return setPropertyValue(state, property, value);
             }
         }
-        throw new IllegalArgumentException("unknown property " + propertyName + " for " + ForgeRegistries.BLOCKS.getKey(state.getBlock()));
+        throw new IllegalArgumentException("unknown property " + propertyName + " for " + BuiltInRegistries.BLOCK.getKey(state.getBlock()));
     }
 
     private static <T extends Comparable<T>> BlockState setPropertyValue(BlockState state, Property<T> property, String value) {
