@@ -146,7 +146,7 @@ public final class FarmSetupGoal extends Goal {
                 && !FarmAi.isPlanSearchPending(playerNpc, serverLevel)
                 && !playerNpc.shouldPrioritizeLogGathering()
                 && playerNpc.getGatherCooldown() <= 0
-                && !serverLevel.isNight()
+                && !serverLevel.isDarkOutside()
                 && !serverLevel.isThundering();
     }
 
@@ -162,7 +162,7 @@ public final class FarmSetupGoal extends Goal {
                 || GatherLogsGoal.isLogGatheringEpisodeActive(this.playerNpc)
                 || this.playerNpc.getUpwardEscapeTarget() != null
                 || this.playerNpc.getHoleEscapeCooldown() > 0
-                || serverLevel.isNight()
+                || serverLevel.isDarkOutside()
                 || serverLevel.isThundering()
                 || !this.canUseThrottle.canCheck(this.playerNpc)) {
             return false;
@@ -834,7 +834,7 @@ public final class FarmSetupGoal extends Goal {
     private boolean isProtectedFarmReturnBlock(BlockPos pos) {
         return pos == null
                 || PlayerNpcHomeUtil.isInsideBuildFootprint(this.playerNpc, pos)
-                || FarmAi.isProtectedFarmBlock(this.playerNpc, pos);
+                || FarmAi.isProtectedFarmlandBlock(this.playerNpc, pos);
     }
 
     private void requestLocalRouteEscape() {
@@ -1513,7 +1513,7 @@ public final class FarmSetupGoal extends Goal {
                 || !(fence.getItem() instanceof BlockItem blockItem)
                 || !(blockItem.getBlock() instanceof FenceBlock)
                 || !serverLevel.getBlockState(this.targetPos).canBeReplaced()
-                || !serverLevel.getBlockState(this.targetPos.below()).isSolidRender(serverLevel, this.targetPos.below())) {
+                || !serverLevel.getBlockState(this.targetPos.below()).isSolidRender()) {
             this.returnStack(fence);
             return false;
         }
@@ -1536,7 +1536,7 @@ public final class FarmSetupGoal extends Goal {
                 || !(gate.getItem() instanceof BlockItem blockItem)
                 || !(blockItem.getBlock() instanceof FenceGateBlock gateBlock)
                 || !serverLevel.getBlockState(this.targetPos).canBeReplaced()
-                || !serverLevel.getBlockState(this.targetPos.below()).isSolidRender(serverLevel, this.targetPos.below())) {
+                || !serverLevel.getBlockState(this.targetPos.below()).isSolidRender()) {
             this.returnStack(gate);
             return false;
         }
@@ -1558,7 +1558,7 @@ public final class FarmSetupGoal extends Goal {
                 || facing == null
                 || !this.gateSidesReady(serverLevel)
                 || !serverLevel.getBlockState(this.plan.gatePos().below())
-                .isSolidRender(serverLevel, this.plan.gatePos().below())) {
+                .isSolidRender()) {
             return false;
         }
         BlockState repaired = state
@@ -1856,7 +1856,7 @@ public final class FarmSetupGoal extends Goal {
 
     private boolean isInWater(ServerLevel serverLevel) {
         BlockPos feet = this.playerNpc.blockPosition();
-        return this.playerNpc.isInWaterOrBubble()
+        return this.playerNpc.isInWater()
                 || serverLevel.getFluidState(feet).is(FluidTags.WATER)
                 || serverLevel.getFluidState(feet.above()).is(FluidTags.WATER)
                 || !this.playerNpc.onGround() && serverLevel.getFluidState(feet.below()).is(FluidTags.WATER);

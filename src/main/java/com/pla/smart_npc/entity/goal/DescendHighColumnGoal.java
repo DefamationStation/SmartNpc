@@ -287,7 +287,7 @@ public class DescendHighColumnGoal extends Goal {
     private boolean hasSafeLandingAfterDescent(ServerLevel serverLevel, BlockPos landingFeet) {
         if (landingFeet == null
                 || !serverLevel.hasChunkAt(landingFeet)
-                || !serverLevel.getBlockState(landingFeet.below()).isSolidRender(serverLevel, landingFeet.below())
+                || !serverLevel.getBlockState(landingFeet.below()).isSolidRender()
                 || this.isInsideEnclosedBodyColumn(serverLevel, landingFeet)) {
             return false;
         }
@@ -346,7 +346,7 @@ public class DescendHighColumnGoal extends Goal {
         int solidSides = 0;
         for (Direction direction : Direction.Plane.HORIZONTAL) {
             BlockPos side = floor.relative(direction);
-            if (serverLevel.getBlockState(side).isSolidRender(serverLevel, side)) {
+            if (serverLevel.getBlockState(side).isSolidRender()) {
                 solidSides++;
             }
         }

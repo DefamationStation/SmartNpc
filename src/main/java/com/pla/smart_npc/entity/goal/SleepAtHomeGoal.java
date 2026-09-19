@@ -34,7 +34,7 @@ public class SleepAtHomeGoal extends Goal {
     @Override
     public boolean canUse() {
         if (!(this.playerNpc.level() instanceof ServerLevel serverLevel)
-                || !serverLevel.isNight()
+                || !serverLevel.isDarkOutside()
                 || !this.playerNpc.isAlive()
                 || this.playerNpc.isNoAi()
                 || this.playerNpc.isPassenger()
@@ -63,7 +63,7 @@ public class SleepAtHomeGoal extends Goal {
                 && this.playerNpc.isAlive()
                 && this.playerNpc.getTarget() == null
                 && this.playerNpc.level() instanceof ServerLevel serverLevel
-                && serverLevel.isNight()
+                && serverLevel.isDarkOutside()
                 && this.bedPos != null
                 && this.isValidBed(serverLevel, this.bedPos);
     }
@@ -106,7 +106,7 @@ public class SleepAtHomeGoal extends Goal {
     @Override
     public void stop() {
         this.stopSleeping();
-        if (!this.playerNpc.level().isClientSide) {
+        if (!this.playerNpc.level().isClientSide()) {
             this.playerNpc.setSleepCooldown(20 * 90 + this.playerNpc.getRandom().nextInt(20 * 120));
         }
         this.bedPos = null;

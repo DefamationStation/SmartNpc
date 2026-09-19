@@ -149,7 +149,7 @@ public final class FollowTeamLeaderGoal extends Goal {
         );
         int desiredY = Math.max(feet.getY() + 2, Math.min(leaderPos.getY() + 1,
                 feet.getY() + MAX_RECOVERY_CLIMB_BLOCKS - 2));
-        desiredY = Math.min(desiredY, this.follower.level().getMaxBuildHeight() - 2);
+        desiredY = Math.min(desiredY, this.follower.level().getMaxY() - 1);
         if (desiredY <= feet.getY() + 1) {
             this.nextRecoveryTick = this.follower.tickCount + RECOVERY_RETRY_TICKS;
             return;

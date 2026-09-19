@@ -136,7 +136,7 @@ public final class PlayerNpcTeamUpManager {
         if (!"ok".equals(normalized) && !"okay".equals(normalized)) {
             return false;
         }
-        MinecraftServer server = player.getServer();
+        MinecraftServer server = player.level().getServer();
         PendingPlayerInvite invite = PLAYER_INVITES.remove(player.getUUID());
         if (server == null || invite == null || server.getTickCount() > invite.expiresAtTick()) {
             return false;
@@ -261,7 +261,7 @@ public final class PlayerNpcTeamUpManager {
     }
 
     public static void onPlayerLeaderDeath(ServerPlayer player) {
-        MinecraftServer server = player.getServer();
+        MinecraftServer server = player.level().getServer();
         if (server == null) {
             return;
         }

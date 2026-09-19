@@ -109,7 +109,7 @@ public final class PlayerNpcMeleeAttackGoal extends Goal {
     }
 
     private boolean canJumpCrit() {
-        return !this.npc.isInWaterOrBubble() && !this.npc.isInLava() && !this.npc.onClimbable()
+        return !this.npc.isInWater() && !this.npc.isInLava() && !this.npc.onClimbable()
                 && !this.npc.hasEffect(MobEffects.BLINDNESS) && !this.npc.hasEffect(MobEffects.LEVITATION);
     }
 

@@ -1,5 +1,13 @@
 package com.pla.smart_npc.entity;
 
+import net.minecraft.core.component.DataComponents;
+
+import net.minecraft.tags.ItemTags;
+
+import com.pla.smart_npc.util.SmartNpcItemUtil;
+
+import com.pla.smart_npc.util.SmartNpcNbt;
+
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.pla.smart_npc.clazz.Difficulty;
@@ -95,7 +103,7 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
@@ -117,11 +125,13 @@ import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.RangedAttackMob;
-import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.item.*;
 import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -272,7 +282,13 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             Items.MUSIC_DISC_PIGSTEP
     );
 
-    private final SimpleContainer inventory = new SimpleContainer(27);
+    private final SimpleContainer inventory = new SimpleContainer(27) {
+        @Override
+        public void setChanged() {
+            super.setChanged();
+            ResourceAi.invalidate(PlayerNpcEntity.this);
+        }
+    };
     private BlockPos lastSentBlockBreakProgressPos;
     private int lastSentBlockBreakProgressStage = -1;
     private int gapCooldown = 0;
@@ -858,7 +874,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     private boolean shouldRunBuildingHomeDuty(ServerLevel serverLevel) {
         if (!this.hasInterest(PlayerNpcInterest.BUILDING)
                 || PlayerNpcHomeUtil.getHome(this).isEmpty()
-                || (!serverLevel.isNight() && !serverLevel.isThundering())) {
+                || (!serverLevel.isDarkOutside() && !serverLevel.isThundering())) {
             return false;
         }
         return true;
@@ -978,11 +994,6 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             return false;
         }
         return this.teamId.equals(otherNpc.getTeamId());
-    }
-
-    @Override
-    public boolean isAlliedTo(@NotNull Entity entity) {
-        return this.isTeamAlliedWith(entity) || super.isAlliedTo(entity);
     }
 
     public void setGapCooldown() {
@@ -1293,7 +1304,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     public boolean hasCollectableSupplyDropNearby(double radius) {
-        if (this.level().isClientSide || radius <= 0.0D || this.isItemPickupSuppressed()) {
+        if (this.level().isClientSide() || radius <= 0.0D || this.isItemPickupSuppressed()) {
             return false;
         }
 
@@ -1381,17 +1392,17 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
                 && !this.shouldPrioritizeCobblestoneGathering();
     }
 
-    private boolean hasHeldOrInventoryTool(Class<?> toolClass) {
-        if (toolClass.isInstance(this.getMainHandItem().getItem())
-                || toolClass.isInstance(this.getOffhandItem().getItem())
-                || toolClass.isInstance(this.mainWeaponItem.getItem())
-                || toolClass.isInstance(this.offWeaponItem.getItem())) {
+    private boolean hasHeldOrInventoryTool(Object toolClass) {
+        if (SmartNpcItemUtil.matches(toolClass, this.getMainHandItem().getItem())
+                || SmartNpcItemUtil.matches(toolClass, this.getOffhandItem().getItem())
+                || SmartNpcItemUtil.matches(toolClass, this.mainWeaponItem.getItem())
+                || SmartNpcItemUtil.matches(toolClass, this.offWeaponItem.getItem())) {
             return true;
         }
 
         for (int i = 0; i < this.inventory.getContainerSize(); i++) {
             ItemStack stack = this.inventory.getItem(i);
-            if (!stack.isEmpty() && toolClass.isInstance(stack.getItem())) {
+            if (!stack.isEmpty() && SmartNpcItemUtil.matches(toolClass, stack.getItem())) {
                 return true;
             }
         }
@@ -1495,7 +1506,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         return weapon;
     }
 
-    public boolean hasCarriedTool(Class<?> toolClass) {
+    public boolean hasCarriedTool(Object toolClass) {
         return this.hasHeldOrInventoryTool(toolClass);
     }
 
@@ -1680,10 +1691,6 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
 
     public PlayerNpcEntity(EntityType<? extends PlayerNpcEntity> entitytype, Level level) {
         super(entitytype, level);
-        // Resource predicates are queried by several goals in the same selector pass. Keep their
-        // per-tick snapshot exact when the backing container changes instead of rescanning all
-        // slots independently for logs, stone, and dirt.
-        this.inventory.addListener(container -> ResourceAi.invalidate(this));
         Objects.requireNonNull(this.getAttribute(Attributes.STEP_HEIGHT)).setBaseValue(1.0D);
         this.xpReward = 50;
         this.setNoAi(false);
@@ -1710,8 +1717,8 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     @Override
-    protected int getBaseExperienceReward() {
-        long reward = (long) super.getBaseExperienceReward() + this.storedExperience;
+    protected int getBaseExperienceReward(ServerLevel level) {
+        long reward = (long) super.getBaseExperienceReward(level) + this.storedExperience;
         return reward > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) Math.max(0L, reward);
     }
 
@@ -1730,9 +1737,9 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     @Override
-    public void addAdditionalSaveData(@NotNull CompoundTag tag) {
+    protected void addAdditionalSaveData(@NotNull ValueOutput tag) {
         super.addAdditionalSaveData(tag);
-        tag.put("Inventory", this.inventory.createTag(this.registryAccess()));
+        this.inventory.storeAsItemList(tag.list("Inventory", ItemStack.CODEC));
         tag.putInt("GapCooldown", this.gapCooldown);
         tag.putInt("BucketCooldown", this.bucketCooldown);
         tag.putInt("FlintAndSteelCooldown", this.flintAndSteelCooldown);
@@ -1784,15 +1791,15 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         tag.putDouble("BlockProjectileChance", this.placeBlockToParryChance);
         tag.putInt("BlockParryCooldown", this.placeBlockParryCooldown);
         if (!this.mainWeaponItem.isEmpty()) {
-            tag.put("MainHandItem", this.mainWeaponItem.save(this.registryAccess()));
+            tag.store("MainHandItem", ItemStack.CODEC, this.mainWeaponItem);
         }
         if (!this.offWeaponItem.isEmpty()) {
-            tag.put("OffHandItem", this.offWeaponItem.save(this.registryAccess()));
+            tag.store("OffHandItem", ItemStack.CODEC, this.offWeaponItem);
         }
         if (this.temporaryBowEquipped) {
             tag.putBoolean("TemporaryBowEquipped", true);
             if (!this.temporaryBowPreviousMainHand.isEmpty()) {
-                tag.put("TemporaryBowPreviousMainHand", this.temporaryBowPreviousMainHand.save(this.registryAccess()));
+                tag.store("TemporaryBowPreviousMainHand", ItemStack.CODEC, this.temporaryBowPreviousMainHand);
             }
         }
         if (this.ownedChestPos != null) {
@@ -1800,117 +1807,111 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             tag.putInt("OwnedChestY", this.ownedChestPos.getY());
             tag.putInt("OwnedChestZ", this.ownedChestPos.getZ());
         }
-        tag.remove("TeamId");
-        tag.remove("TeamName");
-        tag.remove("TeamFounder");
-        tag.remove("TeamLeader");
-        tag.remove("TeamLeaderIsPlayer");
-        tag.remove("TeamLeaderRole");
+        tag.discard("TeamId");
+        tag.discard("TeamName");
+        tag.discard("TeamFounder");
+        tag.discard("TeamLeader");
+        tag.discard("TeamLeaderIsPlayer");
+        tag.discard("TeamLeaderRole");
         if (this.teamId != null) {
-            tag.putUUID("TeamId", this.teamId);
+            SmartNpcNbt.putUuid(tag, "TeamId", this.teamId);
             tag.putString("TeamName", this.teamName);
             if (this.teamFounderUuid != null) {
-                tag.putUUID("TeamFounder", this.teamFounderUuid);
+                SmartNpcNbt.putUuid(tag, "TeamFounder", this.teamFounderUuid);
             }
             tag.putBoolean("TeamLeaderRole", this.teamLeaderRole);
         }
         if (this.isTeamFollower() && this.teamLeaderUuid != null) {
-            tag.putUUID("TeamLeader", this.teamLeaderUuid);
+            SmartNpcNbt.putUuid(tag, "TeamLeader", this.teamLeaderUuid);
             tag.putBoolean("TeamLeaderIsPlayer", this.teamLeaderIsPlayer);
         }
-        ListTag temporarySupports = new ListTag();
+        ValueOutput.ValueOutputList temporarySupports = tag.childrenList(TEMPORARY_PILLAR_SUPPORTS_TAG);
         for (Map.Entry<BlockPos, Block> entry : this.temporaryPillarSupports.entrySet()) {
-            ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(entry.getValue());
+            Identifier blockId = BuiltInRegistries.BLOCK.getKey(entry.getValue());
             if (blockId == null || entry.getValue() == Blocks.AIR) {
                 continue;
             }
-            CompoundTag supportTag = new CompoundTag();
+            ValueOutput supportTag = temporarySupports.addChild();
             supportTag.putLong("Pos", entry.getKey().asLong());
             supportTag.putString("Block", blockId.toString());
             if (this.gatherLogsTemporaryPillarSupports.contains(entry.getKey())) {
                 supportTag.putString("Source", "GATHER_LOGS");
             }
-            temporarySupports.add(supportTag);
         }
-        if (!temporarySupports.isEmpty()) {
-            tag.put(TEMPORARY_PILLAR_SUPPORTS_TAG, temporarySupports);
-        }
-        PlayerNpcHomeUtil.saveHomeToTag(this, tag);
+        PlayerNpcHomeUtil.saveHome(this, tag);
         tag.putBoolean("MainWeaponDisarmed", this.mainWeaponDisarmed);
     }
 
     @Override
-    public void readAdditionalSaveData(@NotNull CompoundTag tag) {
+    protected void readAdditionalSaveData(@NotNull ValueInput tag) {
         super.readAdditionalSaveData(tag);
-        if (tag.contains("Inventory", Tag.TAG_LIST)) {
-            this.inventory.fromTag(tag.getList("Inventory", Tag.TAG_COMPOUND), this.registryAccess());
+        this.inventory.fromItemList(tag.listOrEmpty("Inventory", ItemStack.CODEC));
+        this.gapCooldown = tag.getIntOr("GapCooldown", 0);
+        this.bucketCooldown = tag.getIntOr("BucketCooldown", 0);
+        this.flintAndSteelCooldown = tag.getIntOr("FlintAndSteelCooldown", 0);
+        this.enderPearlCooldown = tag.getIntOr("EnderPearlCooldown", 0);
+        this.swapToBowCooldown = tag.getIntOr("SwapToBowCooldown", 0);
+        this.helpAlertCooldown = tag.getIntOr("HelpAlertCooldown", 0);
+        this.holeEscapeCooldown = tag.getIntOr("HoleEscapeCooldown", 0);
+        this.rareSneakCooldown = tag.getIntOr("RareSneakCooldown", 0);
+        this.scaredHideCooldown = tag.getIntOr("ScaredHideCooldown", 0);
+        this.buildHouseCooldown = tag.getIntOr("BuildHouseCooldown", 0);
+        this.cookFoodCooldown = tag.getIntOr("CookFoodCooldown", 0);
+        this.craftGearCooldown = tag.getIntOr("CraftGearCooldown", 0);
+        this.farmCooldown = tag.getIntOr("FarmCooldown", 0);
+        this.gatherCooldown = tag.getIntOr("GatherCooldown", 0);
+        this.biomeExploreCooldown = tag.getIntOr("BiomeExploreCooldown", 0);
+        this.huntSheepCooldown = tag.getIntOr("HuntSheepCooldown", 0);
+        this.ironGolemTrollCooldown = tag.getIntOr("IronGolemTrollCooldown", 0);
+        this.lootChestCooldown = tag.getIntOr("LootChestCooldown", 0);
+        this.manageHomeCooldown = tag.getIntOr("ManageHomeCooldown", 0);
+        this.setFishingCooldown(tag.getIntOr("FishingCooldown", 0));
+        this.returnHomeCooldown = tag.getIntOr("ReturnHomeCooldown", 0);
+        this.explorationReturnHomeRequestTicks = tag.getIntOr("ExplorationReturnHomeRequestTicks", 0);
+        this.sleepCooldown = tag.getIntOr("SleepCooldown", 0);
+        this.craftCooldown = tag.getIntOr("CraftCooldown", 0);
+        this.oreMiningCooldown = tag.getIntOr("OreMiningCooldown", 0);
+        this.ironGearCooldown = tag.getIntOr("IronGearCooldown", 0);
+        this.spyglassCooldown = tag.getIntOr("SpyglassCooldown", 0);
+        this.saplingPlantCooldown = tag.getIntOr("SaplingPlantCooldown", 0);
+        this.boatStockCooldown = tag.getIntOr("BoatStockCooldown", 0);
+        this.boatTrapCooldown = tag.getIntOr("BoatTrapCooldown", 0);
+        this.jukeboxDanceCooldown = tag.getIntOr("JukeboxDanceCooldown", 0);
+        this.trollHitCooldown = tag.getIntOr("TrollHitCooldown", 0);
+        this.combatFishingCooldown = tag.getIntOr("CombatFishingCooldown", 0);
+        this.shieldCraftCooldown = tag.getIntOr("ShieldCraftCooldown", 0);
+        this.shieldGuardCooldown = tag.getIntOr("ShieldGuardCooldown", 0);
+        if (tag.keySet().contains("StoredExperience")) {
+            this.storedExperience = Math.max(0, tag.getIntOr("StoredExperience", 0));
         }
-        this.gapCooldown = tag.getInt("GapCooldown");
-        this.bucketCooldown = tag.getInt("BucketCooldown");
-        this.flintAndSteelCooldown = tag.getInt("FlintAndSteelCooldown");
-        this.enderPearlCooldown = tag.getInt("EnderPearlCooldown");
-        this.swapToBowCooldown = tag.getInt("SwapToBowCooldown");
-        this.helpAlertCooldown = tag.getInt("HelpAlertCooldown");
-        this.holeEscapeCooldown = tag.getInt("HoleEscapeCooldown");
-        this.rareSneakCooldown = tag.getInt("RareSneakCooldown");
-        this.scaredHideCooldown = tag.getInt("ScaredHideCooldown");
-        this.buildHouseCooldown = tag.getInt("BuildHouseCooldown");
-        this.cookFoodCooldown = tag.getInt("CookFoodCooldown");
-        this.craftGearCooldown = tag.getInt("CraftGearCooldown");
-        this.farmCooldown = tag.getInt("FarmCooldown");
-        this.gatherCooldown = tag.getInt("GatherCooldown");
-        this.biomeExploreCooldown = tag.getInt("BiomeExploreCooldown");
-        this.huntSheepCooldown = tag.getInt("HuntSheepCooldown");
-        this.ironGolemTrollCooldown = tag.getInt("IronGolemTrollCooldown");
-        this.lootChestCooldown = tag.getInt("LootChestCooldown");
-        this.manageHomeCooldown = tag.getInt("ManageHomeCooldown");
-        this.setFishingCooldown(tag.getInt("FishingCooldown"));
-        this.returnHomeCooldown = tag.getInt("ReturnHomeCooldown");
-        this.explorationReturnHomeRequestTicks = tag.getInt("ExplorationReturnHomeRequestTicks");
-        this.sleepCooldown = tag.getInt("SleepCooldown");
-        this.craftCooldown = tag.getInt("CraftCooldown");
-        this.oreMiningCooldown = tag.getInt("OreMiningCooldown");
-        this.ironGearCooldown = tag.getInt("IronGearCooldown");
-        this.spyglassCooldown = tag.getInt("SpyglassCooldown");
-        this.saplingPlantCooldown = tag.getInt("SaplingPlantCooldown");
-        this.boatStockCooldown = tag.getInt("BoatStockCooldown");
-        this.boatTrapCooldown = tag.getInt("BoatTrapCooldown");
-        this.jukeboxDanceCooldown = tag.getInt("JukeboxDanceCooldown");
-        this.trollHitCooldown = tag.getInt("TrollHitCooldown");
-        this.combatFishingCooldown = tag.getInt("CombatFishingCooldown");
-        this.shieldCraftCooldown = tag.getInt("ShieldCraftCooldown");
-        this.shieldGuardCooldown = tag.getInt("ShieldGuardCooldown");
-        if (tag.contains("StoredExperience", Tag.TAG_INT)) {
-            this.storedExperience = Math.max(0, tag.getInt("StoredExperience"));
+        if (tag.keySet().contains("BoatCollector")) {
+            this.boatCollector = tag.getBooleanOr("BoatCollector", false);
         }
-        if (tag.contains("BoatCollector", Tag.TAG_BYTE)) {
-            this.boatCollector = tag.getBoolean("BoatCollector");
+        if (tag.keySet().contains("DesiredBoatCount")) {
+            this.desiredBoatCount = Math.max(2, Math.min(3, tag.getIntOr("DesiredBoatCount", 0)));
         }
-        if (tag.contains("DesiredBoatCount", Tag.TAG_INT)) {
-            this.desiredBoatCount = Math.max(2, Math.min(3, tag.getInt("DesiredBoatCount")));
+        if (tag.keySet().contains("RawLogReserveTarget")) {
+            this.rawLogReserveTarget = Math.max(0, tag.getIntOr("RawLogReserveTarget", 0));
         }
-        if (tag.contains("RawLogReserveTarget", Tag.TAG_INT)) {
-            this.rawLogReserveTarget = Math.max(0, tag.getInt("RawLogReserveTarget"));
+        if (tag.keySet().contains("WoodSupplyTarget")) {
+            this.woodSupplyTarget = Math.max(0, tag.getIntOr("WoodSupplyTarget", 0));
         }
-        if (tag.contains("WoodSupplyTarget", Tag.TAG_INT)) {
-            this.woodSupplyTarget = Math.max(0, tag.getInt("WoodSupplyTarget"));
+        if (tag.keySet().contains("CobblestoneSupplyTarget")) {
+            this.cobblestoneSupplyTarget = Math.max(0, tag.getIntOr("CobblestoneSupplyTarget", 0));
         }
-        if (tag.contains("CobblestoneSupplyTarget", Tag.TAG_INT)) {
-            this.cobblestoneSupplyTarget = Math.max(0, tag.getInt("CobblestoneSupplyTarget"));
+        if (tag.keySet().contains("LastSupplyGoalRerollDay")) {
+            this.lastSupplyGoalRerollDay = tag.getLongOr("LastSupplyGoalRerollDay", 0L);
         }
-        if (tag.contains("LastSupplyGoalRerollDay", Tag.TAG_LONG)) {
-            this.lastSupplyGoalRerollDay = tag.getLong("LastSupplyGoalRerollDay");
+        this.fishingStarterStringVersion = tag.getIntOr("FishingStarterStringVersion", 0);
+        if (tag.keySet().contains("SelectedDailyJobDay")) {
+            this.selectedDailyJobDay = tag.getLongOr("SelectedDailyJobDay", 0L);
         }
-        this.fishingStarterStringVersion = tag.getInt("FishingStarterStringVersion");
-        if (tag.contains("SelectedDailyJobDay", Tag.TAG_LONG)) {
-            this.selectedDailyJobDay = tag.getLong("SelectedDailyJobDay");
-        }
-        this.selectedDailyJobInterest = parseSavedDailyJobInterest(tag.getString("SelectedDailyJobInterest")).orElse(null);
-        this.teamLeaderUuid = tag.hasUUID("TeamLeader") ? tag.getUUID("TeamLeader") : null;
-        this.teamLeaderIsPlayer = this.teamLeaderUuid != null && tag.getBoolean("TeamLeaderIsPlayer");
-        this.teamLeaderRole = this.teamLeaderUuid == null && tag.getBoolean("TeamLeaderRole");
-        this.teamId = tag.hasUUID("TeamId")
-                ? tag.getUUID("TeamId")
+        this.selectedDailyJobInterest = parseSavedDailyJobInterest(tag.getStringOr("SelectedDailyJobInterest", "")).orElse(null);
+        this.teamLeaderUuid = SmartNpcNbt.hasUuid(tag, "TeamLeader") ? SmartNpcNbt.getUuid(tag, "TeamLeader") : null;
+        this.teamLeaderIsPlayer = this.teamLeaderUuid != null && tag.getBooleanOr("TeamLeaderIsPlayer", false);
+        this.teamLeaderRole = this.teamLeaderUuid == null && tag.getBooleanOr("TeamLeaderRole", false);
+        this.teamId = SmartNpcNbt.hasUuid(tag, "TeamId")
+                ? SmartNpcNbt.getUuid(tag, "TeamId")
                 : this.teamLeaderUuid != null
                 ? this.teamLeaderUuid
                 : this.teamLeaderRole
@@ -1918,13 +1919,13 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
                 : null;
         this.teamName = this.teamId == null
                 ? ""
-                : tag.contains("TeamName", Tag.TAG_STRING) && !tag.getString("TeamName").isBlank()
-                ? tag.getString("TeamName")
+                : tag.keySet().contains("TeamName") && !tag.getStringOr("TeamName", "").isBlank()
+                ? tag.getStringOr("TeamName", "")
                 : this.getDisplayName().getString() + "'s team";
         this.teamFounderUuid = this.teamId == null
                 ? null
-                : tag.hasUUID("TeamFounder")
-                ? tag.getUUID("TeamFounder")
+                : SmartNpcNbt.hasUuid(tag, "TeamFounder")
+                ? SmartNpcNbt.getUuid(tag, "TeamFounder")
                 : this.teamLeaderIsPlayer && this.teamLeaderUuid != null
                 ? this.teamLeaderUuid
                 : this.teamLeaderRole
@@ -1934,59 +1935,50 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.teamMembershipValidated = false;
         this.temporaryPillarSupports.clear();
         this.gatherLogsTemporaryPillarSupports.clear();
-        if (tag.contains(TEMPORARY_PILLAR_SUPPORTS_TAG, Tag.TAG_LIST)) {
-            ListTag temporarySupports = tag.getList(TEMPORARY_PILLAR_SUPPORTS_TAG, Tag.TAG_COMPOUND);
-            int supportCount = Math.min(temporarySupports.size(), MAX_TRACKED_TEMPORARY_PILLAR_SUPPORTS);
-            for (int index = 0; index < supportCount; index++) {
-                CompoundTag supportTag = temporarySupports.getCompound(index);
-                ResourceLocation blockId = ResourceLocation.tryParse(supportTag.getString("Block"));
-                Block block = blockId == null ? null : BuiltInRegistries.BLOCK.get(blockId);
+        if (tag.keySet().contains(TEMPORARY_PILLAR_SUPPORTS_TAG)) {
+            int supportCount = 0;
+            for (ValueInput supportTag : tag.childrenListOrEmpty(TEMPORARY_PILLAR_SUPPORTS_TAG)) {
+                if (supportCount++ >= MAX_TRACKED_TEMPORARY_PILLAR_SUPPORTS) {
+                    break;
+                }
+                Identifier blockId = Identifier.tryParse(supportTag.getStringOr("Block", ""));
+                Block block = blockId == null ? null : BuiltInRegistries.BLOCK.get(blockId).map(net.minecraft.core.Holder::value).orElse(null);
                 if (block != null && block != Blocks.AIR) {
-                    BlockPos supportPos = BlockPos.of(supportTag.getLong("Pos")).immutable();
+                    BlockPos supportPos = BlockPos.of(supportTag.getLongOr("Pos", 0L)).immutable();
                     this.temporaryPillarSupports.put(supportPos, block);
-                    if ("GATHER_LOGS".equals(supportTag.getString("Source"))) {
+                    if ("GATHER_LOGS".equals(supportTag.getStringOr("Source", ""))) {
                         this.gatherLogsTemporaryPillarSupports.add(supportPos);
                     }
                 }
             }
         }
-        this.useBow = tag.getBoolean("UseBow");
-        if (tag.contains("BlockProjectileChance", Tag.TAG_DOUBLE)) {
-            this.placeBlockToParryChance = tag.getDouble("BlockProjectileChance");
+        this.useBow = tag.getBooleanOr("UseBow", false);
+        if (tag.keySet().contains("BlockProjectileChance")) {
+            this.placeBlockToParryChance = tag.getDoubleOr("BlockProjectileChance", 0.0D);
         }
-        this.placeBlockParryCooldown = tag.getInt("BlockParryCooldown");
-        if (tag.contains("MainHandItem", Tag.TAG_COMPOUND)) {
-            this.mainWeaponItem = ItemStack.parseOptional(this.registryAccess(), tag.getCompound("MainHandItem"));
-        } else {
-            this.mainWeaponItem = ItemStack.EMPTY;
-        }
-        if (tag.contains("OffHandItem", Tag.TAG_COMPOUND)) {
-            this.offWeaponItem = ItemStack.parseOptional(this.registryAccess(), tag.getCompound("OffHandItem"));
-        } else {
-            this.offWeaponItem = ItemStack.EMPTY;
-        }
-        this.temporaryBowEquipped = tag.getBoolean("TemporaryBowEquipped");
-        if (this.temporaryBowEquipped && tag.contains("TemporaryBowPreviousMainHand", Tag.TAG_COMPOUND)) {
-            this.temporaryBowPreviousMainHand = ItemStack.parseOptional(
-                    this.registryAccess(),
-                    tag.getCompound("TemporaryBowPreviousMainHand")
-            );
+        this.placeBlockParryCooldown = tag.getIntOr("BlockParryCooldown", 0);
+        this.mainWeaponItem = tag.read("MainHandItem", ItemStack.CODEC).orElse(ItemStack.EMPTY);
+        this.offWeaponItem = tag.read("OffHandItem", ItemStack.CODEC).orElse(ItemStack.EMPTY);
+        this.temporaryBowEquipped = tag.getBooleanOr("TemporaryBowEquipped", false);
+        if (this.temporaryBowEquipped && tag.keySet().contains("TemporaryBowPreviousMainHand")) {
+            this.temporaryBowPreviousMainHand = tag.read("TemporaryBowPreviousMainHand", ItemStack.CODEC)
+                    .orElse(ItemStack.EMPTY);
         } else {
             this.temporaryBowPreviousMainHand = ItemStack.EMPTY;
         }
-        if (tag.contains("OwnedChestX", Tag.TAG_INT)
-                && tag.contains("OwnedChestY", Tag.TAG_INT)
-                && tag.contains("OwnedChestZ", Tag.TAG_INT)) {
+        if (tag.keySet().contains("OwnedChestX")
+                && tag.keySet().contains("OwnedChestY")
+                && tag.keySet().contains("OwnedChestZ")) {
             this.ownedChestPos = new BlockPos(
-                    tag.getInt("OwnedChestX"),
-                    tag.getInt("OwnedChestY"),
-                    tag.getInt("OwnedChestZ")
+                    tag.getIntOr("OwnedChestX", 0),
+                    tag.getIntOr("OwnedChestY", 0),
+                    tag.getIntOr("OwnedChestZ", 0)
             );
         } else {
             this.ownedChestPos = null;
         }
-        PlayerNpcHomeUtil.readHomeFromTag(this, tag);
-        this.mainWeaponDisarmed = tag.getBoolean("MainWeaponDisarmed");
+        PlayerNpcHomeUtil.readHome(this, tag);
+        this.mainWeaponDisarmed = tag.getBooleanOr("MainWeaponDisarmed", false);
         this.restoreMainHandAfterTemporaryBow();
         this.repairLegacyRangedMainHandAfterLoad();
         this.materializeCachedMainWeaponAfterLoad();
@@ -2012,7 +2004,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         EquipmentSlot slot = this.getEquipmentSlotForItem(stack);
 
         if (slot.isArmor()) {
-            return !this.wantsToPickUp(stack);
+            return !(this.level() instanceof ServerLevel serverLevel) || !this.wantsToPickUp(serverLevel, stack);
         }
 
         return !isRecoverableWeapon(stack)
@@ -2027,13 +2019,13 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
 
         Item item = stack.getItem();
 
-        return item instanceof SwordItem
-                || item instanceof DiggerItem
+        return item.builtInRegistryHolder().is(ItemTags.SWORDS)
+                || item.components().has(DataComponents.TOOL)
                 || item instanceof TridentItem;
     }
 
     @Override
-    public boolean wantsToPickUp(@NotNull ItemStack stack) {
+    public boolean wantsToPickUp(@NotNull ServerLevel serverLevel, @NotNull ItemStack stack) {
         if (this.isItemPickupSuppressed() || stack.isEmpty() || PlayerNpcTrashUtil.isDiscarded(stack)) {
             return false;
         }
@@ -2042,7 +2034,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         if (!slot.isArmor()) {
             return false;
         }
-        return super.wantsToPickUp(stack);
+        return super.wantsToPickUp(serverLevel, stack);
     }
 
     public boolean isSmartNpcCompatPlayerLikeTarget(LivingEntity target) {
@@ -2287,7 +2279,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
                 level -> this.hasInterest(PlayerNpcInterest.BUILDING)
                         && this.hasInterest(PlayerNpcInterest.HUNT_MONSTERS)
                         && PlayerNpcHomeUtil.getHome(this).isPresent()
-                        && (level.isNight() || level.isThundering()),
+                        && (level.isDarkOutside() || level.isThundering()),
                 level -> this.getTarget() != null,
                 true,
                 false
@@ -2324,7 +2316,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
 
     private boolean shouldStayHomeForWeather(ServerLevel serverLevel) {
         return PlayerNpcHomeUtil.getHome(this).isPresent()
-                && (serverLevel.isNight() || serverLevel.isThundering());
+                && (serverLevel.isDarkOutside() || serverLevel.isThundering());
     }
 
     private boolean canExploreForLogSupply(ServerLevel serverLevel) {
@@ -2394,11 +2386,11 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     public @NotNull SoundEvent getHurtSound(@NotNull DamageSource damageSource) {
-        return Objects.requireNonNull(BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.fromNamespaceAndPath("minecraft", "entity.generic.hurt")));
+        return BuiltInRegistries.SOUND_EVENT.getValue(Identifier.fromNamespaceAndPath("minecraft", "entity.generic.hurt"));
     }
 
     public @NotNull SoundEvent getDeathSound() {
-        return Objects.requireNonNull(BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.fromNamespaceAndPath("minecraft", "entity.generic.death")));
+        return BuiltInRegistries.SOUND_EVENT.getValue(Identifier.fromNamespaceAndPath("minecraft", "entity.generic.death"));
     }
 
     public void jump() {
@@ -2411,7 +2403,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
                 Math.max(motion.y, PLAYER_LIKE_JUMP_Y),
                 motion.z + forward.z * strength
         );
-        this.hasImpulse = true;
+        this.hurtMarked = true;
     }
 
     public void shortPillarJump() {
@@ -2422,7 +2414,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         Vec3 v = this.getDeltaMovement();
         double keepH = 0.02D;
         this.setDeltaMovement(v.x * keepH, PLAYER_LIKE_JUMP_Y, v.z * keepH);
-        this.hasImpulse = true;
+        this.hurtMarked = true;
     }
 
     @Override
@@ -2431,7 +2423,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         super.setTarget(this.hasInterest(PlayerNpcInterest.CAUTIOUS) ? null : target);
     }
 
-    public boolean hurt(@NotNull DamageSource damageSource, float f) {
+    public boolean hurtServer(@NotNull ServerLevel serverLevel, @NotNull DamageSource damageSource, float f) {
         if (this.isTeamAlliedWith(damageSource.getEntity())) {
             return false;
         }
@@ -2439,7 +2431,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             return false;
         }
 
-        boolean hurt = super.hurt(damageSource, f);
+        boolean hurt = super.hurtServer(serverLevel, damageSource, f);
         if (hurt && !this.hasInterest(PlayerNpcInterest.CAUTIOUS)
                 && !this.level().isClientSide() && damageSource.getEntity() instanceof LivingEntity attacker
                 && attacker.isAlive()
@@ -2472,7 +2464,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         int durabilityDamage = Math.max(1, (int) Math.ceil(amount));
         this.hurtItemInHand(InteractionHand.OFF_HAND, durabilityDamage);
         this.swing(InteractionHand.OFF_HAND, true);
-        this.level().playSound(null, this.blockPosition(), SoundEvents.SHIELD_BLOCK, SoundSource.HOSTILE, 1.0F, 0.8F + this.getRandom().nextFloat() * 0.4F);
+        this.level().playSound(null, this.blockPosition(), SoundEvents.SHIELD_BLOCK.value(), SoundSource.HOSTILE, 1.0F, 0.8F + this.getRandom().nextFloat() * 0.4F);
         return true;
     }
 
@@ -2485,7 +2477,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     @Override
-    public boolean doHurtTarget(@NotNull Entity target) {
+    public boolean doHurtTarget(@NotNull ServerLevel serverLevel, @NotNull Entity target) {
         if (this.hasInterest(PlayerNpcInterest.CAUTIOUS)) {
             return false;
         }
@@ -2496,7 +2488,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.setCurrentAiState("ai.player_npc.melee_attacking");
         this.triggerMainHandAttackAnimation();
         this.triggerBetterCombatAttackAnimation();
-        boolean hurtTarget = super.doHurtTarget(target);
+        boolean hurtTarget = super.doHurtTarget(serverLevel, target);
         if (hurtTarget) {
             this.lastCombatProgressTick = this.tickCount;
             this.staleTargetTicks = 0;
@@ -2508,6 +2500,10 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             }
         }
         return hurtTarget;
+    }
+
+    public boolean doHurtTarget(@NotNull Entity target) {
+        return this.level() instanceof ServerLevel serverLevel && this.doHurtTarget(serverLevel, target);
     }
 
     public void hurtMainHandItem(int amount) {
@@ -2712,15 +2708,15 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
 
     private boolean isMainHandGear(ItemStack stack) {
         return !stack.isEmpty()
-                && (stack.getItem() instanceof SwordItem
+                && (stack.is(ItemTags.SWORDS)
                 || stack.getItem() instanceof AxeItem
                 || stack.getItem() instanceof TridentItem
-                || stack.getItem() instanceof DiggerItem);
+                || stack.has(DataComponents.TOOL));
     }
 
     private boolean isCombatMainHandGear(ItemStack stack) {
         return !stack.isEmpty()
-                && (stack.getItem() instanceof SwordItem
+                && (stack.is(ItemTags.SWORDS)
                 || stack.getItem() instanceof AxeItem
                 || stack.getItem() instanceof TridentItem);
     }
@@ -2738,17 +2734,15 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         }
 
         double score = 0.0D;
-        if (stack.getItem() instanceof ArmorItem armorItem) {
-            score += armorItem.getDefense() * 3.0D;
-            score += armorItem.getToughness() * 1.5D;
-        } else if (stack.getItem() instanceof SwordItem || stack.getItem() instanceof AxeItem) {
-            score += stack.getAttributeModifiers().compute(
-                    this.getAttributeBaseValue(Attributes.ATTACK_DAMAGE), EquipmentSlot.MAINHAND);
+        if (SmartNpcItemUtil.isArmor(stack)) {
+            score += SmartNpcItemUtil.armorScore(stack);
+        } else if (stack.is(ItemTags.SWORDS) || stack.getItem() instanceof AxeItem) {
+            score += SmartNpcItemUtil.attackDamage(stack);
         } else if (stack.getItem() instanceof TridentItem) {
             score += 9.0D;
         } else if (stack.getItem() instanceof BowItem || stack.getItem() instanceof CrossbowItem || stack.getItem() instanceof ProjectileWeaponItem) {
             score += 6.0D;
-        } else if (stack.getItem() instanceof DiggerItem) {
+        } else if (stack.has(DataComponents.TOOL)) {
             score += 3.0D + stack.getDestroySpeed(Blocks.STONE.defaultBlockState()) * 0.1D;
         }
 
@@ -2865,7 +2859,6 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.entityData.set(SNEAKING_AI_HIDES_DISPLAY_NAME, hidden);
     }
 
-    @Override
     public boolean canFireProjectileWeapon(@NotNull ProjectileWeaponItem item) {
         return item instanceof BowItem;
     }
@@ -2918,7 +2911,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.handlePlayerNpcDeathChat(damageSource, deathMessage);
 
         if (this.level() instanceof ServerLevel serverLevel) {
-            if (this.getPersistentData().getBoolean("die_by_possess")) {
+            if (this.getPersistentData().getBooleanOr("die_by_possess", false)) {
                 this.remove(Entity.RemovalReason.KILLED);
             }
         }
@@ -3000,7 +2993,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     private boolean tryPickupItemEntity(ItemEntity itemEntity, boolean equipAfterPickup) {
-        if (this.level().isClientSide
+        if (this.level().isClientSide()
                 || this.isItemPickupSuppressed()
                 || itemEntity == null
                 || !itemEntity.isAlive()
@@ -3076,7 +3069,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     public void playExperiencePickupSound() {
-        if (this.level().isClientSide) {
+        if (this.level().isClientSide()) {
             return;
         }
 
@@ -3091,7 +3084,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     public void playInventoryPickupSound() {
-        if (this.level().isClientSide) {
+        if (this.level().isClientSide()) {
             return;
         }
         this.level().playSound(
@@ -3222,7 +3215,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             this.upwardEscapeRequestTicks = tickCooldown(this.upwardEscapeRequestTicks);
         }
         BlockPos feet = this.blockPosition();
-        boolean wetForLandEscape = this.isInWaterOrBubble()
+        boolean wetForLandEscape = this.isInWater()
                 || this.level().getFluidState(feet).is(FluidTags.WATER)
                 || this.level().getFluidState(feet.above()).is(FluidTags.WATER)
                 || !this.onGround() && this.level().getFluidState(feet.below()).is(FluidTags.WATER);
@@ -3672,7 +3665,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
                 && !this.idleResourceFallbackClearBlockAi.isRunning()
                 && !this.idleResourcePathStuckFallbackAi.isRunning()
                 && this.onGround()
-                && !this.isInWaterOrBubble();
+                && !this.isInWater();
     }
 
     /** Cheap proof that this is actually a raised perch, not ordinary idle ground. */
@@ -3827,7 +3820,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         BlockState support = serverLevel.getBlockState(pos.below());
         return serverLevel.getBlockState(pos).getCollisionShape(serverLevel, pos).isEmpty()
                 && serverLevel.getBlockState(pos.above()).getCollisionShape(serverLevel, pos.above()).isEmpty()
-                && (support.isSolidRender(serverLevel, pos.below()) || support.is(BlockTags.LEAVES))
+                && (support.isSolidRender() || support.is(BlockTags.LEAVES))
                 && !support.getCollisionShape(serverLevel, pos.below()).isEmpty()
                 && serverLevel.getFluidState(pos).isEmpty()
                 && serverLevel.getFluidState(pos.above()).isEmpty();
@@ -4145,7 +4138,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.getMoveControl().setWantedPosition(targetX, this.getY(), targetZ, 1.0D);
         Vec3 motion = this.getDeltaMovement();
         this.setDeltaMovement(dx / length * 0.24D, motion.y, dz / length * 0.24D);
-        this.hasImpulse = true;
+        this.hurtMarked = true;
         return true;
     }
 
@@ -4318,7 +4311,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     private void tickDailySupplyGoalReroll(ServerLevel serverLevel) {
-        long dayTime = serverLevel.getDayTime();
+        long dayTime = serverLevel.getOverworldClockTime();
         long day = dayTime / DAY_LENGTH_TICKS;
         if (dayTime % DAY_LENGTH_TICKS != 0L || day == this.lastSupplyGoalRerollDay) {
             return;
@@ -4337,7 +4330,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     private void tickDailyJobSelection(ServerLevel serverLevel) {
-        long dayTime = serverLevel.getDayTime();
+        long dayTime = serverLevel.getOverworldClockTime();
         long day = dayTime / DAY_LENGTH_TICKS;
         long timeOfDay = dayTime % DAY_LENGTH_TICKS;
 
@@ -4477,7 +4470,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     private void tickTasklessActivityWatchdog() {
-        if (this.level().isClientSide
+        if (this.level().isClientSide()
                 || !this.isAlive()
                 || this.isNoAi()
                 || this.isPassenger()
@@ -4656,7 +4649,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
                 || "ai.player_npc.protecting_chest".equals(state);
     }
 
-    public SpawnGroupData finalizeSpawn(@NotNull ServerLevelAccessor serverLevelAccessor, @NotNull DifficultyInstance difficultyInstance, @NotNull MobSpawnType mobSpawnType, @Nullable SpawnGroupData spawngroupdata) {
+    public SpawnGroupData finalizeSpawn(@NotNull ServerLevelAccessor serverLevelAccessor, @NotNull DifficultyInstance difficultyInstance, @NotNull EntitySpawnReason mobSpawnType, @Nullable SpawnGroupData spawngroupdata) {
         SpawnGroupData returnSpawnGroupData = super.finalizeSpawn(serverLevelAccessor, difficultyInstance, mobSpawnType, spawngroupdata);
 
         if (this.isRemoved()) {
@@ -4676,7 +4669,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             try {
                 Objects.requireNonNull(this.getServer()).getCommands().getDispatcher().execute(
                         cmd,
-                        this.createCommandSourceStack().withSuppressedOutput().withPermission(4)
+                        this.createCommandSourceStack().withSuppressedOutput().withPermission(net.minecraft.server.permissions.LevelBasedPermissionSet.OWNER)
                 );
             } catch (CommandSyntaxException ignored) {
             }
@@ -4865,8 +4858,8 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     @Override
-    public void awardKillScore(@NotNull Entity entity, int i, @NotNull DamageSource damageSource) {
-        super.awardKillScore(entity, i, damageSource);
+    public void awardKillScore(@NotNull Entity entity, @NotNull DamageSource damageSource) {
+        super.awardKillScore(entity, damageSource);
         if (entity instanceof LivingEntity livingEntity) {
             if (this.level() instanceof ServerLevel serverLevel) {
                 this.awardStoredExperience(livingEntity.getExperienceReward(serverLevel, this));
@@ -4884,7 +4877,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         }
 
         if (pSlot == EquipmentSlot.OFFHAND &&
-                (pNewItem.getItem() instanceof SwordItem || pNewItem.getItem() instanceof AxeItem || pNewItem.getItem() instanceof ShieldItem)) {
+                (pNewItem.is(ItemTags.SWORDS) || pNewItem.getItem() instanceof AxeItem || pNewItem.getItem() instanceof ShieldItem)) {
             this.setOffWeaponItem(pNewItem);
         }
 
@@ -4892,10 +4885,10 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     public static boolean canSpawn(EntityType<PlayerNpcEntity> entityType, ServerLevelAccessor level,
-                                   MobSpawnType spawnType, BlockPos position, RandomSource random) {
+                                   EntitySpawnReason spawnType, BlockPos position, RandomSource random) {
         ServerLevel serverLevel = level.getLevel();
         boolean naturalSpawn = PlayerNpcNaturalSpawnCap.isNaturalSpawnType(spawnType);
-        if ((spawnType == MobSpawnType.NATURAL || spawnType == MobSpawnType.CHUNK_GENERATION)
+        if ((spawnType == EntitySpawnReason.NATURAL || spawnType == EntitySpawnReason.CHUNK_GENERATION)
                 && !PlayerNpcNaturalSpawnCap.isNaturalSpawningEnabled(serverLevel)) {
             return false;
         }
@@ -4905,7 +4898,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         if (!hasAvailableConfiguredName(serverLevel.getServer())) {
             return false;
         }
-        if (serverLevel.isNight()) {
+        if (serverLevel.isDarkOutside()) {
             return false;
         }
         if (!PathfinderMob.checkMobSpawnRules(entityType, level, spawnType, position, random)) {

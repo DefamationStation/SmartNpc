@@ -1,5 +1,7 @@
 package com.pla.smart_npc.entity.goal;
 
+import net.minecraft.tags.ItemTags;
+
 import com.pla.smart_npc.clazz.PlayerNpcInterest;
 import com.pla.smart_npc.entity.PlayerNpcEntity;
 import com.pla.smart_npc.entity.ai.BreakingBlockAi;
@@ -18,7 +20,6 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.PickaxeItem;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -426,7 +427,7 @@ public class DigDownForStoneGoal extends Goal {
         this.breakingBlockAi.stop();
         this.toolAi.restoreMainHand();
         int cooldown = -1;
-        if (!this.playerNpc.level().isClientSide) {
+        if (!this.playerNpc.level().isClientSide()) {
             boolean miningProspecting = this.playerNpc.level() instanceof ServerLevel serverLevel
                     && this.isMiningProspecting(serverLevel);
             cooldown = this.foundGatherStoneTarget
@@ -1227,7 +1228,7 @@ public class DigDownForStoneGoal extends Goal {
 
     private boolean isProtectedHomeBlock(BlockPos pos) {
         return PlayerNpcHomeUtil.isInsideBuildFootprint(this.playerNpc, pos)
-                || FarmAi.isProtectedFarmBlock(this.playerNpc, pos)
+                || FarmAi.isProtectedFarmlandBlock(this.playerNpc, pos)
                 || FarmAi.isBelowOwnedFarmFootprint(this.playerNpc, pos);
     }
 
@@ -1251,7 +1252,7 @@ public class DigDownForStoneGoal extends Goal {
 
     private boolean shouldStayHomeForWeather(ServerLevel serverLevel) {
         return PlayerNpcHomeUtil.getHome(this.playerNpc).isPresent()
-                && (serverLevel.isNight() || serverLevel.isThundering());
+                && (serverLevel.isDarkOutside() || serverLevel.isThundering());
     }
 
     private boolean isMiningProspecting(ServerLevel serverLevel) {
@@ -1262,7 +1263,7 @@ public class DigDownForStoneGoal extends Goal {
     }
 
     private boolean hasPickaxe() {
-        return this.playerNpc.hasCarriedTool(PickaxeItem.class);
+        return this.playerNpc.hasCarriedTool(ItemTags.PICKAXES);
     }
 
     private int countStone() {

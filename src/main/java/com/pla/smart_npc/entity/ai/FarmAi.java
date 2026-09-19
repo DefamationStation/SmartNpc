@@ -22,7 +22,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CropBlock;
-import net.minecraft.world.level.block.FarmBlock;
+import net.minecraft.world.level.block.FarmlandBlock;
 import net.minecraft.world.level.block.FenceBlock;
 import net.minecraft.world.level.block.FenceGateBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -81,7 +81,7 @@ public final class FarmAi {
         }
 
         Plan plan = saved.get();
-        String dimension = serverLevel.dimension().location().toString();
+        String dimension = serverLevel.dimension().identifier().toString();
         if (plan.dimension().isBlank()) {
             plan = plan.withDimension(dimension);
             PlayerNpcFarmPlan.save(playerNpc, plan);
@@ -132,7 +132,7 @@ public final class FarmAi {
         Optional<Plan> invalidOrOtherDimension = PlayerNpcFarmPlan.get(playerNpc);
         if (invalidOrOtherDimension.isPresent()) {
             if (!invalidOrOtherDimension.get().dimension().isBlank()
-                    && !serverLevel.dimension().location().toString().equals(invalidOrOtherDimension.get().dimension())) {
+                    && !serverLevel.dimension().identifier().toString().equals(invalidOrOtherDimension.get().dimension())) {
                 return Optional.empty();
             }
             PlayerNpcFarmPlan.clear(playerNpc);
@@ -140,7 +140,7 @@ public final class FarmAi {
         }
 
         BlockPos searchCenter = playerNpc.blockPosition();
-        String dimension = serverLevel.dimension().location().toString();
+        String dimension = serverLevel.dimension().identifier().toString();
         PlanSearchCursor cursor = PLAN_SEARCH_CURSORS.get(playerNpc);
         if (cursor == null
                 || !dimension.equals(cursor.dimension)
@@ -213,7 +213,7 @@ public final class FarmAi {
             return false;
         }
         PlanSearchCursor cursor = PLAN_SEARCH_CURSORS.get(playerNpc);
-        String currentDimension = serverLevel.dimension().location().toString();
+        String currentDimension = serverLevel.dimension().identifier().toString();
         return cursor == null
                 || !currentDimension.equals(cursor.dimension)
                 || !cursor.exhausted;
@@ -429,13 +429,13 @@ public final class FarmAi {
     }
 
     /** Protects the farm surface, perimeter, entrance, and shallow support from generic mining/build placement. */
-    public static boolean isProtectedFarmBlock(PlayerNpcEntity playerNpc, BlockPos pos) {
+    public static boolean isProtectedFarmlandBlock(PlayerNpcEntity playerNpc, BlockPos pos) {
         if (playerNpc == null || !playerNpc.hasInterest(PlayerNpcInterest.FARMING) || pos == null) {
             return false;
         }
         return PlayerNpcFarmPlan.get(playerNpc).map(plan -> {
             if (!plan.dimension().isBlank()
-                    && !playerNpc.level().dimension().location().toString().equals(plan.dimension())) {
+                    && !playerNpc.level().dimension().identifier().toString().equals(plan.dimension())) {
                 return false;
             }
             if (plan.owns(pos) || isEntranceCorridor(plan, pos)) {
@@ -459,7 +459,7 @@ public final class FarmAi {
      * maintenance or harvest target themselves.
      */
     public static boolean isOwnedFarmDestructionProtected(PlayerNpcEntity playerNpc, BlockPos pos) {
-        return isProtectedFarmBlock(playerNpc, pos) || isBelowOwnedFarmFootprint(playerNpc, pos);
+        return isProtectedFarmlandBlock(playerNpc, pos) || isBelowOwnedFarmFootprint(playerNpc, pos);
     }
 
     public static List<BlockPos> farmTorchTargets(Plan plan) {
@@ -524,7 +524,7 @@ public final class FarmAi {
             return Optional.empty();
         }
         return PlayerNpcFarmPlan.get(playerNpc).filter(plan -> plan.dimension().isBlank()
-                || playerNpc.level().dimension().location().toString().equals(plan.dimension()));
+                || playerNpc.level().dimension().identifier().toString().equals(plan.dimension()));
     }
 
     public static boolean overlapsOwnedFarm(PlayerNpcEntity playerNpc, BlockPos origin, int width, int depth) {
@@ -533,7 +533,7 @@ public final class FarmAi {
         }
         return PlayerNpcFarmPlan.get(playerNpc).map(plan -> {
             if (!plan.dimension().isBlank()
-                    && !playerNpc.level().dimension().location().toString().equals(plan.dimension())) {
+                    && !playerNpc.level().dimension().identifier().toString().equals(plan.dimension())) {
                 return false;
             }
             int firstMinX = origin.getX() - 1;
@@ -570,7 +570,7 @@ public final class FarmAi {
 
     public static boolean isTillableGround(BlockState state) {
         return state != null
-                && (state.getBlock() instanceof FarmBlock
+                && (state.getBlock() instanceof FarmlandBlock
                 || state.is(Blocks.DIRT)
                 || state.is(Blocks.GRASS_BLOCK)
                 || state.is(Blocks.DIRT_PATH)
@@ -579,7 +579,7 @@ public final class FarmAi {
     }
 
     public static BlockState tilledState(BlockState state) {
-        if (state == null || state.getBlock() instanceof FarmBlock) {
+        if (state == null || state.getBlock() instanceof FarmlandBlock) {
             return state;
         }
         if (state.is(Blocks.COARSE_DIRT) || state.is(Blocks.ROOTED_DIRT)) {
@@ -635,7 +635,7 @@ public final class FarmAi {
         if (facing == null
                 || !state.hasProperty(FenceGateBlock.FACING)
                 || state.getValue(FenceGateBlock.FACING) != facing
-                || !serverLevel.getBlockState(plan.gatePos().below()).isSolidRender(serverLevel, plan.gatePos().below())) {
+                || !serverLevel.getBlockState(plan.gatePos().below()).isSolidRender()) {
             return false;
         }
         Direction firstSide = facing.getClockWise();
@@ -722,12 +722,12 @@ public final class FarmAi {
             }
         }
         for (BlockPos fence : plan.fencePositions()) {
-            if (!serverLevel.getBlockState(fence.below()).isSolidRender(serverLevel, fence.below())
+            if (!serverLevel.getBlockState(fence.below()).isSolidRender()
                     || !canClearSurfaceAt(serverLevel, fence)) {
                 return false;
             }
         }
-        return serverLevel.getBlockState(plan.gatePos().below()).isSolidRender(serverLevel, plan.gatePos().below())
+        return serverLevel.getBlockState(plan.gatePos().below()).isSolidRender()
                 && canClearSurfaceAt(serverLevel, plan.gatePos())
                 && hasReachableEntry(playerNpc, serverLevel, plan);
     }
@@ -792,7 +792,7 @@ public final class FarmAi {
             }
         }
         for (BlockPos ground : plan.cropGroundPositions()) {
-            if (serverLevel.getBlockState(ground).getBlock() instanceof FarmBlock
+            if (serverLevel.getBlockState(ground).getBlock() instanceof FarmlandBlock
                     || serverLevel.getBlockState(ground.above()).getBlock() instanceof CropBlock) {
                 return true;
             }

@@ -563,7 +563,7 @@ public final class WaterEscapeAi {
     }
 
     private WaterCurrentTarget findWaterCurrentTarget(ServerLevel serverLevel) {
-        if (!this.playerNpc.isInWaterOrBubble()
+        if (!this.playerNpc.isInWater()
                 && !serverLevel.getFluidState(this.playerNpc.blockPosition()).is(FluidTags.WATER)) {
             return null;
         }
@@ -672,7 +672,7 @@ public final class WaterEscapeAi {
                 Math.max(motion.y, 0.12D),
                 motion.z - flow.z * 0.18D
         );
-        this.playerNpc.hasImpulse = true;
+        this.playerNpc.hurtMarked = true;
     }
 
     private void jumpUpFromWater(ServerLevel serverLevel) {
@@ -686,7 +686,7 @@ public final class WaterEscapeAi {
                 Math.max(motion.y, 0.22D),
                 motion.z - flow.z * 0.08D
         );
-        this.playerNpc.hasImpulse = true;
+        this.playerNpc.hurtMarked = true;
     }
 
     /**
@@ -716,7 +716,7 @@ public final class WaterEscapeAi {
         }
 
         this.playerNpc.setDeltaMovement(nextX, motion.y, nextZ);
-        this.playerNpc.hasImpulse = true;
+        this.playerNpc.hurtMarked = true;
     }
 
     private boolean tryPlaceStandBlock(ServerLevel serverLevel, BlockPos pos) {
@@ -807,7 +807,7 @@ public final class WaterEscapeAi {
 
     private boolean isInWater(ServerLevel serverLevel) {
         BlockPos feet = this.playerNpc.blockPosition();
-        return this.playerNpc.isInWaterOrBubble()
+        return this.playerNpc.isInWater()
                 || serverLevel.getFluidState(feet).is(FluidTags.WATER)
                 || serverLevel.getFluidState(feet.above()).is(FluidTags.WATER)
                 || !this.playerNpc.onGround() && serverLevel.getFluidState(feet.below()).is(FluidTags.WATER);

@@ -10,11 +10,11 @@ import com.pla.smart_npc.network.PlayerNpcInspectorPacket;
 import com.pla.smart_npc.network.PlayerNpcInspectorRequestPacket;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.ChatFormatting;
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -22,7 +22,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -34,7 +34,10 @@ import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import net.minecraft.world.entity.player.Input;
+import net.minecraft.world.phys.Vec2;
+import com.pla.smart_npc.mixin.ClientInputAccessor;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -272,20 +275,14 @@ public class SmartNpcInspectorOverlay {
         }
 
         if (inspectatorActive) {
-            event.getInput().leftImpulse = 0.0F;
-            event.getInput().forwardImpulse = 0.0F;
-            event.getInput().up = false;
-            event.getInput().down = false;
-            event.getInput().left = false;
-            event.getInput().right = false;
-            event.getInput().jumping = false;
-            event.getInput().shiftKeyDown = false;
+            event.getInput().keyPresses = Input.EMPTY;
+            ((ClientInputAccessor) event.getInput()).smartNpc$setMoveVector(Vec2.ZERO);
         }
     }
 
     @SubscribeEvent
     public static void onRenderGuiOverlayPre(RenderGuiLayerEvent.Pre event) {
-        if (inspectatorActive && VanillaGuiLayers.JUMP_METER.equals(event.getName())) {
+        if (inspectatorActive && VanillaGuiLayers.CONTEXTUAL_INFO_BAR.equals(event.getName())) {
             event.setCanceled(true);
         }
     }
@@ -302,7 +299,7 @@ public class SmartNpcInspectorOverlay {
             return;
         }
 
-        GuiGraphics guiGraphics = event.getGuiGraphics();
+        GuiGraphicsExtractor guiGraphics = event.getGuiGraphics();
         int screenWidth = minecraft.getWindow().getGuiScaledWidth();
         int screenHeight = minecraft.getWindow().getGuiScaledHeight();
         if (inspectedEntityId == PlayerNpcInspectorPacket.OVERALL_ENTITY_ID) {
@@ -444,7 +441,7 @@ public class SmartNpcInspectorOverlay {
         );
     }
 
-    private static void renderPanel(GuiGraphics guiGraphics, Font font, int x, int y) {
+    private static void renderPanel(GuiGraphicsExtractor guiGraphics, Font font, int x, int y) {
         int panelHeight = currentPanelHeight();
         int interestsExtraHeight = interestsExtraHeight();
         int teamExtraHeight = teamExtraHeight();
@@ -455,33 +452,33 @@ public class SmartNpcInspectorOverlay {
         guiGraphics.fill(x, y, x + 1, y + panelHeight, 0xFF243447);
         guiGraphics.fill(x + PANEL_WIDTH - 1, y, x + PANEL_WIDTH, y + panelHeight, 0xFF243447);
 
-        guiGraphics.drawString(font, cachedTitle, x + 8, y + 7, 0xFFE6FFFA, false);
-        guiGraphics.drawString(font, cachedHealthText, x + 8, y + 21, cachedHealthColor, false);
-        guiGraphics.drawString(font, cachedAiText, x + 8, y + 35, 0xFFB7C9E2, false);
+        guiGraphics.text(font, cachedTitle, x + 8, y + 7, 0xFFE6FFFA, false);
+        guiGraphics.text(font, cachedHealthText, x + 8, y + 21, cachedHealthColor, false);
+        guiGraphics.text(font, cachedAiText, x + 8, y + 35, 0xFFB7C9E2, false);
         for (int i = 0; i < cachedInterestsLines.size(); i++) {
-            guiGraphics.drawString(font, cachedInterestsLines.get(i), x + 8, y + 49 + i * TEXT_LINE_HEIGHT, 0xFFB7C9E2, false);
+            guiGraphics.text(font, cachedInterestsLines.get(i), x + 8, y + 49 + i * TEXT_LINE_HEIGHT, 0xFFB7C9E2, false);
         }
         for (int i = 0; i < cachedTeamLines.size(); i++) {
-            guiGraphics.drawString(font, cachedTeamLines.get(i), x + 8,
+            guiGraphics.text(font, cachedTeamLines.get(i), x + 8,
                     y + 63 + interestsExtraHeight + i * TEXT_LINE_HEIGHT, 0xFF9ED7C5, false);
         }
         int contentExtraHeight = interestsExtraHeight + teamExtraHeight;
-        guiGraphics.drawString(font, cachedDailyJobText, x + 8, y + 77 + contentExtraHeight, 0xFFD6E4FF, false);
-        guiGraphics.drawString(font, cachedBuildStatusText, x + 8, y + 91 + contentExtraHeight, 0xFFB7C9E2, false);
+        guiGraphics.text(font, cachedDailyJobText, x + 8, y + 77 + contentExtraHeight, 0xFFD6E4FF, false);
+        guiGraphics.text(font, cachedBuildStatusText, x + 8, y + 91 + contentExtraHeight, 0xFFB7C9E2, false);
         int performanceY = y + 105 + contentExtraHeight;
         for (String line : cachedPerformanceLines) {
-            guiGraphics.drawString(font, line, x + 8, performanceY, 0xFFB7C9E2, false);
+            guiGraphics.text(font, line, x + 8, performanceY, 0xFFB7C9E2, false);
             performanceY += TEXT_LINE_HEIGHT;
         }
-        guiGraphics.drawString(font, cachedTraceText, x + 8, performanceY, snapshotTraceEnabled ? 0xFF74E291 : 0xFFB7C9E2, false);
+        guiGraphics.text(font, cachedTraceText, x + 8, performanceY, snapshotTraceEnabled ? 0xFF74E291 : 0xFFB7C9E2, false);
 
         renderTaskDetail(guiGraphics, font, x + 8, performanceY + 15);
 
-        guiGraphics.drawString(font, cachedMainHandText, x + 8, mainHandY, 0xFFD6E4FF, false);
+        guiGraphics.text(font, cachedMainHandText, x + 8, mainHandY, 0xFFD6E4FF, false);
 
         renderEquipment(guiGraphics, font, x + 8, mainHandY + 30);
         renderInventory(guiGraphics, font, x + 8, mainHandY + 64);
-        guiGraphics.drawString(font, cachedInspectatorHint, x + 8, y + panelHeight - 15, 0xFF94A3B8, false);
+        guiGraphics.text(font, cachedInspectatorHint, x + 8, y + panelHeight - 15, 0xFF94A3B8, false);
     }
 
     private static void refreshOverallDisplayCache(Font font, int wrapWidth) {
@@ -496,7 +493,7 @@ public class SmartNpcInspectorOverlay {
         cachedAiResourceLines = resourceLines(font, snapshotAiResourceText, wrapWidth);
     }
 
-    private static void renderRequirementsPanel(GuiGraphics guiGraphics, Font font, int x, int y) {
+    private static void renderRequirementsPanel(GuiGraphicsExtractor guiGraphics, Font font, int x, int y) {
         if (!cachedRequirementRows.isEmpty()) {
             renderRequirementRowsPanel(guiGraphics, font, x, y);
             return;
@@ -510,19 +507,19 @@ public class SmartNpcInspectorOverlay {
         guiGraphics.fill(x, y, x + 1, y + height, 0xFF243447);
         guiGraphics.fill(x + REQUIREMENTS_PANEL_WIDTH - 1, y, x + REQUIREMENTS_PANEL_WIDTH, y + height, 0xFF243447);
 
-        guiGraphics.drawString(font, cachedRequirementsTitle, x + 8, y + 7, 0xFFFFD166, false);
+        guiGraphics.text(font, cachedRequirementsTitle, x + 8, y + 7, 0xFFFFD166, false);
         int lineY = y + 23;
         for (String line : cachedRequirementLines) {
             if (lineY + lineHeight > y + height - 4) {
                 break;
             }
-            guiGraphics.drawString(font, line, x + 8, lineY, 0xFFD6E4FF, false);
+            guiGraphics.text(font, line, x + 8, lineY, 0xFFD6E4FF, false);
             lineY += lineHeight;
         }
     }
 
     private static void renderAiResourcePanel(
-            GuiGraphics guiGraphics,
+            GuiGraphicsExtractor guiGraphics,
             Font font,
             int x,
             int y,
@@ -543,7 +540,7 @@ public class SmartNpcInspectorOverlay {
         guiGraphics.fill(x, y + height - 1, x + width, y + height, 0xFF243447);
         guiGraphics.fill(x, y, x + 1, y + height, 0xFF243447);
         guiGraphics.fill(x + width - 1, y, x + width, y + height, 0xFF243447);
-        guiGraphics.drawString(
+        guiGraphics.text(
                 font,
                 Component.translatable("gui.player_npc.inspector.ai_resources_title"),
                 x + 8,
@@ -558,17 +555,17 @@ public class SmartNpcInspectorOverlay {
             int color = line.startsWith("> ") ? 0xFF74E291
                     : line.startsWith("  ") ? 0xFF94A3B8
                     : 0xFFD6E4FF;
-            guiGraphics.drawString(font, line, x + 8, lineY, color, false);
+            guiGraphics.text(font, line, x + 8, lineY, color, false);
             lineY += TEXT_LINE_HEIGHT;
         }
         if (scrollable) {
             String range = (resourceScrollOffset + 1) + "-" + (resourceScrollOffset + renderedLines)
                     + "/" + cachedAiResourceLines.size() + "  ↑/↓ scroll";
-            guiGraphics.drawString(font, range, x + 8, y + height - 12, 0xFF94A3B8, false);
+            guiGraphics.text(font, range, x + 8, y + height - 12, 0xFF94A3B8, false);
         }
     }
 
-    private static void renderRequirementRowsPanel(GuiGraphics guiGraphics, Font font, int x, int y) {
+    private static void renderRequirementRowsPanel(GuiGraphicsExtractor guiGraphics, Font font, int x, int y) {
         int headerHeight = requirementHeaderHeight();
         int availableRows = visibleRequirementRows();
         clampRequirementScrollOffset();
@@ -584,9 +581,9 @@ public class SmartNpcInspectorOverlay {
         guiGraphics.fill(x, y, x + 1, y + height, 0xFF243447);
         guiGraphics.fill(x + REQUIREMENTS_PANEL_WIDTH - 1, y, x + REQUIREMENTS_PANEL_WIDTH, y + height, 0xFF243447);
 
-        guiGraphics.drawString(font, cachedRequirementsTitle, x + 8, y + 7, 0xFFFFD166, false);
+        guiGraphics.text(font, cachedRequirementsTitle, x + 8, y + 7, 0xFFFFD166, false);
         if (!cachedRequirementsLayout.getString().isBlank()) {
-            guiGraphics.drawString(
+            guiGraphics.text(
                     font,
                     trimToWidth(font, cachedRequirementsLayout.getString(), REQUIREMENTS_PANEL_WIDTH - 16),
                     x + 8,
@@ -604,11 +601,11 @@ public class SmartNpcInspectorOverlay {
 
         if (hiddenRowsAbove > 0) {
             String text = "^ " + hiddenRowsAbove + " above";
-            guiGraphics.drawString(font, text, x + 8, rowY + 3, 0xFF94A3B8, false);
+            guiGraphics.text(font, text, x + 8, rowY + 3, 0xFF94A3B8, false);
         }
         if (hiddenRowsBelow > 0) {
             String text = "+" + hiddenRowsBelow + " more";
-            guiGraphics.drawString(
+            guiGraphics.text(
                     font,
                     text,
                     x + REQUIREMENTS_PANEL_WIDTH - 8 - font.width(text),
@@ -619,19 +616,19 @@ public class SmartNpcInspectorOverlay {
         }
     }
 
-    private static void renderRequirementRow(GuiGraphics guiGraphics, Font font, RequirementRow row, int x, int y, int index) {
+    private static void renderRequirementRow(GuiGraphicsExtractor guiGraphics, Font font, RequirementRow row, int x, int y, int index) {
         int rowColor = index % 2 == 0 ? 0xAA111827 : 0xAA0B1322;
         guiGraphics.fill(x + 5, y, x + REQUIREMENTS_PANEL_WIDTH - 5, y + REQUIREMENT_ROW_HEIGHT - 1, rowColor);
         guiGraphics.fill(x + 5, y + REQUIREMENT_ROW_HEIGHT - 1, x + REQUIREMENTS_PANEL_WIDTH - 5, y + REQUIREMENT_ROW_HEIGHT, 0xFF243447);
         guiGraphics.fill(x + 8, y + 3, x + 26, y + 21, 0xFF0B1120);
-        guiGraphics.renderItem(row.stack(), x + 9, y + 4);
+        guiGraphics.item(row.stack(), x + 9, y + 4);
 
         String name = trimToWidth(font, row.stack().getHoverName().getString(), REQUIREMENTS_PANEL_WIDTH - 106);
-        guiGraphics.drawString(font, name, x + 31, y + 4, 0xFFE6FFFA, false);
+        guiGraphics.text(font, name, x + 31, y + 4, 0xFFE6FFFA, false);
 
         String countText = row.carried() + " / " + row.remaining();
         int countColor = row.missing() <= 0 ? 0xFF74E291 : 0xFFFFD166;
-        guiGraphics.drawString(
+        guiGraphics.text(
                 font,
                 countText,
                 x + REQUIREMENTS_PANEL_WIDTH - 8 - font.width(countText),
@@ -641,11 +638,11 @@ public class SmartNpcInspectorOverlay {
         );
 
         String placedText = "placed " + row.placed() + " of " + row.required();
-        guiGraphics.drawString(font, placedText, x + 31, y + 14, 0xFF94A3B8, false);
+        guiGraphics.text(font, placedText, x + 31, y + 14, 0xFF94A3B8, false);
 
         String missingText = row.missing() <= 0 ? "ready" : "missing " + row.missing();
         int missingColor = row.missing() <= 0 ? 0xFF74E291 : 0xFFFF6B6B;
-        guiGraphics.drawString(
+        guiGraphics.text(
                 font,
                 missingText,
                 x + REQUIREMENTS_PANEL_WIDTH - 8 - font.width(missingText),
@@ -655,13 +652,13 @@ public class SmartNpcInspectorOverlay {
         );
     }
 
-    private static void renderTaskDetail(GuiGraphics guiGraphics, Font font, int x, int y) {
-        guiGraphics.drawString(font, cachedTaskLabel, x, y, 0xFF4FD1C5, false);
+    private static void renderTaskDetail(GuiGraphicsExtractor guiGraphics, Font font, int x, int y) {
+        guiGraphics.text(font, cachedTaskLabel, x, y, 0xFF4FD1C5, false);
 
         int valueX = x + cachedTaskLabelWidth + 4;
         for (int i = 0; i < cachedTaskValueLines.size(); i++) {
             int lineX = i == 0 ? valueX : x;
-            guiGraphics.drawString(font, cachedTaskValueLines.get(i), lineX, y + i * 11, 0xFFFFD166, false);
+            guiGraphics.text(font, cachedTaskValueLines.get(i), lineX, y + i * 11, 0xFFFFD166, false);
         }
     }
 
@@ -880,12 +877,12 @@ public class SmartNpcInspectorOverlay {
                 continue;
             }
 
-            ResourceLocation itemId = ResourceLocation.tryParse(parts[1]);
+            Identifier itemId = Identifier.tryParse(parts[1]);
             if (itemId == null) {
                 continue;
             }
 
-            Item item = BuiltInRegistries.ITEM.get(itemId);
+            Item item = BuiltInRegistries.ITEM.getValue(itemId);
             if (item == null) {
                 continue;
             }
@@ -983,15 +980,15 @@ public class SmartNpcInspectorOverlay {
         }
     }
 
-    private static void renderEquipment(GuiGraphics guiGraphics, Font font, int x, int y) {
-        guiGraphics.drawString(font, Component.translatable("gui.player_npc.inspector.equipment"), x, y - 10, 0xFF4FD1C5, false);
+    private static void renderEquipment(GuiGraphicsExtractor guiGraphics, Font font, int x, int y) {
+        guiGraphics.text(font, Component.translatable("gui.player_npc.inspector.equipment"), x, y - 10, 0xFF4FD1C5, false);
         for (int i = 0; i < 6; i++) {
             renderSlot(guiGraphics, font, getSnapshotItem(i), x + i * (SLOT_SIZE + 3), y);
         }
     }
 
-    private static void renderInventory(GuiGraphics guiGraphics, Font font, int x, int y) {
-        guiGraphics.drawString(font, Component.translatable("gui.player_npc.inspector.inventory"), x, y - 10, 0xFF4FD1C5, false);
+    private static void renderInventory(GuiGraphicsExtractor guiGraphics, Font font, int x, int y) {
+        guiGraphics.text(font, Component.translatable("gui.player_npc.inspector.inventory"), x, y - 10, 0xFF4FD1C5, false);
         for (int row = 0; row < 3; row++) {
             for (int column = 0; column < 9; column++) {
                 int index = 6 + column + row * 9;
@@ -1000,12 +997,12 @@ public class SmartNpcInspectorOverlay {
         }
     }
 
-    private static void renderSlot(GuiGraphics guiGraphics, Font font, ItemStack stack, int x, int y) {
+    private static void renderSlot(GuiGraphicsExtractor guiGraphics, Font font, ItemStack stack, int x, int y) {
         guiGraphics.fill(x - 1, y - 1, x + 17, y + 17, 0xFF0B1120);
         guiGraphics.fill(x, y, x + 16, y + 16, 0xFF1E293B);
         if (!stack.isEmpty()) {
-            guiGraphics.renderItem(stack, x, y);
-            guiGraphics.renderItemDecorations(font, stack, x, y);
+            guiGraphics.item(stack, x, y);
+            guiGraphics.itemDecorations(font, stack, x, y);
         }
     }
 
@@ -1021,7 +1018,7 @@ public class SmartNpcInspectorOverlay {
             return Component.translatable("gui.player_npc.inspector.empty");
         }
 
-        ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
         return id == null ? Component.literal("unknown") : Component.literal(id.toString());
     }
 
@@ -1334,7 +1331,7 @@ public class SmartNpcInspectorOverlay {
     }
 
     private static boolean isPhysicalKeyDown(Minecraft minecraft, int key) {
-        return InputConstants.isKeyDown(minecraft.getWindow().getWindow(), key);
+        return InputConstants.isKeyDown(minecraft.getWindow(), key);
     }
 
     private static void requestInspectatorCycle(PlayerNpcEntity currentNpc, int direction) {
@@ -1449,15 +1446,13 @@ public class SmartNpcInspectorOverlay {
         minecraft.options.keyJump.setDown(false);
         minecraft.options.keyInventory.setDown(false);
         if (minecraft.player != null && minecraft.player.input != null) {
-            minecraft.player.input.forwardImpulse = 0.0F;
-            minecraft.player.input.leftImpulse = 0.0F;
-            minecraft.player.input.jumping = false;
-            minecraft.player.input.shiftKeyDown = false;
+            minecraft.player.input.keyPresses = Input.EMPTY;
+            ((ClientInputAccessor) minecraft.player.input).smartNpc$setMoveVector(Vec2.ZERO);
         }
     }
 
     private static void renderHoveredItemTooltip(
-            GuiGraphics guiGraphics,
+            GuiGraphicsExtractor guiGraphics,
             Minecraft minecraft,
             int panelX,
             int panelY,
@@ -1470,14 +1465,14 @@ public class SmartNpcInspectorOverlay {
             int requirementsX = Math.max(4, panelX - REQUIREMENTS_PANEL_WIDTH - 8);
             ItemStack hoveredRequirement = getHoveredRequirementItem(requirementsX, panelY, mouseX, mouseY);
             if (!hoveredRequirement.isEmpty()) {
-                guiGraphics.renderTooltip(minecraft.font, hoveredRequirement, mouseX, mouseY);
+                guiGraphics.setTooltipForNextFrame(minecraft.font, hoveredRequirement, mouseX, mouseY);
                 return;
             }
         }
 
         ItemStack hovered = getHoveredItem(panelX, panelY, mouseX, mouseY);
         if (!hovered.isEmpty()) {
-            guiGraphics.renderTooltip(minecraft.font, hovered, mouseX, mouseY);
+            guiGraphics.setTooltipForNextFrame(minecraft.font, hovered, mouseX, mouseY);
         }
     }
 
@@ -1589,7 +1584,7 @@ public class SmartNpcInspectorOverlay {
             return;
         }
 
-        PacketDistributor.sendToServer(packet);
+        ClientPacketDistributor.sendToServer(packet);
     }
 
     private record RequirementPayload(boolean structured, Component layout, List<RequirementRow> rows, int more) {

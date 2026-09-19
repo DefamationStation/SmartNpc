@@ -1,5 +1,11 @@
 package com.pla.smart_npc.entity.goal;
 
+import net.minecraft.core.component.DataComponents;
+
+import com.pla.smart_npc.util.SmartNpcItemUtil;
+
+import net.minecraft.tags.ItemTags;
+
 import com.pla.smart_npc.entity.PlayerNpcEntity;
 import com.pla.smart_npc.entity.ai.FarmAi;
 import com.pla.smart_npc.util.ChatUtil;
@@ -11,7 +17,7 @@ import com.pla.smart_npc.util.PlayerNpcTrashUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -97,7 +103,7 @@ public class BurnNearbyItemGoal extends Goal {
 
     @Override
     public boolean canContinueToUse() {
-        if (mob.level().isClientSide) return false;
+        if (mob.level().isClientSide()) return false;
         if (!mob.isAlive() || mob.isRemoved() || mob.isDeadOrDying()) return false;
         if (mob.isPassenger()) return false;
         if (mob.getTarget() != null) return false;
@@ -506,7 +512,7 @@ public class BurnNearbyItemGoal extends Goal {
                 && head.getCollisionShape(serverLevel, pos.above()).isEmpty()
                 && feet.getFluidState().isEmpty()
                 && head.getFluidState().isEmpty()
-                && serverLevel.getBlockState(floorPos).isSolidRender(serverLevel, floorPos);
+                && serverLevel.getBlockState(floorPos).isSolidRender();
     }
 
     private boolean isProtectedHomeBlock(BlockPos pos) {
@@ -518,7 +524,7 @@ public class BurnNearbyItemGoal extends Goal {
     }
 
     private boolean hasRequiredToolFor(BlockState state) {
-        return !state.is(BlockTags.MINEABLE_WITH_PICKAXE) || hasTool(PickaxeItem.class);
+        return !state.is(BlockTags.MINEABLE_WITH_PICKAXE) || hasTool(ItemTags.PICKAXES);
     }
 
     private boolean equipToolFor(BlockState state) {
@@ -529,7 +535,7 @@ public class BurnNearbyItemGoal extends Goal {
             return true;
         }
         if (state.is(BlockTags.MINEABLE_WITH_PICKAXE)) {
-            return equipTool(PickaxeItem.class);
+            return equipTool(ItemTags.PICKAXES);
         }
         if (state.is(BlockTags.MINEABLE_WITH_SHOVEL)) {
             if (!equipTool(ShovelItem.class)) {
@@ -540,15 +546,15 @@ public class BurnNearbyItemGoal extends Goal {
         return true;
     }
 
-    private boolean equipTool(Class<?> toolClass) {
-        if (toolClass.isInstance(mob.getMainHandItem().getItem())) {
+    private boolean equipTool(Object toolClass) {
+        if (SmartNpcItemUtil.matches(toolClass, mob.getMainHandItem().getItem())) {
             return true;
         }
         if (restorePreviousMainHandForTool(toolClass)) {
             return true;
         }
 
-        ItemStack tool = InventoryUtils.consumeItem(mob, stack -> toolClass.isInstance(stack.getItem()), 1)
+        ItemStack tool = InventoryUtils.consumeItem(mob, stack -> SmartNpcItemUtil.matches(toolClass, stack.getItem()), 1)
                 .orElse(ItemStack.EMPTY);
         if (tool.isEmpty()) {
             return false;
@@ -574,14 +580,14 @@ public class BurnNearbyItemGoal extends Goal {
         } else if (!currentMainHand.isEmpty()
                 && !ItemStack.isSameItemSameComponents(currentMainHand, previousMainHand)
                 && !InventoryUtils.addItem(mob, currentMainHand)) {
-            mob.spawnAtLocation(currentMainHand);
+            if (mob.level() instanceof ServerLevel serverLevel) mob.spawnAtLocation(serverLevel, currentMainHand);
         }
 
         mob.setItemSlot(EquipmentSlot.MAINHAND, stack);
     }
 
-    private boolean restorePreviousMainHandForTool(Class<?> toolClass) {
-        if (!usingTemporaryTool || !toolClass.isInstance(previousMainHand.getItem())) {
+    private boolean restorePreviousMainHandForTool(Object toolClass) {
+        if (!usingTemporaryTool || !SmartNpcItemUtil.matches(toolClass, previousMainHand.getItem())) {
             return false;
         }
 
@@ -589,7 +595,7 @@ public class BurnNearbyItemGoal extends Goal {
         if (!currentMainHand.isEmpty()
                 && !ItemStack.isSameItemSameComponents(currentMainHand, previousMainHand)
                 && !InventoryUtils.addItem(mob, currentMainHand)) {
-            mob.spawnAtLocation(currentMainHand);
+            if (mob.level() instanceof ServerLevel serverLevel) mob.spawnAtLocation(serverLevel, currentMainHand);
         }
 
         mob.setItemSlot(EquipmentSlot.MAINHAND, previousMainHand.copy());
@@ -607,7 +613,7 @@ public class BurnNearbyItemGoal extends Goal {
         if (!currentMainHand.isEmpty()
                 && !ItemStack.isSameItemSameComponents(currentMainHand, previousMainHand)
                 && !InventoryUtils.addItem(mob, currentMainHand)) {
-            mob.spawnAtLocation(currentMainHand);
+            if (mob.level() instanceof ServerLevel serverLevel) mob.spawnAtLocation(serverLevel, currentMainHand);
         }
 
         mob.setItemSlot(EquipmentSlot.MAINHAND, previousMainHand.copy());
@@ -615,14 +621,14 @@ public class BurnNearbyItemGoal extends Goal {
         usingTemporaryTool = false;
     }
 
-    private boolean hasTool(Class<?> toolClass) {
-        if (toolClass.isInstance(mob.getMainHandItem().getItem())) {
+    private boolean hasTool(Object toolClass) {
+        if (SmartNpcItemUtil.matches(toolClass, mob.getMainHandItem().getItem())) {
             return true;
         }
-        if (usingTemporaryTool && toolClass.isInstance(previousMainHand.getItem())) {
+        if (usingTemporaryTool && SmartNpcItemUtil.matches(toolClass, previousMainHand.getItem())) {
             return true;
         }
-        return InventoryUtils.hasItem(mob, stack -> toolClass.isInstance(stack.getItem()));
+        return InventoryUtils.hasItem(mob, stack -> SmartNpcItemUtil.matches(toolClass, stack.getItem()));
     }
 
     private int getRequiredMineTicks(ServerLevel serverLevel, BlockPos pos, BlockState state) {
@@ -651,7 +657,7 @@ public class BurnNearbyItemGoal extends Goal {
             return;
         }
 
-        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+        Identifier blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
         String blockName = blockId == null ? state.getBlock().getDescriptionId() : blockId.toString();
         playerNpcEntity.setCurrentAiDetail(String.format(
                 java.util.Locale.ROOT,
@@ -736,7 +742,7 @@ public class BurnNearbyItemGoal extends Goal {
                 && itemEntity.isAlive()
                 && itemEntity.onGround()
                 && !itemEntity.getItem().isEmpty()
-                && !itemEntity.getItem().has(net.minecraft.core.component.DataComponents.FIRE_RESISTANT)
+                && !itemEntity.fireImmune()
                 && !isSuppressedPickupCandidate(itemEntity.getItem())
                 && (PlayerNpcTrashUtil.isDiscarded(itemEntity.getItem())
                 || !shouldReserveInsteadOfBurn(itemEntity.getItem()))
@@ -885,7 +891,7 @@ public class BurnNearbyItemGoal extends Goal {
         Optional<PlayerNpcHomeUtil.HomeArea> homeArea = PlayerNpcHomeUtil.getHome(playerNpc);
         return homeArea.map(home -> PlayerNpcHomeUtil.isInside(home, pos)).orElse(false)
                 || PlayerNpcHomeUtil.isInsideBuildFootprint(playerNpc, pos)
-                || FarmAi.isProtectedFarmBlock(playerNpc, pos)
+                || FarmAi.isProtectedFarmlandBlock(playerNpc, pos)
                 || FarmAi.isInsideOwnedFarmWorkOrEntranceFootprint(playerNpc, pos);
     }
 
@@ -928,7 +934,7 @@ public class BurnNearbyItemGoal extends Goal {
 
     private void giveOrDrop(ItemStack stack) {
         if (!InventoryUtils.addItem(mob, stack)) {
-            mob.spawnAtLocation(stack);
+            if (mob.level() instanceof ServerLevel serverLevel) mob.spawnAtLocation(serverLevel, stack);
         }
     }
 
@@ -1239,9 +1245,9 @@ public class BurnNearbyItemGoal extends Goal {
             return false;
         }
 
-        return stack.getItem() instanceof SwordItem
+        return stack.is(ItemTags.SWORDS)
                 || stack.getItem() instanceof AxeItem
-                || stack.getItem() instanceof DiggerItem
+                || stack.has(DataComponents.TOOL)
                 || stack.getItem() instanceof TridentItem
                 || stack.getItem() instanceof BowItem
                 || stack.getItem() instanceof CrossbowItem;

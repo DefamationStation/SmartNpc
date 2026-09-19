@@ -302,7 +302,7 @@ public final class PlayerNpcAiWorkBudget {
                 return;
             }
 
-            long dayTime = server.overworld().getDayTime();
+            long dayTime = server.overworld().getOverworldClockTime();
             if (this.observedOverworldDayTime == Long.MIN_VALUE
                     || dayTime < this.observedOverworldDayTime) {
                 // A fresh scheduler has no previous roster to rotate. Give its first holders a

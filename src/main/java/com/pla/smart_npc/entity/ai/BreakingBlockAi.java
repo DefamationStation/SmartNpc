@@ -214,12 +214,12 @@ public final class BreakingBlockAi {
             speed += (float) playerNpc.getAttributeValue(Attributes.MINING_EFFICIENCY);
         }
 
-        MobEffectInstance haste = playerNpc.getEffect(MobEffects.DIG_SPEED);
+        MobEffectInstance haste = playerNpc.getEffect(MobEffects.HASTE);
         if (haste != null) {
             speed *= 1.0F + (float) (haste.getAmplifier() + 1) * 0.2F;
         }
 
-        MobEffectInstance fatigue = playerNpc.getEffect(MobEffects.DIG_SLOWDOWN);
+        MobEffectInstance fatigue = playerNpc.getEffect(MobEffects.MINING_FATIGUE);
         if (fatigue != null) {
             speed *= miningFatigueMultiplier(fatigue.getAmplifier());
         }

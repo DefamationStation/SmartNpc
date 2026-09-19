@@ -52,7 +52,7 @@ public final class PlayerNpcInspectorData {
             return selectedDay < 0 ? selectedJob : selectedJob + " day " + selectedDay;
         }
 
-        long currentDay = serverLevel.getDayTime() / 24000L;
+        long currentDay = serverLevel.getOverworldClockTime() / 24000L;
         if (selectedDay < 0) {
             return selectedJob + " today " + currentDay;
         }

@@ -12,10 +12,12 @@ import com.pla.smart_npc.init.SmartNpcModEntityRenderers;
 import com.pla.smart_npc.init.SmartNpcModItems;
 import com.pla.smart_npc.init.SmartNpcModMenus;
 import com.pla.smart_npc.network.SmartNpcNetwork;
+import com.pla.smart_npc.util.PlayerNpcForceTickManager;
 import com.pla.smart_npc.world.PlayerNpcMobSpawnBiomeModifier;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.world.BiomeModifier;
+import net.neoforged.neoforge.common.world.chunk.RegisterTicketControllersEvent;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
@@ -45,6 +47,7 @@ public class SmartNpc {
         modEventBus.register(SmartNpcModEntities.class);
         SmartNpcModCreativeTabs.register(modEventBus);
         modEventBus.addListener(SmartNpcNetwork::register);
+        modEventBus.addListener(this::registerTicketControllers);
 
         BIOME_MODIFIERS.register(modEventBus);
 
@@ -62,7 +65,7 @@ public class SmartNpc {
 //            }
 //        }
 
-        if (FMLEnvironment.dist.isClient()) {
+        if (FMLEnvironment.getDist().isClient()) {
             modEventBus.register(SmartNpcModEntityRenderers.class);
             modEventBus.addListener(this::clientSetup);
             modEventBus.addListener(this::registerScreens);
@@ -74,6 +77,10 @@ public class SmartNpc {
 //        if (ModList.get().isLoaded("epicfight")) {
 //            event.enqueueWork(EpicFight::registerArmatures);
 //        }
+    }
+
+    private void registerTicketControllers(final RegisterTicketControllersEvent event) {
+        event.register(PlayerNpcForceTickManager.PLAYER_NPC_TICKET);
     }
 
     private void clientSetup(final FMLClientSetupEvent event) {

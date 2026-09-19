@@ -1,7 +1,7 @@
 package com.pla.smart_npc.config;
 
 import com.pla.smart_npc.SmartNpc;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 import java.util.LinkedHashMap;
@@ -13,7 +13,7 @@ public final class SmartNpcEpicFightConfig {
     public static final ModConfigSpec.ConfigValue<List<? extends String>> WEAPON_CAPABILITY_REDIRECTS;
 
     private static volatile List<? extends String> cachedRawEntries = List.of();
-    private static volatile Map<ResourceLocation, ResourceLocation> cachedRedirects = Map.of();
+    private static volatile Map<Identifier, Identifier> cachedRedirects = Map.of();
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -35,7 +35,7 @@ public final class SmartNpcEpicFightConfig {
     private SmartNpcEpicFightConfig() {
     }
 
-    public static ResourceLocation getWeaponCapabilityRedirect(ResourceLocation sourceItemId) {
+    public static Identifier getWeaponCapabilityRedirect(Identifier sourceItemId) {
         if (sourceItemId == null) {
             return null;
         }
@@ -55,13 +55,13 @@ public final class SmartNpcEpicFightConfig {
                 return;
             }
 
-            Map<ResourceLocation, ResourceLocation> parsed = new LinkedHashMap<>();
+            Map<Identifier, Identifier> parsed = new LinkedHashMap<>();
             for (String rawEntry : rawEntries) {
                 if (rawEntry == null) {
                     continue;
                 }
 
-                // Accept both normal ResourceLocation text and the escaped-colon form
+                // Accept both normal Identifier text and the escaped-colon form
                 // people often paste from config/documentation examples (wom\:agony).
                 String entry = rawEntry.trim().replace("\\:", ":");
                 int separator = entry.indexOf(';');
@@ -70,8 +70,8 @@ public final class SmartNpcEpicFightConfig {
                     continue;
                 }
 
-                ResourceLocation source = ResourceLocation.tryParse(entry.substring(0, separator).trim());
-                ResourceLocation target = ResourceLocation.tryParse(entry.substring(separator + 1).trim());
+                Identifier source = Identifier.tryParse(entry.substring(0, separator).trim());
+                Identifier target = Identifier.tryParse(entry.substring(separator + 1).trim());
                 if (source == null || target == null) {
                     SmartNpc.LOGGER.warn("Ignoring invalid Smart NPC Epic Fight weapon capability redirect '{}'.", rawEntry);
                     continue;

@@ -21,7 +21,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.DifficultyInstance;
-import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
@@ -41,7 +41,7 @@ public final class PlayerNpcCommandEvent {
     public static void registerCommands(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
         dispatcher.register(Commands.literal("smart_npc")
-                .requires(source -> source.hasPermission(2))
+                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                 .then(Commands.literal("spawn_player")
                         .then(Commands.argument("name", StringArgumentType.word())
                                 .executes(context -> spawnPlayer(
@@ -94,7 +94,7 @@ public final class PlayerNpcCommandEvent {
 
     private static int spawnPlayer(CommandSourceStack source, String name) {
         ServerLevel level = source.getLevel();
-        PlayerNpcEntity entity = SmartNpcModEntities.PLAYER_NPC.get().create(level);
+        PlayerNpcEntity entity = SmartNpcModEntities.PLAYER_NPC.get().create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
         if (entity == null) {
             source.sendFailure(Component.literal("Failed to create player NPC"));
             return 0;
@@ -102,10 +102,10 @@ public final class PlayerNpcCommandEvent {
 
         Vec3 position = source.getPosition();
         Vec2 rotation = source.getRotation();
-        entity.moveTo(position.x, position.y, position.z, rotation.y, rotation.x);
+        entity.snapTo(position.x, position.y, position.z, rotation.y, rotation.x);
         entity.setUsername(name);
         DifficultyInstance difficulty = level.getCurrentDifficultyAt(entity.blockPosition());
-        entity.finalizeSpawn(level, difficulty, MobSpawnType.COMMAND, null);
+        entity.finalizeSpawn(level, difficulty, EntitySpawnReason.COMMAND, null);
         level.addFreshEntity(entity);
         source.sendSuccess(() -> Component.literal("Spawned player NPC " + entity.getName().getString()), true);
         return 1;
@@ -124,7 +124,7 @@ public final class PlayerNpcCommandEvent {
             return 0;
         }
 
-        player.teleportTo(targetLevel, npc.getX(), npc.getY(), npc.getZ(), npc.getYRot(), npc.getXRot());
+        player.teleportTo(targetLevel, npc.getX(), npc.getY(), npc.getZ(), java.util.Set.of(), npc.getYRot(), npc.getXRot(), false);
         source.sendSuccess(() -> Component.literal("Teleported to player NPC " + npc.getName().getString()), true);
         return 1;
     }
@@ -333,7 +333,7 @@ public final class PlayerNpcCommandEvent {
                     : clean(playerNpc.getDisplayName().getString()) + "#" + playerNpc.getId();
             String location = playerNpc == null
                     ? "unloaded"
-                    : playerNpc.level().dimension().location()
+                    : playerNpc.level().dimension().identifier()
                     + "@"
                     + playerNpc.blockPosition().getX()
                     + ","

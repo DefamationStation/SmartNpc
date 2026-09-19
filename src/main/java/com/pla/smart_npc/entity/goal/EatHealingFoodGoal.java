@@ -1,5 +1,11 @@
 package com.pla.smart_npc.entity.goal;
 
+import com.pla.smart_npc.util.SmartNpcItemUtil;
+
+import net.minecraft.core.component.DataComponents;
+
+import net.minecraft.tags.ItemTags;
+
 import com.pla.smart_npc.entity.PlayerNpcEntity;
 import com.pla.smart_npc.clazz.PlayerNpcInterest;
 import com.pla.smart_npc.entity.ai.CautiousThreatAi;
@@ -17,15 +23,12 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.util.DefaultRandomPos;
-import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.CrossbowItem;
-import net.minecraft.world.item.DiggerItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ProjectileWeaponItem;
-import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.item.TridentItem;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
@@ -175,7 +178,7 @@ public class EatHealingFoodGoal extends Goal {
         // Epic Fight compatibility is disabled.
 
         if (this.eatTicks % 8 == 0) {
-            this.playerNpc.level().playSound(null, this.playerNpc.blockPosition(), SoundEvents.GENERIC_EAT, SoundSource.HOSTILE, 0.8F, 1.0F);
+            this.playerNpc.level().playSound(null, this.playerNpc.blockPosition(), SoundEvents.GENERIC_EAT.value(), SoundSource.HOSTILE, 0.8F, 1.0F);
         }
 
         if (this.pathRecalculateTicks-- <= 0) {
@@ -204,7 +207,7 @@ public class EatHealingFoodGoal extends Goal {
             this.playerNpc.heal(this.getHealAmount(eatenFood));
             this.playerNpc.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 400, 1));
             this.playerNpc.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 2400, 3));
-            this.playerNpc.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 6000, 0));
+            this.playerNpc.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 6000, 0));
             this.playerNpc.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 6000, 0));
         } else {
             this.healDirectly(REGULAR_FOOD_HEAL_AMOUNT);
@@ -319,11 +322,9 @@ public class EatHealingFoodGoal extends Goal {
         }
 
         double score = 0.0D;
-        if (stack.getItem() instanceof SwordItem swordItem) {
-            score += swordItem.getDamage(stack);
-        } else if (stack.getItem() instanceof AxeItem axeItem) {
-            score += axeItem.getDamage(stack);
-        } else if (stack.getItem() instanceof DiggerItem) {
+        if (stack.is(ItemTags.SWORDS) || stack.getItem() instanceof AxeItem) {
+            score += SmartNpcItemUtil.attackDamage(stack);
+        } else if (stack.has(DataComponents.TOOL)) {
             score += 3.0D;
         } else if (stack.getItem() instanceof TridentItem) {
             score += 8.0D;
@@ -331,9 +332,9 @@ public class EatHealingFoodGoal extends Goal {
             score += 5.0D;
         }
 
-        if (stack.getItem() instanceof ArmorItem armorItem) {
-            score += armorItem.getDefense() * 1.2D;
-            score += armorItem.getToughness();
+        if (SmartNpcItemUtil.isArmor(stack)) {
+            score += SmartNpcItemUtil.armor(stack) * 1.2D;
+            score += SmartNpcItemUtil.toughness(stack);
         }
         if (stack.isEnchanted()) {
             score += 2.0D;

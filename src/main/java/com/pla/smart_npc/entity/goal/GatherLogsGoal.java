@@ -645,7 +645,7 @@ public class GatherLogsGoal extends Goal {
         this.pathStuckFallbackAi.stop();
         this.pillarUpAi.clear();
         this.waterEscapeAi.stop();
-        if (!this.playerNpc.level().isClientSide) {
+        if (!this.playerNpc.level().isClientSide()) {
             this.playerNpc.setGatherCooldown(20);
         }
         this.logQueue.clear();
@@ -1078,7 +1078,7 @@ public class GatherLogsGoal extends Goal {
 
     private boolean shouldStayHomeForWeather(ServerLevel serverLevel) {
         return PlayerNpcHomeUtil.getHome(this.playerNpc).isPresent()
-                && (serverLevel.isNight() || serverLevel.isThundering());
+                && (serverLevel.isDarkOutside() || serverLevel.isThundering());
     }
 
     private void traceCanUseBlocked(String detail) {
@@ -2492,11 +2492,11 @@ public class GatherLogsGoal extends Goal {
         }
         int playerY = playerNpc.blockPosition().getY();
         int minY = Math.max(
-                serverLevel.getMinBuildHeight() + 1,
+                serverLevel.getMinY() + 1,
                 Math.min(playerY, side.getY()) - STAND_SCAN_BELOW_TARGET
         );
         int maxY = Math.min(
-                serverLevel.getMaxBuildHeight() - 2,
+                serverLevel.getMaxY() - 1,
                 Math.max(playerY, side.getY()) + STAND_SCAN_ABOVE_TARGET
         );
         for (int y = maxY; y >= minY; y--) {
@@ -2546,8 +2546,8 @@ public class GatherLogsGoal extends Goal {
         if (playerNpc == null || pos == null) {
             return false;
         }
-        if (FarmAi.isProtectedFarmBlock(playerNpc, pos)
-                || FarmAi.isProtectedFarmBlock(playerNpc, pos.below())) {
+        if (FarmAi.isProtectedFarmlandBlock(playerNpc, pos)
+                || FarmAi.isProtectedFarmlandBlock(playerNpc, pos.below())) {
             return true;
         }
         Optional<PlayerNpcHomeUtil.HomeArea> home = PlayerNpcHomeUtil.getHome(playerNpc);
@@ -2565,7 +2565,7 @@ public class GatherLogsGoal extends Goal {
         if (playerNpc == null || pos == null) {
             return false;
         }
-        if (FarmAi.isProtectedFarmBlock(playerNpc, pos)) {
+        if (FarmAi.isProtectedFarmlandBlock(playerNpc, pos)) {
             return true;
         }
         Optional<PlayerNpcHomeUtil.HomeArea> home = PlayerNpcHomeUtil.getHome(playerNpc);

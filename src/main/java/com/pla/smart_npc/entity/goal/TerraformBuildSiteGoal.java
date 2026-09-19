@@ -1,5 +1,7 @@
 package com.pla.smart_npc.entity.goal;
 
+import com.pla.smart_npc.util.SmartNpcItemUtil;
+
 import com.pla.smart_npc.clazz.PlayerNpcInterest;
 import com.pla.smart_npc.entity.PlayerNpcEntity;
 import com.pla.smart_npc.entity.ai.BreakingBlockAi;
@@ -21,7 +23,7 @@ import com.pla.smart_npc.util.PlayerNpcHomeUtil;
 import com.pla.smart_npc.util.PlayerNpcAiWorkBudget;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.ItemTags;
@@ -32,7 +34,6 @@ import net.minecraft.world.item.BedItem;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.PickaxeItem;
 import net.minecraft.world.item.ShovelItem;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -1416,8 +1417,8 @@ public class TerraformBuildSiteGoal extends Goal {
 
         BlockPos current = this.playerNpc.blockPosition();
         List<BlockPos> candidates = new ArrayList<>();
-        int minY = Math.max(serverLevel.getMinBuildHeight(), current.getY() - 2);
-        int maxY = Math.min(serverLevel.getMaxBuildHeight() - 2, current.getY() + 2);
+        int minY = Math.max(serverLevel.getMinY(), current.getY() - 2);
+        int maxY = Math.min(serverLevel.getMaxY() - 1, current.getY() + 2);
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
                 for (int y = minY; y <= maxY; y++) {
@@ -1714,7 +1715,7 @@ public class TerraformBuildSiteGoal extends Goal {
                 && !hasTool(playerNpc, ShovelItem.class);
         ACTIONABLE_PREP_CACHE.put(playerNpc, new ActionablePrepCache(
                 playerNpc.tickCount,
-                serverLevel.dimension().location(),
+                serverLevel.dimension().identifier(),
                 home.map(PlayerNpcHomeUtil.HomeArea::origin).orElse(null),
                 layoutId,
                 hasPrep,
@@ -1731,7 +1732,7 @@ public class TerraformBuildSiteGoal extends Goal {
         String layoutId = PlayerNpcHomeUtil.getHomeLayoutId(playerNpc).orElse("");
         ACTIONABLE_PREP_CACHE.put(playerNpc, new ActionablePrepCache(
                 playerNpc.tickCount,
-                serverLevel.dimension().location(),
+                serverLevel.dimension().identifier(),
                 home.map(PlayerNpcHomeUtil.HomeArea::origin).orElse(null),
                 layoutId,
                 true,
@@ -1931,7 +1932,7 @@ public class TerraformBuildSiteGoal extends Goal {
     private static boolean isGoodFloorBlock(ServerLevel serverLevel, BlockPos pos, BlockState state) {
         return !state.isAir()
                 && state.getFluidState().isEmpty()
-                && (state.isFaceSturdy(serverLevel, pos, Direction.UP) || state.isSolidRender(serverLevel, pos))
+                && (state.isFaceSturdy(serverLevel, pos, Direction.UP) || state.isSolidRender())
                 && !state.is(Blocks.BEDROCK);
     }
 
@@ -1946,10 +1947,10 @@ public class TerraformBuildSiteGoal extends Goal {
                 || PlayerNpcCraftingUtil.countLogs(playerNpc.getInventory()) > 0;
     }
 
-    private static boolean hasTool(PlayerNpcEntity playerNpc, Class<?> toolClass) {
-        return toolClass.isInstance(playerNpc.getMainHandItem().getItem())
-                || toolClass.isInstance(playerNpc.getOffhandItem().getItem())
-                || InventoryUtils.hasItem(playerNpc, stack -> toolClass.isInstance(stack.getItem()));
+    private static boolean hasTool(PlayerNpcEntity playerNpc, Object toolClass) {
+        return SmartNpcItemUtil.matches(toolClass, playerNpc.getMainHandItem().getItem())
+                || SmartNpcItemUtil.matches(toolClass, playerNpc.getOffhandItem().getItem())
+                || InventoryUtils.hasItem(playerNpc, stack -> SmartNpcItemUtil.matches(toolClass, stack.getItem()));
     }
 
     private static boolean isFillStack(ItemStack stack) {
@@ -2138,7 +2139,7 @@ public class TerraformBuildSiteGoal extends Goal {
         this.playerNpc.getJumpControl().jump();
         Vec3 motion = this.playerNpc.getDeltaMovement();
         this.playerNpc.setDeltaMovement(motion.x, Math.max(motion.y, 0.42D), motion.z);
-        this.playerNpc.hasImpulse = true;
+        this.playerNpc.hurtMarked = true;
         this.supportClearanceJumpCooldownTicks = SUPPORT_CLEARANCE_JUMP_COOLDOWN_TICKS;
         return true;
     }
@@ -2305,7 +2306,7 @@ public class TerraformBuildSiteGoal extends Goal {
                 this.equipEmptyHand();
             }
         } else if (state.is(BlockTags.MINEABLE_WITH_PICKAXE)) {
-            if (!this.equipTool(PickaxeItem.class)) {
+            if (!this.equipTool(ItemTags.PICKAXES)) {
                 this.equipEmptyHand();
             }
         } else if (state.is(BlockTags.LEAVES)) {
@@ -2313,15 +2314,15 @@ public class TerraformBuildSiteGoal extends Goal {
         }
     }
 
-    private boolean equipTool(Class<?> toolClass) {
-        if (toolClass.isInstance(this.playerNpc.getMainHandItem().getItem())) {
+    private boolean equipTool(Object toolClass) {
+        if (SmartNpcItemUtil.matches(toolClass, this.playerNpc.getMainHandItem().getItem())) {
             return true;
         }
         if (this.restorePreviousMainHandForTool(toolClass)) {
             return true;
         }
 
-        ItemStack tool = this.playerNpc.consumeInventoryItem(stack -> toolClass.isInstance(stack.getItem()), 1)
+        ItemStack tool = this.playerNpc.consumeInventoryItem(stack -> SmartNpcItemUtil.matches(toolClass, stack.getItem()), 1)
                 .orElse(ItemStack.EMPTY);
         if (tool.isEmpty()) {
             return false;
@@ -2351,8 +2352,8 @@ public class TerraformBuildSiteGoal extends Goal {
         this.playerNpc.setItemSlot(EquipmentSlot.MAINHAND, stack);
     }
 
-    private boolean restorePreviousMainHandForTool(Class<?> toolClass) {
-        if (!this.usingTemporaryMainHand || !toolClass.isInstance(this.previousMainHand.getItem())) {
+    private boolean restorePreviousMainHandForTool(Object toolClass) {
+        if (!this.usingTemporaryMainHand || !SmartNpcItemUtil.matches(toolClass, this.previousMainHand.getItem())) {
             return false;
         }
 
@@ -2404,7 +2405,7 @@ public class TerraformBuildSiteGoal extends Goal {
 
     private record ActionablePrepCache(
             int tick,
-            ResourceLocation dimension,
+            Identifier dimension,
             BlockPos homeOrigin,
             String layoutId,
             boolean hasPrep,
@@ -2425,7 +2426,7 @@ public class TerraformBuildSiteGoal extends Goal {
             return age >= 0
                     && age <= maxAge
                     + Math.floorMod(playerNpc.getUUID().hashCode(), 10)
-                    && this.dimension.equals(serverLevel.dimension().location())
+                    && this.dimension.equals(serverLevel.dimension().identifier())
                     && java.util.Objects.equals(this.homeOrigin, home == null ? null : home.origin())
                     && this.layoutId.equals(currentLayoutId)
                     && this.needsLogSupply == playerNpc.shouldPrioritizeLogGathering()

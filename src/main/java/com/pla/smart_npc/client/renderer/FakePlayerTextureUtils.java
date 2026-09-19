@@ -5,8 +5,9 @@ import com.mojang.authlib.minecraft.MinecraftProfileTexture;
 import com.pla.smart_npc.clazz.FakePlayer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.DefaultPlayerSkin;
-import net.minecraft.client.resources.PlayerSkin;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.PlayerSkin;
+import net.minecraft.world.entity.player.PlayerModelType;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.StringUtil;
 
 import java.util.Map;
@@ -25,26 +26,35 @@ public final class FakePlayerTextureUtils {
             return SkinType.DEFAULT;
         }
 
-        return SKIN_TYPE_CACHE.computeIfAbsent(profile.getId(), ignored ->
-                Minecraft.getInstance().getSkinManager().getInsecureSkin(profile).model() == PlayerSkin.Model.SLIM
+        return SKIN_TYPE_CACHE.computeIfAbsent(profile.id(), ignored ->
+                resolveSkin(profile).model() == PlayerModelType.SLIM
                         ? SkinType.SLIM
                         : SkinType.DEFAULT);
     }
 
-    public static ResourceLocation getPlayerSkin(FakePlayer entity) {
+    public static PlayerSkin getPlayerSkinData(FakePlayer entity) {
+        GameProfile profile = entity.getProfile();
+        PlayerSkin skin = isComplete(profile) ? resolveSkin(profile) : DefaultPlayerSkin.getDefaultSkin();
+        entity.setTexture(MinecraftProfileTexture.Type.SKIN, skin.body().texturePath());
+        if (skin.cape() != null) entity.setTexture(MinecraftProfileTexture.Type.CAPE, skin.cape().texturePath());
+        if (skin.elytra() != null) entity.setTexture(MinecraftProfileTexture.Type.ELYTRA, skin.elytra().texturePath());
+        return skin;
+    }
+
+    public static Identifier getPlayerSkin(FakePlayer entity) {
         return getTexture(entity, MinecraftProfileTexture.Type.SKIN).orElseGet(() -> {
             GameProfile profile = entity.getProfile();
             return isComplete(profile)
-                    ? DefaultPlayerSkin.get(profile).texture()
+                    ? getPlayerSkinData(entity).body().texturePath()
                     : DefaultPlayerSkin.getDefaultTexture();
         });
     }
 
-    public static Optional<ResourceLocation> getPlayerCape(FakePlayer entity) {
+    public static Optional<Identifier> getPlayerCape(FakePlayer entity) {
         return getTexture(entity, MinecraftProfileTexture.Type.CAPE);
     }
 
-    private static Optional<ResourceLocation> getTexture(FakePlayer entity, MinecraftProfileTexture.Type type) {
+    private static Optional<Identifier> getTexture(FakePlayer entity, MinecraftProfileTexture.Type type) {
         if (entity.isTextureAvailable(type)) {
             return Optional.ofNullable(entity.getTexture(type));
         }
@@ -54,11 +64,11 @@ public final class FakePlayerTextureUtils {
             return Optional.empty();
         }
 
-        PlayerSkin skin = Minecraft.getInstance().getSkinManager().getInsecureSkin(profile);
-        ResourceLocation location = switch (type) {
-            case SKIN -> skin.texture();
-            case CAPE -> skin.capeTexture();
-            case ELYTRA -> skin.elytraTexture();
+        PlayerSkin skin = resolveSkin(profile);
+        Identifier location = switch (type) {
+            case SKIN -> skin.body().texturePath();
+            case CAPE -> skin.cape() == null ? null : skin.cape().texturePath();
+            case ELYTRA -> skin.elytra() == null ? null : skin.elytra().texturePath();
         };
         if (location != null) {
             entity.setTexture(type, location);
@@ -67,7 +77,11 @@ public final class FakePlayerTextureUtils {
     }
 
     private static boolean isComplete(GameProfile profile) {
-        return profile != null && profile.getId() != null && !StringUtil.isNullOrEmpty(profile.getName());
+        return profile != null && profile.id() != null && !StringUtil.isNullOrEmpty(profile.name());
+    }
+
+    private static PlayerSkin resolveSkin(GameProfile profile) {
+        return Minecraft.getInstance().getSkinManager().createLookup(profile, false).get();
     }
 
     public enum SkinType {
