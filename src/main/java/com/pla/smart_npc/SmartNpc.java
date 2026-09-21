@@ -3,7 +3,12 @@ package com.pla.smart_npc;
 import com.mojang.serialization.MapCodec;
 import com.pla.smart_npc.client.SmartNpcClientItemProperties;
 import com.pla.smart_npc.client.gui.InventoryViewerScreen;
+import com.pla.smart_npc.compat.epicfight.EpicFight;
+import com.pla.smart_npc.compat.epicfight.EpicFightCloneAnimations;
+import com.pla.smart_npc.compat.epicfight.EpicFightSmartNpcPatchedRenderer;
+import com.pla.smart_npc.compat.epicfight.EpicFightSmartNpcPatches;
 import com.pla.smart_npc.config.SmartNpcConfig;
+import com.pla.smart_npc.config.SmartNpcEpicFightConfig;
 import com.pla.smart_npc.config.SmartNpcNamesConfig;
 import com.pla.smart_npc.event.NpcGearLoadEvent;
 import com.pla.smart_npc.init.SmartNpcModCreativeTabs;
@@ -20,6 +25,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.fml.loading.FMLEnvironment;
@@ -53,14 +59,15 @@ public class SmartNpc {
         modEventBus.addListener(SmartNpcNamesConfig::onConfigReloading);
         modContainer.registerConfig(ModConfig.Type.COMMON, SmartNpcConfig.SPEC, "smart_npc-server.toml");
         modContainer.registerConfig(ModConfig.Type.COMMON, SmartNpcNamesConfig.SPEC, "smart_npc-names.toml");
-//        if (ModList.get().isLoaded("epicfight")) {
-//            context.registerConfig(ModConfig.Type.COMMON, SmartNpcEpicFightConfig.SPEC, "smart_npc-epicfight.toml");
-//            modEventBus.register(EpicFightCloneAnimations.class);
-//            modEventBus.register(EpicFightSmartNpcPatches.class);
-//            if (FMLEnvironment.dist == Dist.CLIENT) {
-//                modEventBus.register(EpicFightSmartNpcPatchedRenderer.class);
-//            }
-//        }
+        if (ModList.get().isLoaded("epicfight")) {
+            modContainer.registerConfig(ModConfig.Type.COMMON, SmartNpcEpicFightConfig.SPEC, "smart_npc-epicfight.toml");
+            modEventBus.register(EpicFightCloneAnimations.class);
+            modEventBus.register(EpicFightSmartNpcPatches.class);
+            EpicFightSmartNpcPatches.registerPatchHook();
+            if (FMLEnvironment.dist.isClient()) {
+                EpicFightSmartNpcPatchedRenderer.registerRendererHook();
+            }
+        }
 
         if (FMLEnvironment.dist.isClient()) {
             modEventBus.register(SmartNpcModEntityRenderers.class);
@@ -71,9 +78,9 @@ public class SmartNpc {
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
-//        if (ModList.get().isLoaded("epicfight")) {
-//            event.enqueueWork(EpicFight::registerArmatures);
-//        }
+        if (ModList.get().isLoaded("epicfight")) {
+            event.enqueueWork(EpicFight::registerArmatures);
+        }
     }
 
     private void clientSetup(final FMLClientSetupEvent event) {

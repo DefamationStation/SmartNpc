@@ -74,6 +74,8 @@ repositories {
 }
 
 dependencies {
+    implementation "curse.maven:epic-fight-mod-405076:8175609"
+
     implementation "curse.maven:cloth-config-348521:5729127"
     implementation "curse.maven:playeranimator-658587:7389814"
     implementation "curse.maven:better-combat-by-daedelus-639842:8430183"

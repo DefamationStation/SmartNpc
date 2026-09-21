@@ -6,6 +6,7 @@ import com.pla.smart_npc.clazz.Difficulty;
 import com.pla.smart_npc.clazz.FakePlayer;
 import com.pla.smart_npc.clazz.PlayerNpcInterest;
 import com.pla.smart_npc.compat.BetterCombatCompat;
+import com.pla.smart_npc.compat.epicfight.EpicFight;
 import com.pla.smart_npc.entity.ai.BreakingBlockAi;
 import com.pla.smart_npc.entity.ai.ClearBlockAi;
 import com.pla.smart_npc.entity.ai.PathNavigationAi;
@@ -133,6 +134,7 @@ import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.neoforged.fml.ModList;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
@@ -2182,7 +2184,9 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.goalSelector.addGoal(3, this.gated(new RareSneakGoal(this), PlayerNpcInterest.CAUTIOUS));
         this.addWorkGoal(4, this.gated(new ReturnHomeGoal(this, 1.0D), PlayerNpcInterest.BUILDING));
         this.addWorkGoal(5, this.gated(terraformBuildSiteGoal, PlayerNpcInterest.BUILDING));
-        this.goalSelector.addGoal(6, new PlayerNpcMeleeAttackGoal(this));
+        if (!ModList.get().isLoaded("epicfight")) {
+            this.goalSelector.addGoal(6, new PlayerNpcMeleeAttackGoal(this));
+        }
         this.addWorkGoal(5, this.gated(new BuildHouseGoal(this), PlayerNpcInterest.BUILDING));
         this.addWorkGoal(4, new ManageHomeBaseGoal(this, true));
         this.addWorkGoal(4, new MiningNightCampGoal(this, 1.0D));
@@ -2426,7 +2430,9 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.goalSelector.addGoal(2, new UseWaterBucketGoal(this));
         this.goalSelector.addGoal(2, new PlayerNpcProjectileBlockGoal(this));
         this.goalSelector.addGoal(2, new WaterEnderPearlEscapeGoal(this));
-        // Epic Fight compatibility is disabled.
+        if (ModList.get().isLoaded("epicfight")) {
+            this.goalSelector.addGoal(2, new RandomCombatJumpGoal(this));
+        }
         this.goalSelector.addGoal(2, new PlayerNpcRangedBowAttackGoal(this, 1.0D, 20, 18.0F));
         this.goalSelector.addGoal(3, this.gated(new CombatFishingRodGoal(this), PlayerNpcInterest.FISHING));
         this.goalSelector.addGoal(3, new ThrowEnderPearlGoal(this));
@@ -2545,8 +2551,11 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             return false;
         }
         this.setCurrentAiState("ai.player_npc.melee_attacking");
-        this.triggerMainHandAttackAnimation();
-        this.triggerBetterCombatAttackAnimation();
+        // Epic Fight calls this damage callback from inside its running attack animation.
+        if (!ModList.get().isLoaded("epicfight")) {
+            this.triggerMainHandAttackAnimation();
+            this.triggerBetterCombatAttackAnimation();
+        }
         boolean hurtTarget = super.doHurtTarget(target);
         if (hurtTarget) {
             this.lastCombatProgressTick = this.tickCount;
@@ -2830,7 +2839,9 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         if (this.entityData.get(MAIN_HAND_ATTACK_ANIMATION_TICKS) <= 0) {
             this.entityData.set(MAIN_HAND_ATTACK_ANIMATION_TICKS, MAIN_HAND_USE_ANIMATION_DURATION);
         }
-        this.swing(InteractionHand.MAIN_HAND, true);
+        if (!ModList.get().isLoaded("epicfight") || !EpicFight.playMainHandUseAnimation(this)) {
+            this.swing(InteractionHand.MAIN_HAND, true);
+        }
     }
 
     public int getMainHandAttackAnimationTicks() {

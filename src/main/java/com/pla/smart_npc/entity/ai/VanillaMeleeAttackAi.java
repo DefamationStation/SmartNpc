@@ -14,6 +14,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ShieldItem;
+import net.neoforged.fml.ModList;
 
 /** Vanilla damage keeps enchantments, armor, hurt immunity, and held-weapon durability. */
 public final class VanillaMeleeAttackAi {
@@ -53,7 +54,7 @@ public final class VanillaMeleeAttackAi {
     }
 
     public static boolean attack(PlayerNpcEntity npc, LivingEntity target, boolean critical) {
-        if (!(npc.level() instanceof ServerLevel serverLevel)
+        if (ModList.get().isLoaded("epicfight") || !(npc.level() instanceof ServerLevel serverLevel)
                 || !npc.isAlive() || npc.isNoAi() || npc.isPassenger() || npc.isHealing() || npc.isUsingItem()
                 || npc.hasInterest(PlayerNpcInterest.CAUTIOUS)
                 || target instanceof Player player && (player.isCreative() || player.isSpectator())
