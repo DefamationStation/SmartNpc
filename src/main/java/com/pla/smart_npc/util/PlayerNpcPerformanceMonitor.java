@@ -83,11 +83,6 @@ public final class PlayerNpcPerformanceMonitor {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onServerTickStart(ServerTickEvent.Pre event) {
-        if (!SmartNpcConfig.PERFORMANCE_MONITOR_ENABLED.get()) {
-            tickStartNanos = -1L;
-            return;
-        }
-
         measuredNpcTickNanos = 0L;
         measuredNpcSuperTickNanos = 0L;
         measuredNpcCustomTickNanos = 0L;
@@ -114,7 +109,7 @@ public final class PlayerNpcPerformanceMonitor {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onServerTickEnd(ServerTickEvent.Post event) {
-        if (!SmartNpcConfig.PERFORMANCE_MONITOR_ENABLED.get() || tickStartNanos < 0L) {
+        if (tickStartNanos < 0L) {
             tickStartNanos = -1L;
             return;
         }
@@ -186,9 +181,6 @@ public final class PlayerNpcPerformanceMonitor {
     }
 
     public static String createInspectorText() {
-        if (!SmartNpcConfig.PERFORMANCE_MONITOR_ENABLED.get()) {
-            return "TPS monitor off";
-        }
         if (rollingCount <= 0) {
             return "TPS warming up";
         }
@@ -203,17 +195,17 @@ public final class PlayerNpcPerformanceMonitor {
     }
 
     public static boolean shouldMeasureNpcEntityTick() {
-        return SmartNpcConfig.PERFORMANCE_MONITOR_ENABLED.get();
+        return true;
     }
 
     /** Rolling server tick time used by the automatic AI scheduler. Zero means no stable sample yet. */
     public static double getRollingAverageMspt() {
-        return SmartNpcConfig.PERFORMANCE_MONITOR_ENABLED.get() ? getAverageMspt() : 0.0D;
+        return getAverageMspt();
     }
 
     /** Rolling measured Player NPC entity time used by the automatic natural-spawn cap. */
     public static double getRollingAverageNpcMs() {
-        return SmartNpcConfig.PERFORMANCE_MONITOR_ENABLED.get() && rollingCount > 0
+        return rollingCount > 0
                 ? rollingTotalNpcMs / rollingCount
                 : 0.0D;
     }
@@ -224,7 +216,7 @@ public final class PlayerNpcPerformanceMonitor {
      * population cost. Sustained overload remains in the other ninety-five percent.
      */
     public static double getRollingBaselineMspt() {
-        if (!SmartNpcConfig.PERFORMANCE_MONITOR_ENABLED.get() || rollingCount <= 0) {
+        if (rollingCount <= 0) {
             return 0.0D;
         }
         double[] ordered = Arrays.copyOf(rollingMspt, rollingCount);
@@ -239,12 +231,11 @@ public final class PlayerNpcPerformanceMonitor {
     }
 
     public static boolean hasStableRollingSample() {
-        return SmartNpcConfig.PERFORMANCE_MONITOR_ENABLED.get()
-                && rollingCount >= MIN_AVERAGE_WARNING_SAMPLES;
+        return rollingCount >= MIN_AVERAGE_WARNING_SAMPLES;
     }
 
     public static long beginAuxiliaryTiming() {
-        return SmartNpcConfig.PERFORMANCE_MONITOR_ENABLED.get() ? System.nanoTime() : 0L;
+        return System.nanoTime();
     }
 
     public static void recordForceManagerTick(long startNanos) {
@@ -284,8 +275,7 @@ public final class PlayerNpcPerformanceMonitor {
             long elapsedNanos,
             long superTickNanos
     ) {
-        if (!SmartNpcConfig.PERFORMANCE_MONITOR_ENABLED.get()
-                || playerNpc == null
+        if (playerNpc == null
                 || elapsedNanos <= 0L) {
             return;
         }
@@ -385,6 +375,10 @@ public final class PlayerNpcPerformanceMonitor {
     }
 
     private static void maybeLogWarning(MinecraftServer server, double currentMspt) {
+        if (!SmartNpcConfig.PERFORMANCE_MONITOR_ENABLED.get()) {
+            return;
+        }
+
         double averageMspt = getAverageMspt();
         boolean slowAverage = rollingCount >= MIN_AVERAGE_WARNING_SAMPLES
                 && averageMspt >= AVERAGE_WARNING_MSPT

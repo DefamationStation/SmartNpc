@@ -104,6 +104,7 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
@@ -111,6 +112,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.DifficultyInstance;
@@ -172,6 +174,13 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     private static final int MAIN_HAND_ATTACK_ANIMATION_DURATION = 10;
     private static final int BETTER_COMBAT_ATTACK_ANIMATION_DURATION = 120;
     private static final int MAIN_HAND_USE_ANIMATION_DURATION = 6;
+    private static final EquipmentSlot[] DEATH_LOOT_ARMOR_SLOTS = {
+            EquipmentSlot.HEAD,
+            EquipmentSlot.CHEST,
+            EquipmentSlot.LEGS,
+            EquipmentSlot.FEET
+    };
+    private static final int DROPPED_ARMOR_MIN_DAMAGE_PERCENT = 25;
     private static final int PLACE_BLOCK_PARRY_COOLDOWN_TICKS = 60;
     private static final double PLAYER_LIKE_JUMP_Y = 0.42D;
     private static final int EXPLORATION_RETURN_ESCAPE_MIN_PILLAR_BLOCKS = 8;
@@ -182,6 +191,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     private static final int TEMPORARY_PILLAR_SUPPORT_MEMORY_TICKS = 20 * 45;
     private static final int MAX_TRACKED_TEMPORARY_PILLAR_SUPPORTS = 128;
     private static final String TEMPORARY_PILLAR_SUPPORTS_TAG = "TemporaryPillarSupports";
+    private static final String PENDING_SPAWN_INITIALIZATION_TAG = "PendingSpawnInitialization";
     private static final int EXPLORATION_CLIMB_STUCK_TICKS = 20 * 5;
     private static final int EXPLORATION_CLIMB_SAFE_STAND_MIN_RADIUS = 4;
     private static final int EXPLORATION_CLIMB_SAFE_STAND_MAX_RADIUS = 5;
@@ -360,6 +370,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     private boolean teamLeaderRole;
     private boolean teamUpRequestPending;
     private boolean teamMembershipValidated;
+    private boolean pendingSpawnInitialization;
     @Nullable
     private BlockPos upwardEscapeTarget;
     private int upwardEscapeRequestTicks = 0;
@@ -1739,6 +1750,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     @Override
     protected void addAdditionalSaveData(@NotNull ValueOutput tag) {
         super.addAdditionalSaveData(tag);
+        tag.putBoolean(PENDING_SPAWN_INITIALIZATION_TAG, this.pendingSpawnInitialization);
         this.inventory.storeAsItemList(tag.list("Inventory", ItemStack.CODEC));
         tag.putInt("GapCooldown", this.gapCooldown);
         tag.putInt("BucketCooldown", this.bucketCooldown);
@@ -1845,6 +1857,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     @Override
     protected void readAdditionalSaveData(@NotNull ValueInput tag) {
         super.readAdditionalSaveData(tag);
+        this.pendingSpawnInitialization = tag.getBooleanOr(PENDING_SPAWN_INITIALIZATION_TAG, false);
         this.inventory.fromItemList(tag.listOrEmpty("Inventory", ItemStack.CODEC));
         this.gapCooldown = tag.getIntOr("GapCooldown", 0);
         this.bucketCooldown = tag.getIntOr("BucketCooldown", 0);
@@ -1988,11 +2001,49 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     protected void dropCustomDeathLoot(@NotNull ServerLevel level, @NotNull DamageSource source, boolean recentlyHit) {
         super.dropCustomDeathLoot(level, source, recentlyHit);
 
+        if (!this.getPersistentData().getBooleanOr("die_by_possess", false)) {
+            this.dropRandomlyDamagedArmor();
+        }
+
         for (int i = 0; i < this.inventory.getContainerSize(); i++) {
             ItemStack stack = this.inventory.getItem(i);
             if (!stack.isEmpty()) {
                 this.spawnAtLocation(stack);
             }
+        }
+    }
+
+    private void dropRandomlyDamagedArmor() {
+        for (EquipmentSlot slot : DEATH_LOOT_ARMOR_SLOTS) {
+            ItemStack equipped = this.getItemBySlot(slot);
+            if (equipped.isEmpty()) {
+                continue;
+            }
+
+            ItemStack dropped = equipped.copy();
+            dropped.setCount(1);
+            this.applyRandomDeathLootDamage(dropped);
+
+            // Vanilla processes equipped loot after custom death loot. Clear the source slot so
+            // its normal equipment pass cannot emit a second copy of the same armor piece.
+            this.setItemSlot(slot, ItemStack.EMPTY);
+            this.spawnAtLocation(dropped);
+        }
+    }
+
+    private void applyRandomDeathLootDamage(ItemStack stack) {
+        if (!stack.isDamageableItem()) {
+            return;
+        }
+
+        int maximumDamage = stack.getMaxDamage();
+        int minimumDamage = Math.max(
+                stack.getDamageValue(),
+                Math.max(1, maximumDamage * DROPPED_ARMOR_MIN_DAMAGE_PERCENT / 100)
+        );
+        int maximumSurvivingDamage = maximumDamage - 1;
+        if (minimumDamage <= maximumSurvivingDamage) {
+            stack.setDamageValue(Mth.nextInt(this.getRandom(), minimumDamage, maximumSurvivingDamage));
         }
     }
 
@@ -3099,6 +3150,15 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
 
     @Override
     public void tick() {
+        if (this.level() instanceof ServerLevel && this.pendingSpawnInitialization) {
+            this.completeSpawnInitialization();
+            if (this.isRemoved()) {
+                return;
+            }
+            // EntityJoinLevelEvent may observe a worker-created NPC before it has an identity.
+            // Refresh force-ticket tracking after server-thread initialization completes.
+            PlayerNpcForceTickManager.track(this);
+        }
         if (this.level() instanceof ServerLevel && !this.teamMembershipValidated) {
             PlayerNpcTeamUpManager.validateLoadedMembership(this);
             this.teamMembershipValidated = true;
@@ -4664,6 +4724,28 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
 
         this.setCurrentAiState(AI_IDLE);
 
+        MinecraftServer server = serverLevel.getServer();
+        if (server != null && !server.isSameThread()) {
+            // Chunk-generation workers only construct and serialize the entity. Commands,
+            // persistent progression data, chat, and scoreboard work run on its first server tick.
+            this.pendingSpawnInitialization = true;
+            return returnSpawnGroupData;
+        }
+
+        this.pendingSpawnInitialization = true;
+        this.completeSpawnInitialization();
+        return returnSpawnGroupData;
+    }
+
+    private void completeSpawnInitialization() {
+        if (!this.pendingSpawnInitialization) {
+            return;
+        }
+        this.pendingSpawnInitialization = false;
+        if (!this.ensureConfiguredUsername() || this.isRemoved()) {
+            return;
+        }
+
         List<String> commands = EquipmentDataLoader.getEquipCommands(0.85f, this);
         for (String cmd : commands) {
             try {
@@ -4685,8 +4767,6 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         if (Math.random() <= 0.05D) {
             TeamUtil.addOrJoinTeam(this, "player");
         }
-
-        return returnSpawnGroupData;
     }
 
     protected boolean seedInventory() {
@@ -4711,8 +4791,8 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             }
         }
 
-        int goldenAppleCount = isHard ? random.nextInt(6, 12)
-                : isMedium ? random.nextInt(2, 6)
+        int goldenAppleCount = isHard ? random.nextInt(2, 4)
+                : isMedium ? random.nextInt(1, 3)
                 : 0;
         if (goldenAppleCount > 0) {
             InventoryUtils.addItem(this.inventory, new ItemStack(Items.GOLDEN_APPLE, goldenAppleCount));
@@ -4724,14 +4804,14 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         List<ItemLike> foods = new ArrayList<>(REGULAR_FOODS);
         for (int i = 0; i < random.nextInt(isHard ? 2 : (isMedium ? 1 : 0), isHard ? 3 : (isMedium ? 2 : 1)) && !foods.isEmpty(); i++) {
             ItemLike food = foods.remove(random.nextInt(foods.size()));
-            int foodCount = isHard ? random.nextInt(12, 24)
-                    : isMedium ? random.nextInt(8, 12)
+            int foodCount = isHard ? random.nextInt(4, 12)
+                    : isMedium ? random.nextInt(3, 6)
                     : random.nextInt(2, 4);
             InventoryUtils.addItem(this.inventory, new ItemStack(food, foodCount));
         }
 
-        int arrowCount = isHard ? random.nextInt(48, 97)
-                : isMedium ? random.nextInt(12, 33)
+        int arrowCount = isHard ? random.nextInt(6, 12)
+                : isMedium ? random.nextInt(4, 8)
                 : 0;
         if (arrowCount > 0) {
             InventoryUtils.addItem(this.inventory, new ItemStack(Items.BOW));
@@ -4764,61 +4844,59 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         int blockStacks = random.nextInt(1, 2);
         for (int i = 0; i < blockStacks && !blocks.isEmpty(); i++) {
             ItemLike block = blocks.remove(random.nextInt(blocks.size()));
-            int blockCount = isHard ? random.nextInt(8, 32)
-                    : isMedium ? random.nextInt(8, 12)
-                    : random.nextInt(0, 8);
+            int blockCount = isHard ? random.nextInt(8, 12)
+                    : isMedium ? random.nextInt(4, 8)
+                    : random.nextInt(0, 6);
             InventoryUtils.addItem(this.inventory, new ItemStack(block, blockCount));
         }
 
         List<ItemStack> materials = new ArrayList<>();
         if (isHard) {
-            int coalCount = random.nextInt(0, 25);
-            if (coalCount > 0) {
-                materials.add(new ItemStack(Items.COAL, coalCount));
+            if (new Random().nextBoolean()) {
+                materials.add(new ItemStack(Items.COAL, random.nextInt(0, 5)));
+
             }
-            int ironCount = random.nextInt(0, 25);
-            if (ironCount > 0) {
-                materials.add(new ItemStack(Items.IRON_INGOT, ironCount));
+            if (new Random().nextBoolean()) {
+                materials.add(new ItemStack(Items.IRON_INGOT, random.nextInt(0, 3)));
+
             }
-            int goldCount = random.nextInt(0, 15);
-            if (goldCount > 0) {
-                materials.add(new ItemStack(Items.GOLD_INGOT, goldCount));
+            if (new Random().nextBoolean()) {
+                materials.add(new ItemStack(Items.GOLD_INGOT, random.nextInt(0, 4)));
+
             }
-            int redstoneCount = random.nextInt(0, 25);
-            if (redstoneCount > 0) {
-                materials.add(new ItemStack(Items.REDSTONE, redstoneCount));
+            if (new Random().nextBoolean()) {
+                materials.add(new ItemStack(Items.REDSTONE, random.nextInt(0, 6)));
+
             }
-            int lapisCount = random.nextInt(0, 17);
-            if (lapisCount > 0) {
-                materials.add(new ItemStack(Items.LAPIS_LAZULI, lapisCount));
+            if (new Random().nextBoolean()) {
+                materials.add(new ItemStack(Items.LAPIS_LAZULI, random.nextInt(0, 4)));
+
             }
-            if (random.nextFloat() < 0.82F) {
-                materials.add(new ItemStack(Items.DIAMOND, random.nextInt(1, 7)));
+            if (new Random().nextBoolean()) {
+                materials.add(new ItemStack(Items.DIAMOND, random.nextInt(0, 1)));
             }
-            if (random.nextFloat() < 0.78F) {
-                materials.add(new ItemStack(Items.EMERALD, random.nextInt(2, 11)));
+            if (new Random().nextBoolean()) {
+                materials.add(new ItemStack(Items.EMERALD, random.nextInt(0, 1)));
             }
         } else if (isMedium) {
-            int coalCount = random.nextInt(0, 13);
-            if (coalCount > 0) {
-                materials.add(new ItemStack(Items.COAL, coalCount));
-            }
-            int ironCount = random.nextInt(0, 13);
-            if (ironCount > 0) {
-                materials.add(new ItemStack(Items.IRON_INGOT, ironCount));
-            }
-            if (random.nextFloat() < 0.72F) {
-                materials.add(new ItemStack(Items.GOLD_INGOT, random.nextInt(1, 7)));
+            if (new Random().nextBoolean()) {
+                materials.add(new ItemStack(Items.COAL, random.nextInt(0, 2)));
             }
             if (random.nextFloat() < 0.70F) {
-                materials.add(new ItemStack(Items.REDSTONE, random.nextInt(2, 13)));
+                materials.add(new ItemStack(Items.IRON_INGOT, random.nextInt(0, 2)));
+            }
+            if (random.nextFloat() < 0.70F) {
+                materials.add(new ItemStack(Items.GOLD_INGOT, random.nextInt(0, 3)));
+            }
+            if (new Random().nextBoolean()) {
+                materials.add(new ItemStack(Items.REDSTONE, random.nextInt(0, 4)));
             }
         } else if (random.nextFloat() >= 0.55F) {
-            if (random.nextFloat() < 0.70F) {
-                materials.add(new ItemStack(Items.COAL, random.nextInt(1, 7)));
+            if (random.nextFloat() < 0.30F) {
+                materials.add(new ItemStack(Items.COAL, random.nextInt(0, 1)));
             }
-            if (random.nextFloat() < 0.55F) {
-                materials.add(new ItemStack(Items.IRON_INGOT, random.nextInt(1, 5)));
+            if (random.nextFloat() < 0.15F) {
+                materials.add(new ItemStack(Items.IRON_INGOT, random.nextInt(0, 1)));
             }
         }
 
@@ -4895,7 +4973,9 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         if (naturalSpawn && !PlayerNpcNaturalSpawnCap.mayAttemptNaturalSpawn(serverLevel.getServer())) {
             return false;
         }
-        if (!hasAvailableConfiguredName(serverLevel.getServer())) {
+        if (spawnType == EntitySpawnReason.CHUNK_GENERATION
+                ? !hasConfiguredNames()
+                : !hasAvailableConfiguredName(serverLevel.getServer())) {
             return false;
         }
         if (serverLevel.isDarkOutside()) {
