@@ -87,7 +87,10 @@ public class PlayerNpcInspectatorModePacket implements CustomPacketPayload {
 
     public static void restorePlayerAndClearInspector(ServerPlayer player) {
         restorePlayer(player);
-        if (player.connection != null) {
+        // Replay connections such as Flashback do not negotiate SmartNpc's custom payloads.
+        // Keep the server-side cleanup, but never attempt to send inspector state to a client
+        // that did not advertise this channel during configuration.
+        if (player.connection != null && player.connection.hasChannel(PlayerNpcInspectorPacket.TYPE)) {
             PacketDistributor.sendToPlayer(
                     player,
                     PlayerNpcInspectorPacket.clear()
