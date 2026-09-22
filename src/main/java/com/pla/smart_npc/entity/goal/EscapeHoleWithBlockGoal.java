@@ -306,6 +306,7 @@ public class EscapeHoleWithBlockGoal extends Goal {
                 || this.playerNpc.isNoAi()
                 || this.playerNpc.isPassenger()
                 || this.isInWater(serverLevel)
+                || this.playerNpc.isGatheringJobRunning()
                 || this.playerNpc.isStoneAccessClearing()) {
             return false;
         }
