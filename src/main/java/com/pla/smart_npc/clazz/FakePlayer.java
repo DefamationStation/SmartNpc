@@ -1,6 +1,7 @@
 package com.pla.smart_npc.clazz;
 
 import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.ProfileLookupCallback;
 import com.mojang.authlib.minecraft.MinecraftProfileTexture;
 import com.pla.smart_npc.config.SmartNpcNamesConfig;
 import com.pla.smart_npc.util.PlayerNpcForceTickManager;
@@ -22,7 +23,6 @@ import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.SpawnGroupData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
-import net.minecraft.world.level.block.entity.SkullBlockEntity;
 import net.minecraft.world.item.component.ResolvableProfile;
 import org.jetbrains.annotations.NotNull;
 
@@ -37,9 +37,15 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class FakePlayer extends PathfinderMob {
+    private static final int PROFILE_RETRY_INTERVAL_TICKS = 20 * 30;
     private static final EntityDataAccessor<String> NAME = SynchedEntityData.defineId(FakePlayer.class, EntityDataSerializers.STRING);
+    private static final EntityDataAccessor<CompoundTag> PROFILE = SynchedEntityData.defineId(
+            FakePlayer.class,
+            EntityDataSerializers.COMPOUND_TAG
+    );
     private static final List<PlayerNpcInterest> DEFAULT_INTERESTS = List.of(
             PlayerNpcInterest.BUILDING
     );
@@ -59,6 +65,8 @@ public class FakePlayer extends PathfinderMob {
     private boolean capeAvailable;
     private boolean elytraAvailable;
     private volatile boolean profileUpdateQueued;
+    private boolean profileRefreshRequired;
+    private int profileRetryTicks;
     private FakePlayerName cachedUsername;
     private String cachedUsernameValue = "";
     private long cachedUsernameConfigRevision = Long.MIN_VALUE;
@@ -78,6 +86,7 @@ public class FakePlayer extends PathfinderMob {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(NAME, "");
+        builder.define(PROFILE, new CompoundTag());
     }
 
     @Override
@@ -86,10 +95,17 @@ public class FakePlayer extends PathfinderMob {
         if (NAME.equals(key)) {
             this.invalidateCachedUsername();
             this.profile = null;
+            this.profileUpdateQueued = false;
+            this.profileRefreshRequired = !this.level().isClientSide();
+            this.profileRetryTicks = 0;
             this.clearTextureState();
             if (this.hasUsername()) {
                 this.getProfile();
             }
+        } else if (PROFILE.equals(key)) {
+            this.profile = decodeProfile(this.entityData.get(PROFILE));
+            this.profileUpdateQueued = false;
+            this.clearTextureState();
         }
     }
 
@@ -97,6 +113,13 @@ public class FakePlayer extends PathfinderMob {
     public void tick() {
         super.tick();
         this.updateCapeMotion();
+        if (!this.level().isClientSide() && this.profileRefreshRequired && this.hasUsername()) {
+            if (this.profileRetryTicks > 0) {
+                this.profileRetryTicks--;
+            } else {
+                requestProfileUpdate(this);
+            }
+        }
     }
 
     private void updateCapeMotion() {
@@ -158,10 +181,11 @@ public class FakePlayer extends PathfinderMob {
             this.setUsername(username);
         }
         if (tag.contains("Profile", CompoundTag.TAG_COMPOUND)) {
-            this.profile = ResolvableProfile.CODEC.parse(NbtOps.INSTANCE, tag.get("Profile"))
-                    .result()
-                    .map(ResolvableProfile::gameProfile)
-                    .orElse(null);
+            GameProfile savedProfile = decodeProfile(tag.getCompound("Profile"));
+            if (savedProfile != null) {
+                this.applyProfile(savedProfile);
+                this.profileRefreshRequired = !this.level().isClientSide();
+            }
         }
     }
 
@@ -251,6 +275,8 @@ public class FakePlayer extends PathfinderMob {
         if (!Objects.equals(oldName, newName)) {
             this.profile = null;
             this.profileUpdateQueued = false;
+            this.profileRefreshRequired = !this.level().isClientSide();
+            this.profileRetryTicks = 0;
             this.clearTextureState();
             this.getProfile();
         }
@@ -259,16 +285,30 @@ public class FakePlayer extends PathfinderMob {
     public @Nullable GameProfile getProfile() {
         if (this.profile == null && this.hasUsername()) {
             String skinName = this.getUsername().getSkinName();
-            this.profile = new GameProfile(UUIDUtil.createOfflinePlayerUUID(skinName), skinName);
-            requestProfileUpdate(this);
+            GameProfile syncedProfile = decodeProfile(this.entityData.get(PROFILE));
+            this.profile = isResolvedProfileForName(syncedProfile, skinName)
+                    ? syncedProfile
+                    : new GameProfile(UUIDUtil.createOfflinePlayerUUID(skinName), skinName);
+            if (!this.level().isClientSide() && !isCompleteProfile(this.profile)) {
+                requestProfileUpdate(this);
+            }
         }
         return this.profile;
     }
 
     public void setProfile(@Nullable GameProfile profile) {
+        this.applyProfile(profile);
+        this.profileRefreshRequired = false;
+        this.profileRetryTicks = 0;
+    }
+
+    private void applyProfile(@Nullable GameProfile profile) {
         this.profile = profile;
         this.profileUpdateQueued = false;
         this.clearTextureState();
+        if (!this.level().isClientSide() && profile != null) {
+            this.entityData.set(PROFILE, encodeProfile(profile));
+        }
     }
 
     public boolean isTextureAvailable(MinecraftProfileTexture.Type type) {
@@ -438,12 +478,82 @@ public class FakePlayer extends PathfinderMob {
             }
             try {
                 FakePlayer target = entity;
-                SkullBlockEntity.fetchGameProfile(currentProfile.getName())
-                        .thenAccept(resolved -> target.setProfile(resolved.orElse(currentProfile)));
+                MinecraftServer server = target.level().getServer();
+                if (server != null) {
+                    String requestedName = currentProfile.getName();
+                    GameProfile resolvedProfile = fetchOnlineProfile(server, requestedName);
+                    server.execute(() -> target.finishProfileUpdate(requestedName, resolvedProfile));
+                } else {
+                    target.profileUpdateQueued = false;
+                }
             } catch (Exception ignored) {
-                entity.profileUpdateQueued = false;
+                FakePlayer target = entity;
+                MinecraftServer server = target.level().getServer();
+                String requestedName = currentProfile.getName();
+                if (server != null) {
+                    server.execute(() -> target.finishProfileUpdate(requestedName, null));
+                } else {
+                    target.profileUpdateQueued = false;
+                }
             }
         }
+    }
+
+    private static @Nullable GameProfile fetchOnlineProfile(MinecraftServer server, String requestedName) {
+        AtomicReference<GameProfile> idProfile = new AtomicReference<>();
+        server.getProfileRepository().findProfilesByNames(new String[] {requestedName}, new ProfileLookupCallback() {
+            @Override
+            public void onProfileLookupSucceeded(GameProfile profile) {
+                idProfile.set(profile);
+            }
+
+            @Override
+            public void onProfileLookupFailed(String profileName, Exception exception) {
+                idProfile.set(null);
+            }
+        });
+
+        GameProfile profile = idProfile.get();
+        if (!isCompleteProfile(profile)) {
+            return null;
+        }
+        if (server.getProfileCache() != null) {
+            server.getProfileCache().add(profile);
+        }
+        var profileResult = server.getSessionService().fetchProfile(profile.getId(), true);
+        return profileResult == null ? null : profileResult.profile();
+    }
+
+    private void finishProfileUpdate(String requestedName, @Nullable GameProfile resolvedProfile) {
+        GameProfile latestProfile = this.profile;
+        if (latestProfile == null || !requestedName.equalsIgnoreCase(latestProfile.getName())) {
+            return;
+        }
+        if (isCompleteProfile(resolvedProfile)) {
+            this.setProfile(resolvedProfile);
+            return;
+        }
+        this.profileUpdateQueued = false;
+        this.profileRefreshRequired = true;
+        this.profileRetryTicks = PROFILE_RETRY_INTERVAL_TICKS;
+    }
+
+    private static CompoundTag encodeProfile(GameProfile profile) {
+        return ResolvableProfile.CODEC.encodeStart(NbtOps.INSTANCE, new ResolvableProfile(profile))
+                .result()
+                .filter(CompoundTag.class::isInstance)
+                .map(CompoundTag.class::cast)
+                .orElseGet(CompoundTag::new);
+    }
+
+    private static @Nullable GameProfile decodeProfile(CompoundTag tag) {
+        if (tag.isEmpty()) {
+            return null;
+        }
+        return ResolvableProfile.CODEC.parse(NbtOps.INSTANCE, tag)
+                .result()
+                .map(ResolvableProfile::gameProfile)
+                .orElse(null);
     }
 
     private static boolean isCompleteProfile(@Nullable GameProfile profile) {
@@ -451,6 +561,11 @@ public class FakePlayer extends PathfinderMob {
                 && profile.getId() != null
                 && !StringUtil.isNullOrEmpty(profile.getName())
                 && !profile.getId().equals(UUIDUtil.createOfflinePlayerUUID(profile.getName()));
+    }
+
+    private static boolean isResolvedProfileForName(@Nullable GameProfile profile, String name) {
+        return isCompleteProfile(profile)
+                && profile.getName().equalsIgnoreCase(name);
     }
 
     public static final class FakePlayerName {

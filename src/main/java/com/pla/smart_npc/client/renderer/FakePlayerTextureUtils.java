@@ -12,6 +12,7 @@ import net.minecraft.util.StringUtil;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class FakePlayerTextureUtils {
@@ -25,10 +26,20 @@ public final class FakePlayerTextureUtils {
             return SkinType.DEFAULT;
         }
 
-        return SKIN_TYPE_CACHE.computeIfAbsent(profile.getId(), ignored ->
-                Minecraft.getInstance().getSkinManager().getInsecureSkin(profile).model() == PlayerSkin.Model.SLIM
-                        ? SkinType.SLIM
-                        : SkinType.DEFAULT);
+        SkinType cachedType = SKIN_TYPE_CACHE.get(profile.getId());
+        if (cachedType != null) {
+            return cachedType;
+        }
+
+        Optional<PlayerSkin> resolvedSkin = getResolvedSkin(profile);
+        if (resolvedSkin.isEmpty()) {
+            return SkinType.DEFAULT;
+        }
+        SkinType skinType = resolvedSkin.get().model() == PlayerSkin.Model.SLIM
+                ? SkinType.SLIM
+                : SkinType.DEFAULT;
+        SKIN_TYPE_CACHE.put(profile.getId(), skinType);
+        return skinType;
     }
 
     public static ResourceLocation getPlayerSkin(FakePlayer entity) {
@@ -54,7 +65,12 @@ public final class FakePlayerTextureUtils {
             return Optional.empty();
         }
 
-        PlayerSkin skin = Minecraft.getInstance().getSkinManager().getInsecureSkin(profile);
+        PlayerSkin skin = getResolvedSkin(profile).orElse(null);
+        if (skin == null) {
+            // SkinManager resolves and downloads textures asynchronously. Do not cache its
+            // temporary default skin; a later render pass will observe the completed lookup.
+            return Optional.empty();
+        }
         ResourceLocation location = switch (type) {
             case SKIN -> skin.texture();
             case CAPE -> skin.capeTexture();
@@ -64,6 +80,11 @@ public final class FakePlayerTextureUtils {
             entity.setTexture(type, location);
         }
         return Optional.ofNullable(location);
+    }
+
+    private static Optional<PlayerSkin> getResolvedSkin(GameProfile profile) {
+        CompletableFuture<PlayerSkin> lookup = Minecraft.getInstance().getSkinManager().getOrLoad(profile);
+        return Optional.ofNullable(lookup.getNow(null));
     }
 
     private static boolean isComplete(GameProfile profile) {
