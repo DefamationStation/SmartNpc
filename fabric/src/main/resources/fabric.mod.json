@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "smart_npc",
+  "version": "${version}",
+  "name": "Smart NPC (Fabric snapshot port)",
+  "description": "Fabric port of Smart NPC for Minecraft 26.4 Snapshot 2.",
+  "authors": ["pla_is_me"],
+  "contributors": ["DefamationStation (Fabric port)"],
+  "license": "GPL-3.0-only",
+  "environment": "*",
+  "contact": {
+    "sources": "https://github.com/DefamationStation/SmartNpc",
+    "homepage": "https://www.curseforge.com/minecraft/mc-mods/smart-npc"
+  },
+  "entrypoints": {
+    "main": ["com.pla.smart_npc.fabric.SmartNpcFabric"],
+    "client": ["com.pla.smart_npc.fabric.SmartNpcFabricClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "26.4-alpha.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

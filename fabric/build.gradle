@@ -1,0 +1,45 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version '1.16.3'
+    id 'maven-publish'
+}
+
+version = project.mod_version
+group = 'com.pla.smart_npc'
+base { archivesName = 'SmartNpc-Fabric' }
+
+repositories { mavenCentral() }
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+}
+java { toolchain.languageVersion = JavaLanguageVersion.of(25) }
+
+// Keep the existing NeoForge build and source tree intact. Only files that need
+// platform/version changes live in this module; everything else stays shared.
+def mergedSources = layout.buildDirectory.dir('generated/shared-java')
+tasks.register('prepareSources', Sync) {
+    def overlay = file('src/main/java')
+    from('../src/main/java') {
+        exclude { details -> new File(overlay, details.path).exists() }
+    }
+    from(overlay)
+    into(mergedSources)
+}
+sourceSets.main.java.setSrcDirs([mergedSources])
+sourceSets.main.resources.srcDirs = ['../src/main/resources', 'src/main/resources']
+tasks.named('compileJava') { dependsOn 'prepareSources' }
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += ['-Xmaxerrs', '1000']
+}
+tasks.named('processResources') {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude 'smart_npc.mixins.json'
+    exclude 'data/smart_npc/neoforge/**'
+    filesMatching('fabric.mod.json') { expand(version: project.version) }
+}
+tasks.named('jar') {
+    from('../LICENSE.md')
+    from('../NOTICE.md')
+}
