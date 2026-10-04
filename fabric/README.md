@@ -92,7 +92,8 @@ Cooking reuses native gathering, recipes, navigation, placement, pickup and
 furnace output collection. Its retained stone survey now reaches `(4, 0, 0)` at
 probe 175 instead of 665 using the same 16-probe scan budget, with unique full
 coverage of horizontal radius 24 and y ±6 before wrapping. These are cursor
-probe counts; gameplay timing improvement has not yet been measured. Ordinary
+probe counts; fixture timings are recorded separately and do not establish a
+general gameplay speedup. Ordinary
 fishing bobbers are excluded from living-entity collision handling. Existing
 animal/crop acquisition and external-station ownership limitations remain outside
 this change's property guarantees.
@@ -106,6 +107,7 @@ The survival prototype also makes neutral encounters peaceful, records defensive
 causes, attributes actual chest withdrawals, gathers cooking fuel automatically,
 and restores legacy blueprint block states for 26.4. The main game remains disabled
 while the complete survival-day behaviour is developed and tested.
-The food milestone's targeted fixture is underway; these implementation notes do
-not claim its runtime acceptance or a complete autonomous survival day. The root
+Fresh and saved-world targeted food fixtures pass; see
+[food results](verification/FOOD-RESULTS.md) for measurements and limits. A complete
+autonomous survival day remains outstanding. The root
 NeoForge project remains unchanged.
