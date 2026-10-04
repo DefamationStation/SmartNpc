@@ -11,6 +11,14 @@ $ErrorActionPreference = 'Stop'
 $output = [IO.Path]::GetFullPath($OutputDirectory)
 if ((Test-Path -LiteralPath $output) -and !$Replay) { throw 'Use a new output directory, or -Replay for the saved test world.' }
 if ($Replay -and !(Test-Path -LiteralPath (Join-Path $output 'npc-uuid.txt'))) { throw 'No completed initial test to replay.' }
+if ($Replay) {
+    $history = Join-Path $output ('previous-run-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
+    $null = New-Item -ItemType Directory -Path $history
+    foreach ($name in @('failure.txt','replay-complete.txt','stdout.log','stderr.log')) {
+        $previous = Join-Path $output $name
+        if (Test-Path -LiteralPath $previous) { Move-Item -LiteralPath $previous -Destination (Join-Path $history $name) }
+    }
+}
 foreach ($directory in @('mods','config','classes','compile-libs','shaderpacks')) {
     $null = New-Item -ItemType Directory -Force (Join-Path $output $directory)
 }

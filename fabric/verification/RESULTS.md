@@ -19,6 +19,10 @@ Upstream base: `554e2a704d43aaebb33aac363d5abb24d3139500` (26.1.2).
   attachment marker and stored XP, then repeated inspector/spectator checks.
 - Real chunk-storage assertions confirmed that two NPC owners share a ticket,
   releasing one owner preserves it, and releasing the last owner removes it.
+- The replacement bow controller drew and fired arrows in game, consuming
+  ammunition and bow durability. Its test uses a non-cautious NPC and a passive
+  target in open air, so peaceful difficulty and terrain do not invalidate the
+  fixture. It exercises the controller directly, not every AI goal-selection case.
 - The functional checks also passed with the development mod stack and
   `photon_v1.3b.zip` enabled, using OpenGL. Screenshots were visually inspected.
 

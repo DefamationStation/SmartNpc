@@ -17,8 +17,18 @@ import com.pla.smart_npc.client.gui.SmartNpcInspectorOverlay;
 import java.nio.file.*;
 import java.util.UUID;
 public class SmartNpcFunctional implements ClientModInitializer {
- int stage,step;long start;volatile int target=-1;volatile Throwable failure;boolean replay=Boolean.getBoolean("smartnpcsmoke.replay");
- public void onInitializeClient(){ClientTickEvents.END_CLIENT_TICK.register(this::tick);}
+ com.pla.smart_npc.fabric.NpcBowAttackGoal bowGoal; PlayerNpcEntity bowNpc; net.minecraft.world.entity.Mob bowTarget; int bowTicks; volatile boolean bowPassed;
+ int stage,step;long start,readyAt;volatile int target=-1;volatile Throwable failure;boolean replay=Boolean.getBoolean("smartnpcsmoke.replay");
+ public void onInitializeClient(){ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+ net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server->{if(bowGoal==null)return;try{
+  bowGoal.tick();
+  if(++bowTicks==120){
+   check(bowNpc.getInventory().countItem(net.minecraft.world.item.Items.ARROW)<32,"bow controller fired ammunition");
+   check(bowNpc.getMainHandItem().getDamageValue()>0,"bow durability consumed");
+   bowGoal.stop();bowGoal=null;bowNpc.discard();bowTarget.discard();bowPassed=true;
+  }
+ }catch(Throwable t){failure=t;bowGoal=null;}});
+ }
  static void check(boolean value,String name){if(!value)throw new AssertionError(name);System.out.println("SMARTNPC_PASS "+name);}
  void server(Minecraft mc,Runnable action){mc.getSingleplayerServer().execute(()->{try{action.run();}catch(Throwable t){failure=t;}});}
  void tick(Minecraft mc){try{
@@ -29,6 +39,8 @@ public class SmartNpcFunctional implements ClientModInitializer {
    var method=CreateWorldScreen.class.getDeclaredMethod("onCreate");method.setAccessible(true);method.invoke(screen);
   }
   if(mc.player==null || mc.getSingleplayerServer()==null)return;
+  if(readyAt==0)readyAt=System.nanoTime();
+  if(System.nanoTime()-readyAt<5_000_000_000L)return;
   if(replay && stage==0)stage=2;
   var s=mc.getSingleplayerServer();var file=mc.gameDirectory.toPath().resolve("npc-uuid.txt");
   if(stage==2){stage=3;start=System.nanoTime();server(mc,()->{try{
@@ -58,6 +70,16 @@ public class SmartNpcFunctional implements ClientModInitializer {
    check(hasTicket.getAsBoolean(),"NPC chunk ticket installed");
    tickets.forceChunk(level,a,chunk.x(),chunk.z(),false,false);check(hasTicket.getAsBoolean(),"shared ticket survives first owner release");
    tickets.forceChunk(level,b,chunk.x(),chunk.z(),false,false);check(!hasTicket.getAsBoolean(),"ticket removed after last owner release");
+   bowNpc=SmartNpcModEntities.PLAYER_NPC.get().create(level,EntitySpawnReason.COMMAND);
+   var fighter=com.pla.smart_npc.config.SmartNpcNamesConfig.getPlayerNpcNameEntries().stream().map(com.pla.smart_npc.config.SmartNpcNamesConfig::parseNameEntry).flatMap(java.util.Optional::stream).filter(n->!n.interests().contains(com.pla.smart_npc.clazz.PlayerNpcInterest.CAUTIOUS)).findFirst().orElseThrow();
+   bowNpc.setUsername(fighter.skinName());
+   bowNpc.setPos(p.getX(),300,p.getZ());bowNpc.setNoAi(true);bowNpc.setNoGravity(true);
+   bowNpc.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.BOW));
+   bowNpc.getInventory().addItem(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.ARROW,32));
+   level.addFreshEntity(bowNpc);
+   bowTarget=net.minecraft.world.entity.EntityTypes.COW.create(level,EntitySpawnReason.COMMAND);
+   bowTarget.setPos(p.getX()+8,300,p.getZ());bowTarget.setNoAi(true);bowTarget.setNoGravity(true);level.addFreshEntity(bowTarget);
+   bowNpc.setTarget(bowTarget);bowGoal=new com.pla.smart_npc.fabric.NpcBowAttackGoal(bowNpc,1.0,20,16);bowGoal.start();
    target=npc.getId();s.getCommands().performPrefixedCommand(p.createCommandSourceStack(),"give @s smart_npc:player_npc_inspector");
    s.getCommands().performPrefixedCommand(p.createCommandSourceStack(),"tp @s ~ ~ ~ 0 0");
    check(s.getCommands().getDispatcher().getRoot().getChildren().stream().anyMatch(n->n.getName().contains("npc")),"NPC commands registered");
@@ -69,6 +91,6 @@ public class SmartNpcFunctional implements ClientModInitializer {
   if(step==2 && elapsed>12){step++;check(SmartNpcInspectorOverlay.isInspectatorActive(),"spectator client active");server(mc,()->check(PlayerNpcInspectatorModePacket.isInspectatorActive(s.getPlayerList().getPlayers().getFirst()),"spectator server active"));net.minecraft.client.Screenshot.grab(mc,false);mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);}
   if(step==3 && elapsed>16){step++;net.minecraft.client.Screenshot.grab(mc,false);var method=SmartNpcInspectorOverlay.class.getDeclaredMethod("stopInspectator",Minecraft.class,boolean.class);method.setAccessible(true);method.invoke(null,mc,true);}
   if(step==4 && elapsed>20){step++;check(!SmartNpcInspectorOverlay.isInspectatorActive(),"spectator client restored");server(mc,()->check(!PlayerNpcInspectatorModePacket.isInspectatorActive(s.getPlayerList().getPlayers().getFirst()),"spectator server restored"));}
-  if(elapsed>25){Files.writeString(mc.gameDirectory.toPath().resolve(replay?"replay-complete.txt":"complete.txt"),"All functional assertions passed");stage=4;mc.stop();}
+  if(elapsed>25){check(bowPassed,"bow controller completed");Files.writeString(mc.gameDirectory.toPath().resolve(replay?"replay-complete.txt":"complete.txt"),"All functional assertions passed");stage=4;mc.stop();}
  }catch(Throwable t){t.printStackTrace();try{Files.writeString(mc.gameDirectory.toPath().resolve("failure.txt"),t.toString());}catch(Exception ignored){}stage=4;mc.stop();}}
 }
