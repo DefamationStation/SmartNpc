@@ -36,6 +36,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.function.BooleanSupplier;
 
 public class PlayerNpcFishingGoal extends Goal {
     private static final int WATER_SCAN_RADIUS = 36;
@@ -73,6 +74,7 @@ public class PlayerNpcFishingGoal extends Goal {
     private static final Map<PlayerNpcEntity, FishingSearchState> SEARCH_STATES = Collections.synchronizedMap(new WeakHashMap<>());
 
     private final PlayerNpcEntity playerNpc;
+    private final BooleanSupplier foodDemand;
     private final CanUseThrottle canUseThrottle = new CanUseThrottle();
     private FishingSpot fishingSpot;
     private PlayerNpcFishingBobberEntity bobber;
@@ -88,7 +90,12 @@ public class PlayerNpcFishingGoal extends Goal {
     private boolean caughtFish;
 
     public PlayerNpcFishingGoal(PlayerNpcEntity playerNpc) {
+        this(playerNpc, () -> false);
+    }
+
+    public PlayerNpcFishingGoal(PlayerNpcEntity playerNpc, BooleanSupplier foodDemand) {
         this.playerNpc = playerNpc;
+        this.foodDemand = foodDemand;
         this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
     }
 
@@ -119,7 +126,7 @@ public class PlayerNpcFishingGoal extends Goal {
         if (!(this.playerNpc.level() instanceof ServerLevel serverLevel)) {
             return false;
         }
-        String blockedReason = fishingWorkBlockedReason(this.playerNpc, serverLevel);
+        String blockedReason = fishingWorkBlockedReason(this.playerNpc, serverLevel, this.foodDemand.getAsBoolean());
         if (blockedReason != null) {
             this.traceCanUseBlocked(blockedReason);
             return false;
@@ -372,6 +379,10 @@ public class PlayerNpcFishingGoal extends Goal {
     }
 
     private static String fishingWorkBlockedReason(PlayerNpcEntity playerNpc, ServerLevel serverLevel) {
+        return fishingWorkBlockedReason(playerNpc, serverLevel, false);
+    }
+
+    private static String fishingWorkBlockedReason(PlayerNpcEntity playerNpc, ServerLevel serverLevel, boolean foodDemand) {
         if (playerNpc == null || serverLevel == null) {
             return "fishing blocked: missing npc or server level";
         }
@@ -390,7 +401,7 @@ public class PlayerNpcFishingGoal extends Goal {
         if (playerNpc.getTarget() != null) {
             return "fishing blocked: combat target";
         }
-        if (!playerNpc.isDailyJobActive(PlayerNpcInterest.FISHING)) {
+        if (!foodDemand && !playerNpc.isDailyJobActive(PlayerNpcInterest.FISHING)) {
             return "fishing blocked: fishing job inactive";
         }
         if (serverLevel.isDarkOutside()) {
@@ -406,16 +417,18 @@ public class PlayerNpcFishingGoal extends Goal {
             return "fishing blocked: no usable carried rod; string="
                     + PlayerNpcCraftingUtil.countItem(playerNpc.getInventory(), stack -> stack.is(Items.STRING));
         }
-        if (playerNpc.shouldPrioritizeLogGathering()
-                && (GatherLogsGoal.isLogGatheringEpisodeActive(playerNpc)
-                || playerNpc.getGatherCooldown() <= 0)) {
+        // Finish an admitted gathering route and its temporary support cleanup before
+        // borrowing movement for food. Idle profession supplies may yield to food need.
+        if (GatherLogsGoal.isLogGatheringEpisodeActive(playerNpc)
+                || !foodDemand && playerNpc.shouldPrioritizeLogGathering()
+                && playerNpc.getGatherCooldown() <= 0) {
             return "fishing blocked: log support="
                     + ResourceAi.countLogs(playerNpc)
                     + "/"
                     + playerNpc.getLogSupplyGoal()
                     + (GatherLogsGoal.isLogGatheringEpisodeActive(playerNpc) ? " active" : " ready");
         }
-        if (playerNpc.shouldPrioritizeCobblestoneGathering()
+        if (!foodDemand && playerNpc.shouldPrioritizeCobblestoneGathering()
                 && playerNpc.getGatherCooldown() <= 0) {
             return "fishing blocked: stone support="
                     + ResourceAi.countStone(playerNpc)

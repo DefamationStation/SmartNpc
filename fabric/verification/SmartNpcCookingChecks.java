@@ -192,7 +192,7 @@ public final class SmartNpcCookingChecks {
                     && after.cookingDimension.equals(before.cookingDimension)
                     && after.cookingOrigin == before.cookingOrigin
                     && after.cookingStarted == before.cookingStarted
-                    && clone.getInventory().countItem(Items.WOODEN_PICKAXE) == count(Items.WOODEN_PICKAXE),
+                    && carriedPickaxes(clone) == carriedPickaxes(npc),
                     "pending cooking prerequisite checkpoint and real tool survive entity serialization");
             clone.discard();
             checkpointPassed = true;
@@ -225,6 +225,13 @@ public final class SmartNpcCookingChecks {
             return;
         }
         if (ticks >= DEADLINE_TICKS) throw new AssertionError("Autonomous native cooking timed out: " + diagnostic());
+    }
+
+    private static int carriedPickaxes(PlayerNpcEntity target) {
+        int count = target.getInventory().countItem(Items.WOODEN_PICKAXE);
+        if (target.getMainHandItem().is(Items.WOODEN_PICKAXE)) count += target.getMainHandItem().getCount();
+        if (target.getOffhandItem().is(Items.WOODEN_PICKAXE)) count += target.getOffhandItem().getCount();
+        return count;
     }
 
     private static void checkNoUnrelatedGear() {

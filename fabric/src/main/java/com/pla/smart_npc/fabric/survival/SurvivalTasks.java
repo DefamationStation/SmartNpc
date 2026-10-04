@@ -252,6 +252,11 @@ public final class SurvivalTasks {
                         + npc.getInventory().countItem(Items.COAL) + "/" + m.target + "; observations=" + m.coal.size()), false);
                     return 1;
                 }))
+                .then(Commands.literal("food").executes(c -> {
+                    if (!(EntityArgument.getEntity(c, "npc") instanceof PlayerNpcEntity npc)) return 0;
+                    c.getSource().sendSuccess(() -> Component.literal(SurvivalFishingGoal.describe(npc)), false);
+                    return 1;
+                }))
                 .then(Commands.literal("shelter").executes(c -> {
                     if (!(EntityArgument.getEntity(c, "npc") instanceof PlayerNpcEntity npc)
                             || !(npc.level() instanceof ServerLevel level)) return 0;

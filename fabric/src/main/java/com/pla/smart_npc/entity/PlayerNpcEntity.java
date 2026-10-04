@@ -2197,7 +2197,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.addWorkGoal(5, this.gated(new FarmSetupGoal(this), PlayerNpcInterest.FARMING));
         this.addWorkGoal(5, this.gated(new FarmCropGoal(this), PlayerNpcInterest.FARMING));
         this.addWorkGoal(5, this.gated(new CraftCropFoodGoal(this), PlayerNpcInterest.FARMING));
-        this.addWorkGoal(5, this.gated(new PlayerNpcFishingGoal(this), PlayerNpcInterest.FISHING));
+        this.addWorkGoal(5, new com.pla.smart_npc.fabric.survival.SurvivalFishingGoal(this));
         // Characteristics are opportunistic personality behavior, not daily/routine worker jobs.
         // Keep the same priority and delegate flags, but do not make their availability depend on
         // a StartupWorkGatedGoal resource turn.

@@ -23,7 +23,7 @@ The request survives an interruption or save/reload. Actual movement, tools and 
 
 ## Current boundaries
 
-- Observation is automatic. Cookable food starts a bounded cooking intention that checks wood, crafting access, pickaxe, eight furnace stones, furnace and fuel as needed. Existing supplies/stations skip fulfilled needs. Remembered coal can become an automatic fuel child task; wood fuel at an existing furnace avoids requiring a pickaxe when no coal is known. Manual requests remain available and take precedence. The complete food/tool/shelter planner, storage delivery, trading and learning remain subsequent milestones.
+- Observation is automatic. A safe edible reserve below four carried items can start bounded native fishing using an already carried rod, including for a non-fisher. Cookable food starts a bounded cooking intention that checks wood, crafting access, pickaxe, eight furnace stones, furnace and fuel as needed. Existing supplies/stations skip fulfilled needs. Remembered coal can become an automatic fuel child task; wood fuel at an existing furnace avoids requiring a pickaxe when no coal is known. Manual requests remain available and take precedence. The complete food/tool/shelter planner, storage delivery, trading and learning remain subsequent milestones.
 - Automatic coal work pauses after one minute without completion and waits another minute before reconsidering. Manual requests remain resumable until cancelled. Cancellation also suppresses immediate automatic replanning. Timers and task purpose persist across saves.
 - The task uses walking navigation and only considers remembered ore within 32 blocks. It does not tunnel, bridge, explore unknown terrain or port Baritone yet.
 - Waiting tasks permit other routine goals to run. Those goals can consume resources; the task's inventory target accounts for that, but this is not yet a complete intention/prerequisite scheduler.
@@ -40,7 +40,8 @@ Idle NPCs queued for routine work take short attentive pauses instead of decorat
 
 ## Cooking prerequisites milestone
 
-Artifact version: `3.0.0-fabric.26.4-snapshot-2.5-prerequisites`. The intention
+Introduced in `3.0.0-fabric.26.4-snapshot-2.5-prerequisites`; carried forward in
+`3.0.0-fabric.26.4-snapshot-2.6-food`. The intention
 persists its current step, origin/dimension, start time and cooked-output evidence
 in the NPC attachment. Wood and stone shortages feed the existing native
 gathering goals. A narrow crafting goal finds a loaded visible nearby table or
@@ -55,7 +56,13 @@ Successful furnace interactions during a committed cooking intention retry after
 40–59 ticks, so short-burning fuel can be topped up without the ordinary
 400–799-tick idle cooldown. Failed interactions retain their existing backoff.
 Stone discovery retains a bounded cursor instead of repeatedly inspecting the
-same first 16 positions; a cooking-only continuation preserves the native
+same first 16 positions. In the food milestone, shells ordered by
+`max(abs(x), abs(z), 2 * abs(y))` prioritize nearby ground while covering every
+coordinate within horizontal radius 24 and y ±6 once before wrapping. The
+offset `(4, 0, 0)` appears at probe 175 instead of 665; the full foot-height
+perimeter at radius four is covered within 179 probes instead of 669. These are
+cursor probe counts, not measured gameplay timings. Each native scan still has
+its existing 16-probe budget. A cooking-only continuation preserves the native
 connected-stone queue between block breaks. The scanner requests no new chunks.
 Danger, low health, healing, sleep and team-following suspend prerequisite work.
 The cooking intention pauses after 6,000 game ticks, with a 1,200-tick retry
@@ -63,8 +70,9 @@ delay. Removing inputs without collecting cooked output reports a pause rather
 than successful cooking. Completion records an actual native output transfer
 that increased carried cooked-food stock. Full inventories, missing recipes,
 unreachable stations and unavailable local resources remain honest blockers.
-This chain does not find food, generate resources while unloaded, or implement
-charcoal production as a durable task.
+The cooking chain processes carried ingredients; food acquisition is the separate
+bounded fishing path below. Neither generates resources while unloaded or
+implements charcoal production as a durable task.
 
 Prerequisite snapshots are inventory/station evidence rather than completed
 navigation proofs: a carried furnace still needs placement, and a tracked/home
@@ -78,6 +86,43 @@ lack a dimension registry, and a general per-station permission/reservation
 system and complete home migration remain outside this milestone.
 Do not infer that every nearby station is owned or usable merely because the
 planner has skipped its recipe.
+
+## Food acquisition milestone
+
+Current artifact version: `3.0.0-fabric.26.4-snapshot-2.6-food`. A food shortage is
+a carried reserve of fewer than four safe edible items. This is an inventory
+threshold, not a physiological hunger/saturation model. Existing eating for
+healing remains the existing healing behaviour; this milestone adds no separate
+hunger depletion or survival-health simulation.
+
+The shortage can activate native fishing for an NPC that already carries a
+fishing rod, even without a fishing interest. The native execution still needs
+reachable suitable water and obtains actual fishing loot. A missing rod is an
+explicit blocker: this milestone neither crafts one nor provides a free rod or
+food. Raw cookable catches hand off immediately to the cooking prerequisites,
+which must obtain real cooked output. Unsafe edible items do not satisfy the
+safe reserve merely because they have a food component.
+
+Acquisition attempts are bounded to 120 seconds of game time, with a 60-second
+retry delay after an unsuccessful attempt. Attempt/retry state is local to the
+running goal and does not persist across a save/reload. This differs from the
+persisted cooking intention and coal task; restarting is not evidence of a
+resumed food-acquisition checkpoint. The four-item reserve describes carried
+stock, not lifetime catches or delivered chest supplies.
+
+Ordinary NPC fishing casts refuse to hook or pull living entities; item hooks
+remain available. Existing animal/crop acquisition behaviour and
+external-station ownership limitations remain baseline behaviour; this milestone
+does not extend or establish their property guarantees. General station
+permissions/reservations, food-source planning and rod acquisition remain work
+for later milestones.
+
+The targeted fresh-world fixture passes: a non-fisher with a carried rod obtains
+real edible fishing loot and hands it to cooking. See the
+[food verification report](verification/FOOD-RESULTS.md) for durations and limits.
+This does not establish a complete survival day or persistent acquisition
+checkpoint. Main-game installation
+remains disabled until the broader release gates are met.
 
 ## Shelter diagnostic
 

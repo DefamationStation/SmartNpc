@@ -1,6 +1,10 @@
 package com.pla.smart_npc.entity.ai;
 
-/** Pure cursor for a bounded nearest-ring survey; retaining it prevents stationary scan starvation. */
+/**
+ * Pure cursor for a bounded survey; retaining it prevents stationary scan starvation.
+ * Shells use max(abs(x), abs(z), 2 * abs(y)) so nearby ground is surveyed before
+ * distant vertical layers. Each shell checks foot level first, then alternates down/up.
+ */
 public final class ProgressiveStoneSearch {
     public static final int MAX_RADIUS = 24;
     private static final int VERTICAL_LAYERS = 13;
@@ -21,15 +25,37 @@ public final class ProgressiveStoneSearch {
     public Offset next() {
         int current = this.index;
         this.index = (this.index + 1) % this.size;
-        int ring = 0;
-        while ((2 * ring + 1) * (2 * ring + 1) * VERTICAL_LAYERS <= current) ring++;
-        int previousWidth = Math.max(0, 2 * ring - 1);
-        int withinRing = current - previousWidth * previousWidth * VERTICAL_LAYERS;
-        int columns = ring == 0 ? 1 : 8 * ring;
-        int verticalIndex = withinRing / columns;
-        int dy = verticalIndex == 0 ? 0 : (verticalIndex % 2 == 1 ? -1 : 1) * ((verticalIndex + 1) / 2);
-        if (ring == 0) return new Offset(0, dy, 0);
-        int column = withinRing % columns;
+        int shell = 0;
+        while (volumeThrough(shell) <= current) shell++;
+        int column = current - (shell == 0 ? 0 : volumeThrough(shell - 1));
+        int ring = Math.min(shell, this.radius);
+        int sideLength = 2 * ring + 1;
+        for (int verticalIndex = 0; verticalIndex < VERTICAL_LAYERS; verticalIndex++) {
+            int dy = verticalIndex == 0 ? 0
+                    : (verticalIndex % 2 == 1 ? -1 : 1) * ((verticalIndex + 1) / 2);
+            int verticalDistance = 2 * Math.abs(dy);
+            // A newly reached height contributes its entire square; older heights
+            // contribute only the newly reached horizontal perimeter.
+            boolean fullSquare = verticalDistance == shell;
+            int columns = fullSquare ? sideLength * sideLength
+                    : verticalDistance < shell && shell <= this.radius ? 8 * ring : 0;
+            if (column >= columns) {
+                column -= columns;
+                continue;
+            }
+            if (fullSquare) return new Offset(column / sideLength - ring, dy, column % sideLength - ring);
+            return perimeter(ring, dy, column);
+        }
+        throw new IllegalStateException("Survey index outside bounded shells");
+    }
+
+    private int volumeThrough(int shell) {
+        int width = 2 * Math.min(shell, this.radius) + 1;
+        int height = 2 * Math.min(shell / 2, VERTICAL_LAYERS / 2) + 1;
+        return width * width * height;
+    }
+
+    private static Offset perimeter(int ring, int dy, int column) {
         int sideLength = 2 * ring + 1;
         if (column < sideLength) return new Offset(-ring, dy, column - ring);
         column -= sideLength;

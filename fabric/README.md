@@ -2,8 +2,9 @@
 
 Behaviour design: [player journey and automation reuse](PLAYER_JOURNEY.md),
 [development roadmap](DEVELOPMENT_ROADMAP.md).
-Current implementation milestone: [cooking prerequisites and shelter diagnostic](RESOURCE_TASKS.md).
-Current checks: [prerequisite verification](verification/PREREQUISITE-RESULTS.md).
+Current implementation milestone: [bounded food acquisition, cooking prerequisites and shelter diagnostic](RESOURCE_TASKS.md).
+Current checks: [food acquisition verification](verification/FOOD-RESULTS.md).
+Earlier prerequisite checks: [prerequisite verification](verification/PREREQUISITE-RESULTS.md).
 Earlier completed checks: [daily routine verification](verification/ROUTINE-RESULTS.md).
 
 Experimental, independently built Fabric port of Smart NPC 3.0.0. Tested in
@@ -77,9 +78,26 @@ Port: https://github.com/DefamationStation/SmartNpc/tree/fabric-26.4-snapshot-2
 The original author is pla_is_me. GPLv3 and the upstream third-party notices apply.
 
 The experimental personal-memory branch adds a resumable coal-gathering task,
-bounded cooking prerequisites and a read-only shelter readiness diagnostic.
-The `3.0.0-fabric.26.4-snapshot-2.5-prerequisites` milestone reuses native gathering,
-recipes, navigation, placement, pickup and cooking. Its starter cabin includes
+bounded food acquisition, cooking prerequisites and a read-only shelter readiness
+diagnostic. The current `3.0.0-fabric.26.4-snapshot-2.6-food` milestone lets an NPC
+with a carried fishing rod use native fishing when fewer than four safe edible
+items remain, including without a fishing interest. Cookable catches hand off
+immediately to cooking. Acquisition attempts are bounded to 120 seconds of game
+time with a 60-second retry delay; their local state is not persisted. Missing
+rods are explicit blockers, with no automatic crafting or free supplies. The
+food reserve is an inventory policy rather than a physiological hunger model;
+existing eating for healing retains its role.
+
+Cooking reuses native gathering, recipes, navigation, placement, pickup and
+furnace output collection. Its retained stone survey now reaches `(4, 0, 0)` at
+probe 175 instead of 665 using the same 16-probe scan budget, with unique full
+coverage of horizontal radius 24 and y ±6 before wrapping. These are cursor
+probe counts; gameplay timing improvement has not yet been measured. Ordinary
+fishing bobbers are excluded from living-entity collision handling. Existing
+animal/crop acquisition and external-station ownership limitations remain outside
+this change's property guarantees.
+
+The starter cabin includes
 crafting and lighting alongside the bed, storage and furnace. Shelter status is
 local structural/equipment evidence, not proof of autonomous house construction.
 See [RESOURCE_TASKS.md](RESOURCE_TASKS.md) for commands and limitations,
@@ -88,3 +106,6 @@ The survival prototype also makes neutral encounters peaceful, records defensive
 causes, attributes actual chest withdrawals, gathers cooking fuel automatically,
 and restores legacy blueprint block states for 26.4. The main game remains disabled
 while the complete survival-day behaviour is developed and tested.
+The food milestone's targeted fixture is underway; these implementation notes do
+not claim its runtime acceptance or a complete autonomous survival day. The root
+NeoForge project remains unchanged.

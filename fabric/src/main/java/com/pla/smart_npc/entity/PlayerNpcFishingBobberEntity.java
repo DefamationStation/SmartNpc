@@ -16,6 +16,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ExperienceOrb;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.projectile.Projectile;
@@ -260,11 +261,14 @@ public class PlayerNpcFishingBobberEntity extends Projectile {
 
     @Override
     protected boolean canHitEntity(@NotNull Entity target) {
+        // Ordinary fishing gathers supplies; combat rod behavior has its own goal.
+        if (target instanceof LivingEntity) return false;
         return super.canHitEntity(target) || target.isAlive() && target instanceof ItemEntity;
     }
 
     @Override
     protected void onHitEntity(@NotNull EntityHitResult result) {
+        if (result.getEntity() instanceof LivingEntity) return;
         super.onHitEntity(result);
         if (!this.level().isClientSide()) {
             this.setHookedEntity(result.getEntity());
@@ -443,6 +447,10 @@ public class PlayerNpcFishingBobberEntity extends Projectile {
 
         int rodDamage = 0;
         if (this.hookedIn != null) {
+            if (this.hookedIn instanceof LivingEntity) {
+                this.discard();
+                return 0;
+            }
             this.pullEntity(this.hookedIn);
             this.level().broadcastEntityEvent(this, (byte) 31);
             rodDamage = this.hookedIn instanceof ItemEntity ? 3 : 5;
@@ -464,7 +472,6 @@ public class PlayerNpcFishingBobberEntity extends Projectile {
                 .withParameter(LootContextParams.ORIGIN, this.position())
                 .withParameter(LootContextParams.TOOL, rod)
                 .withParameter(LootContextParams.THIS_ENTITY, this)
-                .withOptionalParameter(LootContextParams.ATTACKING_ENTITY, currentAngler)
                 .withLuck(this.luck)
                 .create(LootContextParamSets.FISHING);
         LootTable lootTable = serverLevel.getServer().reloadableRegistries().getLootTable(BuiltInLootTables.FISHING);

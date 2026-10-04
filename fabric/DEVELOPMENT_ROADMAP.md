@@ -1,6 +1,6 @@
 # Smart NPC: believable survival and progression
 
-Status: approved direction, first resource-memory prototype in development, 2026-10-04. Most milestones below remain planned. See `RESOURCE_TASKS.md` for the implemented scope and verification limits.
+Status: approved direction, experimental food milestone verified, 2026-10-04. Most milestones below remain planned. See `RESOURCE_TASKS.md` for the implemented scope and verification limits. Fresh and saved-world targeted fixtures pass; a complete survival day remains outstanding.
 
 ## Direction
 
@@ -198,8 +198,8 @@ progression remain separate acceptance gates in that document.
 
 ## First implementation backlog
 
-The current prerequisite milestone (`3.0.0-fabric.26.4-snapshot-2.5-prerequisites`)
-adds a bounded cooking intention for wood → crafting access/pickaxe → furnace
+The current food milestone (`3.0.0-fabric.26.4-snapshot-2.6-food`)
+extends the bounded cooking intention for wood → crafting access/pickaxe → furnace
 stone → furnace → fuel → actual cooked output, skipping prerequisites already
 fulfilled by carried supplies or usable stations. It reuses native gathering,
 recipe, movement, placement, pickup and furnace systems rather than introducing
@@ -207,13 +207,32 @@ a second general execution controller. Persistent status names missing supplies
 and records actual output collection; no complete survival-day claim follows
 from this one chain.
 
+An NPC carrying a fishing rod can now use native fishing to replenish a reserve
+below four safe edible carried items, including without a fishing interest.
+Cookable catches hand off immediately to cooking. Attempts are bounded to
+120 seconds of game time, with a 60-second retry delay; this acquisition state
+is local and does not survive reload. Missing rods remain explicit blockers,
+with neither automatic rod crafting nor free equipment. The reserve is an
+inventory policy; a physiological hunger model and new eating/health semantics
+are not implemented. Existing healing consumption remains in place.
+
+Stone surveys now order bounded 3D shells to favor nearby ground without adding
+world queries or increasing the existing 16-probe scan budget. Offset `(4, 0, 0)`
+is reached at probe 175 instead of 665, while radius 24 and y ±6 retain unique
+coverage and wrap. This supports a deterministic probe-count claim; runtime
+discovery timing still needs measurement. Ordinary fishing bobbers are excluded
+from living-entity collision handling. Existing animal/crop acquisition and
+external-station ownership limitations remain baseline concerns, not newly
+established permissions or a broader property fix.
+
 The shelter diagnostic separately checks an existing home against bounded loaded
 ground-floor geometry, actual stations, sleeping access, light and selected block
 hazards. Temporary refuge and basic equipped shelter have distinct statuses.
 The starter cabin now has crafting and lighting space, but assessing a fixture
 does not prove autonomous construction. See [resource task scope](RESOURCE_TASKS.md)
-for exact checks and limitations. Runtime results for this milestone must be
-recorded before claiming its acceptance; main-game installation stays disabled.
+for exact checks and limitations. Fresh and saved-world targeted fixtures pass;
+measurements and remaining gaps are recorded in [food results](verification/FOOD-RESULTS.md). Main-game
+installation stays disabled and the root NeoForge source/build remain unchanged.
 
 Keep each item separately reviewable and gated:
 

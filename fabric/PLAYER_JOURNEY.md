@@ -171,9 +171,25 @@ requiring a new pickaxe or an invented coal deposit. Remembered coal remains an
 available child task. Status describes the current shortage, and completion
 requires real cooked output to increase the NPC's carried food stock.
 
+The food milestone (`3.0.0-fabric.26.4-snapshot-2.6-food`) adds one bounded source
+before that chain: a reserve below four safe edible carried items can request
+native fishing with an already carried rod, including for a non-fisher. A raw
+cookable catch hands off immediately to cooking. Missing rods are explicit
+blockers; rod crafting and free equipment are not supplied. Acquisition attempts
+last at most 120 seconds of game time and retry after 60 seconds; this local
+attempt state is not a persisted intention. The reserve is an inventory policy,
+not a physiological hunger model, and eating for healing keeps its existing role.
+
+Cooking stone discovery now favors nearby ground through bounded 3D shells.
+The foot-height offset `(4, 0, 0)` is reached at probe 175 instead of 665 with the
+same retained 16-probe slices. The cursor still covers the complete horizontal
+radius-24, y ±6 volume uniquely before repeating. Targeted fresh and saved-world
+fixtures pass; [measurements](verification/FOOD-RESULTS.md) do not establish a
+population speedup or complete food-chain acceptance.
+
 This is one concrete prerequisite chain using native gathering, recipes,
 placement, navigation, pickup and furnace work. It is not yet the general owner
-of every survival intention. Full food acquisition, shelter material gathering,
+of every survival intention. General food-source acquisition, shelter material gathering,
 deposit/return outcomes, renewable food, equipment progression and multi-day
 recovery still need their own execution and acceptance evidence.
 
@@ -254,8 +270,11 @@ reported as proof of a complete autonomous life.
 
 The experimental branch currently has peaceful targeting, witnessed property
 offences, personal coal observations, a resumable coal task, bounded cooking
-prerequisites and a shelter readiness diagnostic. Runtime verification of this
-prerequisite milestone is recorded separately when available. A complete general
+prerequisites, carried-rod food acquisition and a shelter readiness diagnostic.
+Ordinary fishing bobbers are excluded from living-entity collision handling.
+Existing animal/crop acquisition and external-station ownership limitations are
+not resolved or widened by the food milestone. Fresh and saved-world targeted
+fixtures pass, with [results and limits](verification/FOOD-RESULTS.md) recorded separately. A complete general
 prerequisite planner, earned age progression, verified autonomous full-home
 construction and a multi-day survival demonstration remain outstanding.
 Main-game installation remains disabled.
