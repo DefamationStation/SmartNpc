@@ -13,6 +13,9 @@ public final class ResourceMemory {
     public long origin;
     public int target;
     public boolean active, returning;
+    public boolean automatic;
+    public String purpose = "no resource task";
+    public long started, nextDecision;
     public int cursor;
 
     public void observe(String dimension, long position, long now) {
@@ -29,6 +32,8 @@ public final class ResourceMemory {
         active = true;
         returning = false;
         status = "seeking observed coal";
+        automatic = false;
+        purpose = "requested coal";
     }
 
     public CompoundTag save() {
@@ -39,6 +44,10 @@ public final class ResourceMemory {
         tag.putInt("target", target);
         tag.putBoolean("active", active);
         tag.putBoolean("returning", returning);
+        tag.putBoolean("automatic", automatic);
+        tag.putString("purpose", purpose);
+        tag.putLong("started", started);
+        tag.putLong("nextDecision", nextDecision);
         tag.putString("status", status);
         tag.putInt("count", coal.size());
         for (int i = 0; i < coal.size(); i++) {
@@ -59,6 +68,10 @@ public final class ResourceMemory {
         m.target = Math.max(0, tag.getIntOr("target", 0));
         m.active = tag.getBooleanOr("active", false) && m.target > 0 && !m.dimension.isEmpty();
         m.returning = tag.getBooleanOr("returning", false);
+        m.automatic = tag.getBooleanOr("automatic", false);
+        m.purpose = tag.getStringOr("purpose", m.active ? "requested coal" : "no resource task");
+        m.started = tag.getLongOr("started", 0);
+        m.nextDecision = tag.getLongOr("nextDecision", 0);
         m.status = tag.getStringOr("status", "idle");
         for (int i = 0; i < Math.clamp(tag.getIntOr("count", 0), 0, LIMIT); i++) {
             var e = tag.getCompoundOrEmpty("coal" + i);

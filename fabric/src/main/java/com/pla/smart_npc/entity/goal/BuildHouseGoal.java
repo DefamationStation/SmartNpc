@@ -1551,6 +1551,10 @@ public class BuildHouseGoal extends Goal {
             return;
         }
 
+        // Survival construction creates empty storage/workstations. Recorded blueprint
+        // inventories and loot tables must never grant resources the NPC did not earn.
+        if (blockEntity instanceof net.minecraft.world.Container) return;
+
         CompoundTag tag = blockEntityTag.copy();
         tag.putInt("x", pos.getX());
         tag.putInt("y", pos.getY());

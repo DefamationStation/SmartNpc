@@ -73,3 +73,7 @@ The original author is pla_is_me. GPLv3 and the upstream third-party notices app
 The experimental personal-memory branch adds a first resumable coal-gathering
 task. See [RESOURCE_TASKS.md](RESOURCE_TASKS.md) for commands and limitations,
 and [DEVELOPMENT_ROADMAP.md](DEVELOPMENT_ROADMAP.md) for the approved direction.
+The survival prototype also makes neutral encounters peaceful, records defensive
+causes, attributes actual chest withdrawals, gathers cooking fuel automatically,
+and restores legacy blueprint block states for 26.4. The main game remains disabled
+while the complete survival-day behaviour is developed and tested.

@@ -263,7 +263,6 @@ public final class PlayerNpcTeamUpManager {
                     || ally.isNoAi()
                     || ally.isHealing()
                     || ally.isTeamAlliedWith(attacker)
-                    || !ally.canAttack(attacker)
                     || attacker.isAlliedTo(ally)) {
                 continue;
             }
@@ -272,6 +271,9 @@ public final class PlayerNpcTeamUpManager {
                     && !ally.isTeamAlliedWith(currentTarget)) {
                 continue;
             }
+            com.pla.smart_npc.fabric.survival.SocialSafety.record(ally, attacker,
+                    com.pla.smart_npc.fabric.survival.GrievanceMemory.Cause.ALLY_DEFENCE);
+            if (!ally.canAttack(attacker)) continue;
             ally.interruptRoutineWork();
             ally.setTarget(attacker);
             ally.markCombatProgress();

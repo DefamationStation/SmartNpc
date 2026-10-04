@@ -2188,10 +2188,9 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         // Characteristics are opportunistic personality behavior, not daily/routine worker jobs.
         // Keep the same priority and delegate flags, but do not make their availability depend on
         // a StartupWorkGatedGoal resource turn.
-        this.goalSelector.addGoal(5, this.gated(new LootNearbyChestGoal(this, 1.0D), PlayerNpcInterest.LOOTING));
+        // Arbitrary containers have no ownership permission yet; automatic raiding is disabled.
         this.goalSelector.addGoal(5, this.gated(new JukeboxDanceGoal(this, 1.0D), PlayerNpcInterest.TROLL_HIT));
-        this.goalSelector.addGoal(5, this.gated(new TrollHitGoal(this), PlayerNpcInterest.TROLL_HIT));
-        this.goalSelector.addGoal(5, this.gated(new IronGolemTrollGoal(this), PlayerNpcInterest.TROLL_HIT));
+        // Survival personalities no longer initiate prank attacks on neutral neighbours.
         this.addWorkGoal(5, new ManageHomeBaseGoal(this));
         this.addWorkGoal(5, new CheckHomeSuppliesGoal(this));
         this.addWorkGoal(5, new CraftBasicGearGoal(this));
@@ -2340,7 +2339,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         // priority-6 log gathering can start the next tree route. Higher-priority 1-4 safety,
         // item, and return work still pre-empts it; equal-priority 5 work is not displaced.
         this.addWorkGoal(5, new CleanupTemporaryPillarGoal(this, 1.0D));
-        this.goalSelector.addGoal(9, new AiBudgetWaitingStrollGoal(this, 0.55D));
+        this.goalSelector.addGoal(9, new com.pla.smart_npc.fabric.survival.WorkBreakGoal(this));
         this.addWorkGoal(4, this.gated(new BeingAtHomeGoal(this, 1.0D), PlayerNpcInterest.BUILDING));
         this.goalSelector.addGoal(5, new OpenDoorGoal(this, true));
         ((GroundPathNavigation) this.getNavigation()).setCanOpenDoors(true);
@@ -2472,7 +2471,13 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     @Override
     public void setTarget(@Nullable LivingEntity target) {
         // Cautious avoidance owns threats; target goals must not turn them into retaliation.
-        super.setTarget(this.hasInterest(PlayerNpcInterest.CAUTIOUS) ? null : target);
+        super.setTarget(this.hasInterest(PlayerNpcInterest.CAUTIOUS)
+                || target != null && !com.pla.smart_npc.fabric.survival.SocialSafety.permits(this, target) ? null : target);
+    }
+
+    @Override
+    public boolean canAttack(LivingEntity target) {
+        return com.pla.smart_npc.fabric.survival.SocialSafety.permits(this, target) && super.canAttack(target);
     }
 
     public boolean hurtServer(@NotNull ServerLevel serverLevel, @NotNull DamageSource damageSource, float f) {
@@ -2484,6 +2489,9 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         }
 
         boolean hurt = super.hurtServer(serverLevel, damageSource, f);
+        if (hurt && damageSource.getEntity() instanceof LivingEntity offender)
+            com.pla.smart_npc.fabric.survival.SocialSafety.record(this, offender,
+                    com.pla.smart_npc.fabric.survival.GrievanceMemory.Cause.ASSAULT);
         if (hurt && !this.hasInterest(PlayerNpcInterest.CAUTIOUS)
                 && !this.level().isClientSide() && damageSource.getEntity() instanceof LivingEntity attacker
                 && attacker.isAlive()
@@ -2530,6 +2538,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
 
     @Override
     public boolean doHurtTarget(@NotNull ServerLevel serverLevel, @NotNull Entity target) {
+        if (target instanceof LivingEntity living && !com.pla.smart_npc.fabric.survival.SocialSafety.permits(this, living)) return false;
         if (this.hasInterest(PlayerNpcInterest.CAUTIOUS)) {
             return false;
         }
@@ -4615,6 +4624,13 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
 
     private void cleanupStaleCombatState() {
         LivingEntity currentTarget = this.getTarget();
+        if (currentTarget != null && !com.pla.smart_npc.fabric.survival.SocialSafety.permits(this, currentTarget)) {
+            this.setTarget(null);
+            this.getNavigation().stop();
+            this.setCurrentAiState(AI_IDLE);
+            this.setCurrentAiDetail("defensive encounter ended");
+            currentTarget = null;
+        }
         if (currentTarget != null && this.isTeamAlliedWith(currentTarget)) {
             this.setTarget(null);
             this.getNavigation().stop();

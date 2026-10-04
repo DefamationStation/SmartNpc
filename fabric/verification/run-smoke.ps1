@@ -52,7 +52,7 @@ try {
     }
 } finally { $zip.Dispose() }
 $compileClasspath = "$classpath;$($modJar.FullName);" + ((Get-ChildItem (Join-Path $output 'compile-libs/*.jar')).FullName -join ';')
-& (Join-Path $JavaHome 'bin/javac.exe') -cp $compileClasspath -d (Join-Path $output 'classes') (Join-Path $PSScriptRoot 'SmartNpcFunctional.java')
+& (Join-Path $JavaHome 'bin/javac.exe') -cp $compileClasspath -d (Join-Path $output 'classes') (Get-ChildItem (Join-Path $PSScriptRoot 'SmartNpc*.java')).FullName
 if ($LASTEXITCODE) { throw 'Smoke harness compilation failed.' }
 [IO.File]::WriteAllText((Join-Path $output 'classes/fabric.mod.json'),'{"schemaVersion":1,"id":"smartnpc_functional","version":"1","environment":"client","entrypoints":{"client":["SmartNpcFunctional"]}}')
 & (Join-Path $JavaHome 'bin/jar.exe') cf (Join-Path $output 'mods/smartnpc-functional-test.jar') -C (Join-Path $output 'classes') .

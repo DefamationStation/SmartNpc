@@ -9,7 +9,8 @@
   "mixins": [
     "EntityDataMixin",
     "BlockEntityDataMixin",
-    "ServerLevelMixin"
+    "ServerLevelMixin",
+    "ChestClickMixin"
   ],
   "client": [
     "ScreenMixin",

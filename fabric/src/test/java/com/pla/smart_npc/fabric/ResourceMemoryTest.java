@@ -23,11 +23,14 @@ class ResourceMemoryTest {
         before.observe("overworld", 123, 456);
         before.request("overworld", 789, 7, 10);
         before.returning = true;
+        before.automatic = true; before.purpose = "fuel for cooking food"; before.started = 42; before.nextDecision = 1242;
         var after = ResourceMemory.load(before.save());
         assertEquals(17, after.target);
         assertEquals(789, after.origin);
         assertTrue(after.active);
         assertTrue(after.returning);
+        assertTrue(after.automatic); assertEquals(before.purpose, after.purpose);
+        assertEquals(42, after.started); assertEquals(1242, after.nextDecision);
         assertEquals(before.coal, after.coal);
         assertThrows(IllegalArgumentException.class, () -> after.request("overworld", 0, 0, 0));
         assertThrows(IllegalArgumentException.class, () -> after.request("overworld", 0, 0, 65));

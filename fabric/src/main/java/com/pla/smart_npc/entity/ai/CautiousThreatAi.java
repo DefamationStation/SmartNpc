@@ -37,7 +37,8 @@ public final class CautiousThreatAi {
             return false;
         }
         if (candidate instanceof Player || candidate instanceof PlayerNpcEntity) {
-            return true;
+            return com.pla.smart_npc.fabric.survival.SocialSafety.hasCause(playerNpc, candidate)
+                    || candidate instanceof Mob mob && mob.getTarget() == playerNpc;
         }
         return candidate == playerNpc.getLastHurtByMob()
                 || candidate instanceof Enemy

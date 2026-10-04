@@ -26,7 +26,9 @@ public final class PlayerNpcHomeEvent {
 
     @SubscribeEvent
     public static void onBlockBreak(BreakBlockEvent event) {
-        if (!(event.getLevel() instanceof ServerLevel serverLevel)
+        if (!event.isCanceled() && event.getLevel() instanceof ServerLevel level && event.getPlayer() != null)
+            com.pla.smart_npc.fabric.survival.SocialSafety.propertyBroken(level, event.getPos(), event.getState(), event.getPlayer());
+        if (event.isCanceled() || !(event.getLevel() instanceof ServerLevel serverLevel)
                 || !(event.getState().getBlock() instanceof BedBlock)
                 || event.getPlayer() == null) {
             return;
@@ -51,6 +53,8 @@ public final class PlayerNpcHomeEvent {
             playerNpc.setSleepCooldown(20 * 90 + playerNpc.getRandom().nextInt(20 * 120));
             playerNpc.wakeUpIdleWork();
             if (!playerNpc.isTeamAlliedWith(breaker)) {
+                com.pla.smart_npc.fabric.survival.SocialSafety.record(playerNpc, breaker,
+                        com.pla.smart_npc.fabric.survival.GrievanceMemory.Cause.VANDALISM);
                 playerNpc.setTarget(breaker);
                 playerNpc.setCurrentAiState("ai.player_npc.retaliating");
             }

@@ -33,6 +33,7 @@ public final class SmartNpcFabric implements ModInitializer {
         PlayerNpcWorldSpawns.register();
         SmartNpcNetwork.register();
         Events.register(com.pla.smart_npc.fabric.survival.SurvivalTasks.class);
+        Events.register(com.pla.smart_npc.fabric.survival.SocialSafety.class);
         for(Class<?> type:new Class<?>[]{PlayerNpcChestProtectEvent.class,PlayerNpcCommandEvent.class,PlayerNpcDepartureEvent.class,PlayerNpcHomeEvent.class,ProgressionEvent.class,PlayerNpcTeamUpEvent.class,PlayerNpcInspectatorEvent.class,PlayerNpcForceTickManager.class,PlayerNpcGoalTraceLogger.class,PlayerNpcNaturalSpawnCap.class,PlayerNpcPerformanceMonitor.class}) Events.register(type);
         new NpcGearLoadEvent().onAddReloadListeners(new Events.AddServerReloadListenersEvent());
         ServerLifecycleEvents.SERVER_STARTING.register(ServerAccess::set);

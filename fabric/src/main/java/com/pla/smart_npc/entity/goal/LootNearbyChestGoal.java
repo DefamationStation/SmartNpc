@@ -216,6 +216,7 @@ public class LootNearbyChestGoal extends Goal {
 
             int moved = this.lootNextStack(chest);
             if (moved > 0) {
+                PlayerNpcChestProtectEvent.reportOffense(serverLevel, this.chestPos, this.playerNpc, "stole");
                 this.takeDelayTicks = TAKE_INTERVAL_TICKS;
                 this.playerNpc.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
                 this.playerNpc.equipBetterGearFromInventory();

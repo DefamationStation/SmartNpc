@@ -40,6 +40,7 @@ public final class PlayerNpcBlockBreakUtil {
             if (destroyed && ownedChestOffense) {
                 PlayerNpcChestProtectEvent.reportOffense(serverLevel, pos, playerNpc, "broke");
             }
+            if (destroyed) com.pla.smart_npc.fabric.survival.SocialSafety.propertyBroken(serverLevel, pos, state, playerNpc);
             return destroyed;
         }
 
@@ -51,6 +52,8 @@ public final class PlayerNpcBlockBreakUtil {
         if (ownedChestOffense) {
             PlayerNpcChestProtectEvent.reportOffense(serverLevel, pos, playerNpc, "broke");
         }
+
+        com.pla.smart_npc.fabric.survival.SocialSafety.propertyBroken(serverLevel, pos, state, playerNpc);
 
         awardExperienceDrop(serverLevel, pos, state, blockEntity, playerNpc, heldStack);
 

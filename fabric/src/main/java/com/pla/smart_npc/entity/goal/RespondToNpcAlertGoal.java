@@ -120,6 +120,7 @@ public class RespondToNpcAlertGoal extends Goal {
     }
 
     private boolean shouldAttack(LivingEntity threat) {
+        if (!this.playerNpc.canAttack(threat)) return false;
         if (this.playerNpc.shouldSmartNpcFleeFromTarget(threat)) {
             return false;
         }

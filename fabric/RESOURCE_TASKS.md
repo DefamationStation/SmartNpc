@@ -22,11 +22,20 @@ The request survives an interruption or save/reload. Actual movement, tools and 
 
 ## Current boundaries
 
-- Observation is automatic; starting this new gathering task is currently explicit. Autonomous need selection, crafting prerequisites, storage delivery, trading, learning and schematics are subsequent milestones.
+- Observation is automatic. The first automatic decision gathers two coal when the NPC has cookable food, lacks carried fuel, can use/craft a furnace, has a pickaxe and remembers nearby coal. Missing prerequisites are explained in status and the inspector. Manual requests remain available. The complete food/tool/shelter planner, storage delivery, trading and learning remain subsequent milestones.
+- Automatic coal work pauses after one minute without completion and waits another minute before reconsidering. Manual requests remain resumable until cancelled. Cancellation also suppresses immediate automatic replanning. Timers and task purpose persist across saves.
 - The task uses walking navigation and only considers remembered ore within 32 blocks. It does not tunnel, bridge, explore unknown terrain or port Baritone yet.
 - Waiting tasks permit other routine goals to run. Those goals can consume resources; the task's inventory target accounts for that, but this is not yet a complete intention/prerequisite scheduler.
 - Resource memory currently covers coal only. Separate NPC identities do not automatically share observations.
 - Runtime checks use a controlled mining fixture. Long-route navigation, combat interruptions and large populations require broader validation before promoting this build to the default development instance.
+
+## Peaceful survival prototype
+
+Player/NPC/villager/golem targets require recorded defensive evidence. Prank hits, golem trolling, interrupting dancers with an attack and automatic chest raiding are disabled. Cautious NPCs treat visitors as neutral. Ownership reactions require a nearby owner that can see the offender; they grant no knowledge of remote events. Actual assault and tracked property damage can trigger defence; caution and existing ally rules still apply. Evidence is bounded to 16 offenders per NPC and expires after one minute without a new offence.
+
+Opening an owned chest issues a rate-limited warning. A server-side hook compares its contents immediately before and after the player's real container input. Item/component totals distinguish removal from rearrangement and deposits. NPC inventory transfers report theft after items actually move. Shared/team access is respected by existing ally rules; a dedicated per-container permission system remains planned. Taking an item onto the cursor counts as removal in this first implementation. Returning supplies does not yet automatically reconcile a defensive encounter.
+
+Idle NPCs queued for routine work take short attentive pauses instead of decorative random walks. Fresh configs cap natural spawns at four; existing configured values are preserved. The bundled legacy blueprint palettes now convert to 26.4 keys, restoring their blocks and orientations. An original 4×5 starter cabin includes a bed, chest, furnace and door. Full autonomous cabin construction and the multi-day survival loop are still to be validated.
 
 ## Why Buddy commands work
 

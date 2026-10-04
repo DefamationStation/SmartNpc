@@ -12,6 +12,20 @@ The desired experience is observable cause and effect: an NPC returns from a dan
 
 Human-like behaviour means consistent motivations, limited knowledge, credible mistakes, recovery and commitments. Believability should come from what NPCs do as well as what they say.
 
+## Playtest concerns and required behaviour — 2026-10-04
+
+The user observed a crowd of randomly spawned NPCs wandering without visible accomplishments, including an unprovoked attack. These are release blockers for the desired survival-player experience.
+
+- **Peaceful encounters:** player-hunting or prank traits must never authorize an unprovoked attack on players, other NPCs or neutral village inhabitants. Retaliation requires evidence of assault, actual theft, damage to owned construction or defence of an attacked ally. Apply the rule to direct targeting, retained targets and attacks, not just the initial target selector. Cautious NPCs must not flee from every visitor.
+- **Understandable property reactions:** opening, inspecting, rearranging or depositing in storage is distinct from taking supplies. Warn before an encounter can escalate. Attribute inventory removal to the real actor; do not blame the nearest player for hopper activity or another actor's action. Track actual ownership and permission, including shared storage. Base defence must refer to owned construction, not ordinary terrain inside a reserved plot. Add proportional responses, returning stolen goods, repairs, reconciliation and trusted access as relationships develop.
+- **NPC-to-NPC consistency:** the same rules apply between NPCs. Disable default chest raiding until ownership and consent are available; personality must not manufacture a cycle of theft and revenge. Settlements need resource/project reservations and conflict resolution. Different personalities may react differently to a proven event without inventing offences.
+- **Purpose and visible progress:** a survivor should be pursuing a concrete need or commitment: food, tools, shelter, storage, repair, a trade or a prepared expedition. Record why, the next prerequisite, completion evidence and the last failure. Short rests and recreation are credible; decorative wandering while queued for work must not disguise stalled execution. Repeated route/material failures should change the approach or expose a blocked condition.
+- **Population and arrivals:** begin with a small configurable population. Existing config choices are preserved; fresh prototype configs now cap natural NPCs at four. Define where a newcomer came from, its initial survival priorities, home/work search and persistence. Expand population only after measuring successful useful activity and server cost, not just available spawn capacity.
+
+Acceptance before re-enabling the main game: observe a small population over several Minecraft days in a suitable fresh world. Peaceful players and neighbouring NPCs receive no unsolicited attacks or theft. Every NPC completes useful survival work, rests for a reason, or explains and recovers from a real blocker. Include poor-resource terrain, interrupted work, save/reload, owned/shared/unowned containers, damage/repair, and verified offender identity. The main instance remains disabled until the user chooses to enable a validated build.
+
+Implemented in this prototype: central defence evidence with expiry, removal of prank/raiding activation, peaceful cautious encounters, real chest-click theft attribution, first automatic cooking-fuel task, and attentive work pauses. The blueprint reader also had a concrete 26.4 compatibility defect: legacy `Name`/`Properties` keys silently decoded to air. Conversion now restores the bundled layouts; an original starter cabin is included. Constructed containers skip recorded inventories/loot tables to conserve earned resources. Broader survival-day behaviour and relationship responses remain milestones below.
+
 ## What exists already
 
 Source inspection found:
@@ -22,7 +36,7 @@ Source inspection found:
 - Invitations, following and ally defence in `PlayerNpcTeamUpManager`.
 - World-wide difficulty progression in `ProgressionUtil`/`ProgressionData`, driven by player dimension/advancement history and the dragon fight. This is distinct from individual NPC learning.
 - A shared AI work budget, performance monitor, inspector, goal tracing and owned chunk tickets.
-- A building layout loader, but the port's recorded test runs loaded **zero layouts**. Supply and test usable layouts before treating autonomous construction as a complete experience.
+- A building layout loader whose initial port tests loaded **zero layouts**. Correcting legacy palette keys restored 67 bundled layouts; the prototype adds one starter cabin. Loading templates is a prerequisite, and complete resource-funded construction still needs its own long-running outcome test.
 
 The Fabric port has passed targeted integration checks; long-running AI outcomes and dedicated-server operation still need validation. Reuse existing action implementations where practical, and verify their preconditions and completion reporting before adding planning above them.
 

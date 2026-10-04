@@ -153,11 +153,10 @@ public class PlayerNpcSmartTargetGoal extends TargetGoal {
 
     private TargetSearchContext createSearchContext() {
         return new TargetSearchContext(
-                this.playerNpc.hasInterest(PlayerNpcInterest.HUNT_PLAYERS)
-                        && !this.playerNpc.isTeamUpRequestPending(),
+                false, // Player/NPC defence is event-driven; personality never supplies a combat cause.
                 this.playerNpc.hasInterest(PlayerNpcInterest.HUNT_MONSTERS),
                 this.playerNpc.hasInterest(PlayerNpcInterest.HUNT_ANIMALS),
-                this.playerNpc.hasInterest(PlayerNpcInterest.HUNT_VILLAGERS),
+                false,
                 this.playerNpc.getHealth() / this.playerNpc.getMaxHealth()
         );
     }

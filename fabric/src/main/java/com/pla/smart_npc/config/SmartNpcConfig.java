@@ -13,7 +13,8 @@ public class SmartNpcConfig {
     public static ConfigSpec.IntValue REMOTE_NPC_DEPARTURE_MIN_MINUTES;
     public static ConfigSpec.IntValue REMOTE_NPC_DEPARTURE_MAX_MINUTES;
     private static final SpawnConfig DEFAULT_PLAYER_NPC_SPAWN = new SpawnConfig(1, 1, 1);
-    private static final int DEFAULT_MAX_NATURAL_PLAYER_NPCS = -1;
+    // Keep the prototype population small until complete survival outcomes justify expansion.
+    private static final int DEFAULT_MAX_NATURAL_PLAYER_NPCS = 4;
 
     public static ConfigSpec.ConfigValue<Boolean> TURN_ON_NPC_CHAT;
     public static ConfigSpec.ConfigValue<Boolean> SHOW_NPC_CHAT_PREFIX;

@@ -28,6 +28,8 @@ public final class PlayerNpcChestProtectEvent {
             return;
         }
         reportOffense(serverLevel, event.getPos(), event.getEntity(), "opened");
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player)
+            com.pla.smart_npc.fabric.survival.SocialSafety.opened(player, event.getPos());
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -45,22 +47,23 @@ public final class PlayerNpcChestProtectEvent {
             return;
         }
 
-        // Never load chunks for protection, but do not impose an arbitrary distance limit on an
-        // owner that is already loaded and ticking in this level.
-        for (var entity : serverLevel.getAllEntities()) {
-            if (!(entity instanceof PlayerNpcEntity owner)
-                    || !owner.isAlive()
-                    || owner == offender
-                    || owner.isTeamFollower()
-                    || owner.isTeamAlliedWith(offender)
-                    || !owner.hasInterest(PlayerNpcInterest.CHEST_PROTECT)
-                    || !owner.isOwnedChest(chestPos)) {
+        net.minecraft.world.Container container = null;
+        var state = serverLevel.getBlockState(chestPos);
+        if (state.getBlock() instanceof net.minecraft.world.level.block.ChestBlock chest)
+            container = net.minecraft.world.level.block.ChestBlock.getContainer(chest, state, serverLevel, chestPos, true);
+        for (var owner : serverLevel.getEntitiesOfClass(PlayerNpcEntity.class, offender.getBoundingBox().inflate(32))) {
+            if (!com.pla.smart_npc.fabric.survival.SocialSafety.witnesses(owner, offender)
+                    || !(owner.isOwnedChest(chestPos) || container != null
+                    && com.pla.smart_npc.fabric.survival.SocialSafety.ownsContainer(owner, container))) continue;
+            if ("opened".equals(action)) {
+                com.pla.smart_npc.fabric.survival.SocialSafety.warn(owner, offender);
                 continue;
             }
-            owner.setChestProtectionTarget(offender);
-            owner.wakeUpIdleWork();
-            owner.setCurrentAiState("ai.player_npc.protecting_chest");
-            owner.setCurrentAiDetail("owned chest " + action + " by " + offender.getDisplayName().getString());
+            if (!("stole".equals(action) || "broke".equals(action))) continue;
+            com.pla.smart_npc.fabric.survival.SocialSafety.defend(owner, offender,
+                    "stole".equals(action) ? com.pla.smart_npc.fabric.survival.GrievanceMemory.Cause.THEFT
+                    : com.pla.smart_npc.fabric.survival.GrievanceMemory.Cause.VANDALISM);
+            if (owner.getTarget() == offender) owner.setCurrentAiState("ai.player_npc.protecting_chest");
         }
     }
 }

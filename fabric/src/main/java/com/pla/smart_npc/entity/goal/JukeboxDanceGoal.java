@@ -62,11 +62,7 @@ public class JukeboxDanceGoal extends Goal {
             return false;
         }
 
-        this.dancerToDisturb = this.findDancingNpc();
-        if (this.dancerToDisturb != null && this.playerNpc.getRandom().nextFloat() < 0.012F) {
-            this.action = Action.DISTURB;
-            return true;
-        }
+        // Music remains social recreation; another NPC dancing is never a reason to attack.
 
         this.jukeboxPos = this.findPlayingJukebox(serverLevel);
         if (this.jukeboxPos != null && this.playerNpc.getRandom().nextFloat() < 0.35F) {

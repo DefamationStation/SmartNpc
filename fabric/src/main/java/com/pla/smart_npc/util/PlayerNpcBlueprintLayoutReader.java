@@ -91,7 +91,14 @@ public final class PlayerNpcBlueprintLayoutReader {
         List<BlockState> palette = new ArrayList<>(paletteTag.size());
         for (int i = 0; i < paletteTag.size(); i++) {
             try {
-                palette.add(NbtUtils.readBlockState(BuiltInRegistries.BLOCK, paletteTag.getCompoundOrEmpty(i)));
+                var stateTag = paletteTag.getCompoundOrEmpty(i).copy();
+                // Structurize v1 keeps the legacy NBT names; 26.4 reads id/properties.
+                // Without this conversion every legacy palette entry silently becomes air.
+                if (!stateTag.contains("id") && stateTag.contains("Name"))
+                    stateTag.putString("id", stateTag.getStringOr("Name", "minecraft:air"));
+                if (!stateTag.contains("properties") && stateTag.contains("Properties"))
+                    stateTag.put("properties", stateTag.getCompoundOrEmpty("Properties").copy());
+                palette.add(NbtUtils.readBlockState(BuiltInRegistries.BLOCK, stateTag));
             } catch (RuntimeException exception) {
                 LOGGER.warn("Blueprint reader replaced invalid palette entry {} with air: {}", i, exception.getMessage());
                 palette.add(Blocks.AIR.defaultBlockState());

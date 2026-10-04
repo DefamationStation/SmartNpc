@@ -67,7 +67,8 @@ public class PlayerNpcInspectorRequestPacket implements CustomPacketPayload {
                             PlayerNpcInspectorData.createSnapshot(playerNpc),
                             PlayerNpcInspectorData.createBuildStatusText(playerNpc),
                             PlayerNpcInspectorData.createPerformanceText(),
-                            PlayerNpcInspectorData.createDailyJobText(playerNpc),
+                            PlayerNpcInspectorData.createDailyJobText(playerNpc) + " | "
+                                    + com.pla.smart_npc.fabric.survival.SurvivalTasks.describe(playerNpc),
                             packet.includeRequirements ? PlayerNpcInspectorData.createBuildRequirementsText(playerNpc) : "",
                             PlayerNpcInspectorData.createTeamInfo(playerNpc),
                             PlayerNpcGoalTraceLogger.isEffectivelyTracing(sender, playerNpc)
