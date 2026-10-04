@@ -1,0 +1,25 @@
+name: Fabric snapshot port
+on:
+  push:
+    branches: [fabric-26.4-snapshot-2]
+    paths: ['fabric/**', 'src/**', '.github/workflows/fabric.yml']
+  pull_request:
+    paths: ['fabric/**', 'src/**', '.github/workflows/fabric.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Build and test independent Fabric module
+        run: bash fabric/gradlew -p fabric build --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SmartNpc-Fabric-26.4-snapshot-2
+          path: fabric/build/libs/*.jar

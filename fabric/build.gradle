@@ -12,7 +12,13 @@ dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    include implementation('com.electronwill.night-config:core:3.8.3')
+    include implementation('com.electronwill.night-config:toml:3.8.3')
+    compileOnly 'org.lwjgl:lwjgl-glfw:3.4.1'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.12.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
+loom { accessWidenerPath = file('src/main/resources/smart_npc.accesswidener') }
 java { toolchain.languageVersion = JavaLanguageVersion.of(25) }
 
 // Keep the existing NeoForge build and source tree intact. Only files that need
@@ -21,7 +27,8 @@ def mergedSources = layout.buildDirectory.dir('generated/shared-java')
 tasks.register('prepareSources', Sync) {
     def overlay = file('src/main/java')
     from('../src/main/java') {
-        exclude { details -> new File(overlay, details.path).exists() }
+        exclude { details -> !details.isDirectory() && new File(overlay, details.path).isFile() }
+        exclude '**/PlayerNpcMobSpawnBiomeModifier.java', '**/TicketOwnerAccessor.java', '**/TicketTrackerAccessor.java', '**/PlayerRendererMixin.java'
     }
     from(overlay)
     into(mergedSources)
@@ -29,6 +36,7 @@ tasks.register('prepareSources', Sync) {
 sourceSets.main.java.setSrcDirs([mergedSources])
 sourceSets.main.resources.srcDirs = ['../src/main/resources', 'src/main/resources']
 tasks.named('compileJava') { dependsOn 'prepareSources' }
+tasks.named('test') { useJUnitPlatform() }
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.compilerArgs += ['-Xmaxerrs', '1000']
