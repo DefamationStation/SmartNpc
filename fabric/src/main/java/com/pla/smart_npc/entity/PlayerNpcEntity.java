@@ -1535,7 +1535,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     public boolean hasCarriedTool(Object toolClass) {
-        return this.hasHeldOrInventoryTool(toolClass);
+        return this.hasHeldOrInventoryTool(toolClass) || ToolAi.hasRetainedTool(this, toolClass);
     }
 
     public boolean promoteMainWeaponItem(ItemStack stack) {
@@ -2131,6 +2131,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     protected void registerGoals() {
         this.workGoalRegistrationIndex = 0;
         GatherLogsGoal gatherLogsGoal = new GatherLogsGoal(this, 1.0D);
+        GatherStoneGoal gatherStoneGoal = new GatherStoneGoal(this, 1.0D);
         GatherMissingBuildMaterialGoal gatherMissingBuildMaterialGoal = new GatherMissingBuildMaterialGoal(this, 1.0D);
         TerraformBuildSiteGoal terraformBuildSiteGoal = new TerraformBuildSiteGoal(this, 1.0D);
         // Floating only owns JUMP, so the active work goal keeps its MOVE target while swimming.
@@ -2158,7 +2159,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.goalSelector.addGoal(3, this.gated(new RareSneakGoal(this), PlayerNpcInterest.CAUTIOUS));
         this.addWorkGoal(4, this.gated(new ReturnHomeGoal(this, 1.0D), PlayerNpcInterest.BUILDING));
         this.addWorkGoal(5, this.gated(terraformBuildSiteGoal, PlayerNpcInterest.BUILDING));
-        this.addWorkGoal(5, new com.pla.smart_npc.fabric.survival.SurvivalGatherGoal(this, gatherLogsGoal));
+        this.addWorkGoal(5, new com.pla.smart_npc.fabric.survival.SurvivalGatherGoal(this, gatherLogsGoal, gatherStoneGoal));
         this.addWorkGoal(5, new com.pla.smart_npc.fabric.survival.GatherCoalGoal(this));
         this.goalSelector.addGoal(6, new PlayerNpcMeleeAttackGoal(this));
         this.addWorkGoal(5, this.gated(new BuildHouseGoal(this), PlayerNpcInterest.BUILDING));
@@ -2188,35 +2189,38 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.addWorkGoal(5, this.gated(new PlantSaplingGoal(this), PlayerNpcInterest.FARMING));
         this.addWorkGoal(5, this.gated(new UseSpyglassGoal(this), PlayerNpcInterest.EXPLORING, PlayerNpcInterest.CAUTIOUS));
         this.addWorkGoal(6, this.gated(gatherLogsGoal, PlayerNpcInterest.BUILDING, PlayerNpcInterest.MINING, PlayerNpcInterest.FISHING, PlayerNpcInterest.FARMING, PlayerNpcInterest.EXPLORING));
-        this.addWorkGoal(6, this.gated(new GatherStoneGoal(this, 1.0D), PlayerNpcInterest.BUILDING, PlayerNpcInterest.MINING, PlayerNpcInterest.FISHING, PlayerNpcInterest.FARMING, PlayerNpcInterest.EXPLORING));
+        this.addWorkGoal(6, this.gated(gatherStoneGoal, PlayerNpcInterest.BUILDING, PlayerNpcInterest.MINING, PlayerNpcInterest.FISHING, PlayerNpcInterest.FARMING, PlayerNpcInterest.EXPLORING));
         this.addWorkGoal(6, this.gated(new ExploreCaveOreGoal(this, 1.0D), PlayerNpcInterest.MINING));
-        this.addWorkGoal(6, this.gated(new DigDownForStoneGoal(this, 1.0D), PlayerNpcInterest.BUILDING, PlayerNpcInterest.MINING, PlayerNpcInterest.FISHING, PlayerNpcInterest.FARMING, PlayerNpcInterest.EXPLORING));
+        this.addWorkGoal(6, this.cookingPrerequisiteGated(new DigDownForStoneGoal(this, 1.0D),
+                () -> com.pla.smart_npc.fabric.survival.SurvivalTasks.needsCookingStone(this), PlayerNpcInterest.BUILDING, PlayerNpcInterest.MINING, PlayerNpcInterest.FISHING, PlayerNpcInterest.FARMING, PlayerNpcInterest.EXPLORING));
         this.addWorkGoal(6, gatherMissingBuildMaterialGoal);
         this.addWorkGoal(7, this.gated(new MiningCaveStrollGoal(this, 1.0D), PlayerNpcInterest.MINING));
         this.addWorkGoal(7, this.gated(new FarmStrollGoal(this, 1.0D), PlayerNpcInterest.FARMING));
-        this.addWorkGoal(7, this.gated(new ExploreAroundGoal(
+        this.addWorkGoal(7, this.cookingPrerequisiteGated(new ExploreAroundGoal(
                 this,
                 1.0D,
                 "exploring for logs",
-                level -> GatherLogsGoal.hasLogSupplyDemand(this, level)
+                level -> (com.pla.smart_npc.fabric.survival.SurvivalTasks.needsCookingLogs(this)
+                        || GatherLogsGoal.hasLogSupplyDemand(this, level)
                         && !TerraformBuildSiteGoal.hasActionablePrepWork(this, level)
                         && !GatherStoneGoal.isStoneSupplyPhaseActive(this, level)
                         && !BuildHouseGoal.shouldYieldSupplyWorkForBuild(this, level)
                         && !FarmCropGoal.shouldExploreForFarmSupplies(this, level)
-                        && this.canExploreForLogSupply(level)
+                        && this.canExploreForLogSupply(level))
                         && !this.shouldStayHomeForWeather(level)
                         && !ReturnHomeGoal.shouldSuppressExplorationForHome(this, level),
                 // GatherLogs has higher priority and remains the authority for local tree work.
                 // This signal reads only its retained selected-target state; it does
                 // not run the old independent broad proxy that could cancel exploration without a
                 // successor. Pending slices leave exploration available until a log is selected.
-                level -> BuildHouseGoal.shouldYieldSupplyWorkForBuild(this, level)
+                level -> !com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingActive(this)
+                        && BuildHouseGoal.shouldYieldSupplyWorkForBuild(this, level)
                         || gatherLogsGoal.hasNearbyUsableLogTarget(level),
                 true,
                 true,
                 true
-        ), PlayerNpcInterest.BUILDING, PlayerNpcInterest.MINING, PlayerNpcInterest.FISHING, PlayerNpcInterest.FARMING, PlayerNpcInterest.EXPLORING));
-        this.addWorkGoal(7, this.gated(new ExploreAroundGoal(
+        ), () -> com.pla.smart_npc.fabric.survival.SurvivalTasks.needsCookingLogs(this), PlayerNpcInterest.BUILDING, PlayerNpcInterest.MINING, PlayerNpcInterest.FISHING, PlayerNpcInterest.FARMING, PlayerNpcInterest.EXPLORING));
+        this.addWorkGoal(7, this.cookingPrerequisiteGated(new ExploreAroundGoal(
                 this,
                 1.0D,
                 "exploring for stone",
@@ -2224,9 +2228,11 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
                         && this.getGatherCooldown() <= 0
                         && !this.shouldStayHomeForWeather(level)
                         && !ReturnHomeGoal.shouldSuppressExplorationForHome(this, level),
-                level -> GatherStoneGoal.hasNearbyStoneTarget(this, level),
+                level -> com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingActive(this)
+                        ? gatherStoneGoal.hasNearbyUsableStoneTarget(level)
+                        : GatherStoneGoal.hasNearbyStoneTarget(this, level),
                 false
-        ), PlayerNpcInterest.BUILDING, PlayerNpcInterest.MINING, PlayerNpcInterest.FISHING, PlayerNpcInterest.FARMING, PlayerNpcInterest.EXPLORING));
+        ), () -> com.pla.smart_npc.fabric.survival.SurvivalTasks.needsCookingStone(this), PlayerNpcInterest.BUILDING, PlayerNpcInterest.MINING, PlayerNpcInterest.FISHING, PlayerNpcInterest.FARMING, PlayerNpcInterest.EXPLORING));
         this.addWorkGoal(7, this.gated(new ExploreAroundGoal(
                 this,
                 1.0D,
@@ -2343,12 +2349,25 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.targetSelector.addGoal(4, this.gated(new PlayerNpcSmartTargetGoal(this), PlayerNpcInterest.HUNT_MONSTERS, PlayerNpcInterest.HUNT_ANIMALS, PlayerNpcInterest.HUNT_PLAYERS, PlayerNpcInterest.HUNT_VILLAGERS));
     }
 
+    private Goal cookingPrerequisiteGated(Goal goal, java.util.function.BooleanSupplier prerequisite,
+            PlayerNpcInterest... interests) {
+        return new com.pla.smart_npc.fabric.survival.CookingPrerequisiteGatedGoal(this, goal, prerequisite, interests);
+    }
+
     private Goal gated(Goal goal, PlayerNpcInterest... interests) {
         return new InterestGatedGoal(this, goal, interests);
     }
 
     private void addWorkGoal(int priority, Goal goal) {
-        this.goalSelector.addGoal(priority, new StartupWorkGatedGoal(this, goal, this.workGoalRegistrationIndex++));
+        int registrationIndex = this.workGoalRegistrationIndex++;
+        // Initial probes allow only one expensive batch. At the native registration slices,
+        // an empty pickup probe precedes log exploration and an empty collector probe precedes
+        // stone digging, so neither fallback can earn its first worker lease. Offset only these
+        // exact prerequisite wrappers to the following slice; quota, order and priority remain
+        // native. Persistent workers already evaluate all predicates without probe slicing.
+        int probeIndex = goal instanceof com.pla.smart_npc.fabric.survival.CookingPrerequisiteGatedGoal
+                ? registrationIndex + 1 : registrationIndex;
+        this.goalSelector.addGoal(priority, new StartupWorkGatedGoal(this, goal, probeIndex));
     }
 
     private boolean shouldStayHomeForWeather(ServerLevel serverLevel) {

@@ -3,8 +3,10 @@
 Behaviour design: [player journey and automation reuse](PLAYER_JOURNEY.md),
 [development roadmap](DEVELOPMENT_ROADMAP.md).
 Current implementation milestone: [bounded food acquisition, cooking prerequisites and shelter diagnostic](RESOURCE_TASKS.md).
-Current checks: [workflow handoffs and shared bow recovery](verification/WORKFLOW-RESULTS.md).
+Current checks: [cooking resource-search fallback](verification/SEARCH-RESULTS.md).
+Earlier workflow checks: [workflow handoffs and shared bow recovery](verification/WORKFLOW-RESULTS.md).
 Independent review: [workflow audit and acceptance gaps](WORKFLOW_AUDIT.md).
+Final follow-up review: [remaining workflow gaps and next steps](WORKFLOW_AUDIT_FOLLOWUP.md).
 Earlier equipment checks: [rod and equipment verification](verification/EQUIPMENT-RESULTS.md).
 Earlier food checks: [food acquisition verification](verification/FOOD-RESULTS.md).
 Earlier prerequisite checks: [prerequisite verification](verification/PREREQUISITE-RESULTS.md).

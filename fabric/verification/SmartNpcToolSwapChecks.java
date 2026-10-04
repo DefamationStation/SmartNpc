@@ -151,6 +151,42 @@ public final class SmartNpcToolSwapChecks {
                         + " main=" + combat.getMainHandItem() + " damage=" + combat.getMainHandItem().getDamageValue()
                         + " reserve=" + combat.getMainWeaponItem());
 
+        var digger = fixture(level, player);
+        digger.setNoAi(false);
+        digger.setHealth(digger.getMaxHealth());
+        digger.getInventory().addItem(new ItemStack(Items.BEEF, 2));
+        digger.getInventory().addItem(new ItemStack(Items.OAK_LOG, 4));
+        var originalPick = new ItemStack(Items.WOODEN_PICKAXE);
+        originalPick.setDamageValue(4);
+        originalPick.set(DataComponents.CUSTOM_NAME, Component.literal("Retained dirt-clearing pick"));
+        digger.setMainHandItemForAi(originalPick);
+        var cooking = com.pla.smart_npc.fabric.survival.SurvivalTasks.memory(digger);
+        cooking.cookingActive = true;
+        cooking.cookingDimension = com.pla.smart_npc.fabric.survival.SurvivalTasks.dimension(digger);
+        cooking.cookingStep = "NEED_STONE";
+        var digGoal = new com.pla.smart_npc.entity.goal.DigDownForStoneGoal(digger, 1.0D);
+        try {
+            var toolField = digGoal.getClass().getDeclaredField("toolAi");
+            toolField.setAccessible(true);
+            var digTool = (ToolAi) toolField.get(digGoal);
+            digTool.equipBestToolFor(net.minecraft.world.level.block.Blocks.DIRT.defaultBlockState());
+            check(digger.getMainHandItem().isEmpty() && carried(digger, Items.WOODEN_PICKAXE) == 0
+                            && ToolAi.hasRetainedTool(digger, ItemTags.PICKAXES),
+                    "native dirt clearing retains its original real pick solely in the active hand transaction");
+            check(digger.hasCarriedTool(ItemTags.PICKAXES)
+                            && com.pla.smart_npc.fabric.survival.CookingCraftGoal.snapshot(digger, level).pickaxeReady()
+                            && com.pla.smart_npc.entity.goal.GatherStoneGoal.isStoneSupplyPhaseActive(digger, level),
+                    "cooking and native stone admission still see the retained pick during barehand dirt clearing");
+            new ToolAi(digger).restoreMainHand();
+            check(digger.getMainHandItem().isEmpty() && ToolAi.hasRetainedTool(digger, ItemTags.PICKAXES),
+                    "a stale tool owner cannot restore the active native dig transaction");
+            digGoal.stop(); digGoal.stop();
+            check(carried(digger, Items.WOODEN_PICKAXE) == 1
+                            && ItemStack.isSameItemSameComponents(digger.getMainHandItem(), originalPick)
+                            && !ToolAi.hasRetainedTool(digger, ItemTags.PICKAXES),
+                    "native dig stop restores the original pick with wear and components exactly once");
+        } catch (ReflectiveOperationException exception) { throw new RuntimeException(exception); }
+
         var full = fixture(level, player);
         full.setMainHandItemForAi(bread);
         full.getInventory().setItem(0, new ItemStack(Items.COAL, 10));

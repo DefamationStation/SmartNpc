@@ -189,6 +189,12 @@ Temporary equipment swaps now save the previous held stack and recover it on
 load while conserving the current tool's wear and actual item count. See
 [equipment checks](verification/EQUIPMENT-RESULTS.md) for scope and verification.
 
+The search milestone (`3.0.0-fabric.26.4-snapshot-2.9-search`) connects a committed
+cooking shortage to existing resource exploration and stone digging. Finding no
+local tree or exposed stone can now lead to native search rather than an idle
+wait caused by a closed profession gate. This is prerequisite execution, not a
+complete expedition or source-memory planner; see [search verification](verification/SEARCH-RESULTS.md).
+
 The workflow milestone (`3.0.0-fabric.26.4-snapshot-2.8-workflows`) connects food
 rod/string shortages to existing home supply withdrawals and prevents deposits
 from removing reusable rods or coal committed to an active task. Bow/tool

@@ -1,6 +1,6 @@
 # Smart NPC: believable survival and progression
 
-Status: approved direction, experimental workflow milestone verified in controlled fresh/reopened worlds, 2026-10-04. Most milestones below remain planned. See `RESOURCE_TASKS.md` for the implemented scope and verification limits. A complete survival day remains outstanding.
+Status: approved direction, experimental resource-search milestone, 2026-10-04. Most milestones below remain planned. See `RESOURCE_TASKS.md` and `verification/SEARCH-RESULTS.md` for the implemented scope and verification limits. A complete survival day remains outstanding.
 
 ## Direction
 
@@ -203,9 +203,15 @@ Version `3.0.0-fabric.26.4-snapshot-2.8-workflows` addresses survival rod/string
 storage handoffs, pending coal retention and shared bow/tool recovery. Its food
 fixture requires the same actor to craft/place its table first. Verification and
 limits are recorded in [workflow results](verification/WORKFLOW-RESULTS.md).
-The next priority is the cooking exploration/dig fallback gate (WF-01), followed
-by a broader ordinary-selector storage/rest/interruption scenario. Controlled
-material fixtures cannot close those release gates.
+Version `3.0.0-fabric.26.4-snapshot-2.9-search` implements WF-01's exact cooking
+exploration/dig fallback, separates initial probe turns from empty higher-priority
+checks, and keeps a pickaxe visible to prerequisites while bare-hand digging
+temporarily stows it. See [search evidence](verification/SEARCH-RESULTS.md).
+The [final follow-up audit](WORKFLOW_AUDIT_FOLLOWUP.md) puts an ordinary-selector
+same-actor storage/rest/interruption/live-restart scenario next, followed by
+consistent food/storage classification, bounded sleep, rod wood/water successors
+and measured probe fairness. Controlled material fixtures cannot close the
+multi-day or population release gates.
 
 The current food milestone (`3.0.0-fabric.26.4-snapshot-2.6-food`)
 extends the bounded cooking intention for wood → crafting access/pickaxe → furnace

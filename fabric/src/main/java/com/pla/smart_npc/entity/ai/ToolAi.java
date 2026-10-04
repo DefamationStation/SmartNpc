@@ -162,9 +162,15 @@ public final class ToolAi {
         return toolClass == null || this.hasTool(toolClass);
     }
 
+    /** The original hand is a real retained stack while a transaction temporarily empties it. */
+    public static boolean hasRetainedTool(PlayerNpcEntity npc, Object toolClass) {
+        SwapState state = npc.getToolSwapState();
+        return state.swappedMainHand && !state.previousMainHand.isEmpty()
+                && SmartNpcItemUtil.matches(toolClass, state.previousMainHand.getItem());
+    }
+
     public boolean hasTool(Object toolClass) {
-        return this.playerNpc.hasCarriedTool(toolClass)
-                || (this.state().swappedMainHand && SmartNpcItemUtil.matches(toolClass, this.state().previousMainHand.getItem()));
+        return this.playerNpc.hasCarriedTool(toolClass);
     }
 
     public static Object preferredToolFor(BlockState state) {

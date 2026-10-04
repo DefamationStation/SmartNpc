@@ -25,9 +25,14 @@ public final class SurvivalGatherGoal extends Goal implements GatheringGoal {
 
     /** Reuse the entity's log selector so exploration sees the same retained target. */
     public SurvivalGatherGoal(PlayerNpcEntity npc, GatherLogsGoal logs) {
+        this(npc, logs, new GatherStoneGoal(npc, 1.0D));
+    }
+
+    /** Share both authoritative selectors with their exploration fallbacks. */
+    public SurvivalGatherGoal(PlayerNpcEntity npc, GatherLogsGoal logs, GatherStoneGoal stone) {
         this.npc = npc;
         this.logs = logs;
-        this.stone = new GatherStoneGoal(npc, 1.0D);
+        this.stone = stone;
         this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
     }
 

@@ -142,6 +142,13 @@ and remaining cache/food-source limitations.
 
 ## Workflow handoffs
 
+The search milestone (`3.0.0-fabric.26.4-snapshot-2.9-search`) admits the existing
+log/stone exploration and stone dig fallback for the exact cooking shortage.
+Survival and ordinary collection share authoritative selectors. Cooking stone
+work no longer requires a profession or prepared home. Native guards, worker
+limits and bounded recovery remain in effect. See [search results](verification/SEARCH-RESULTS.md)
+for controlled progress evidence and identity/setup limitations.
+
 The workflow milestone adds food-driven rod/string withdrawal to existing home
 supply checks and retains reusable rods during deposits for every personality.
 It keeps pending coal requests and rod recipe materials from being deposited

@@ -134,7 +134,7 @@ public final class SmartNpcWoodChecks {
         ticks++;
         var memory = SurvivalTasks.memory(npc);
         if (SurvivalTasks.cookingActive(npc) && memory.cookingStep.equals("NEED_WOOD")) {
-            if (!committedWood) requiredLogs = SurvivalTasks.cookingLogTarget(npc);
+            requiredLogs = SurvivalTasks.cookingLogTarget(npc);
             committedWood = true;
         }
         peakLogs = Math.max(peakLogs, PlayerNpcCraftingUtil.countLogs(npc.getInventory()));
@@ -149,13 +149,15 @@ public final class SmartNpcWoodChecks {
             throw new AssertionError("Wood prerequisite created unrelated starter gear: " + diagnostic());
         }
         if (npc.getInventory().countItem(Items.WOODEN_PICKAXE) > 0 || npc.getMainHandItem().is(Items.WOODEN_PICKAXE)) {
-            SmartNpcFunctional.check(committedWood && requiredLogs >= 3 && peakLogs >= requiredLogs,
-                    "native cooking intention collects its required wood target through real log pickup");
+            SmartNpcFunctional.check(committedWood && requiredLogs >= 2 && peakLogs >= requiredLogs,
+                    "native cooking intention collects its live wood target through real log pickup: " + diagnostic());
             SmartNpcFunctional.check(removedLogs() >= requiredLogs && removedLogs() <= 4,
                     "picked-up wood comes from the fixture's actual four-log tree");
             SmartNpcFunctional.check(sawTable, "wood-only prerequisite places a real crafting table before pickaxe craft");
+            // Natural leaf sticks can satisfy the recipe without spending two extra planks.
+            int consumedPlanks = requiredLogs >= 3 ? 9 : 7;
             SmartNpcFunctional.check(PlayerNpcCraftingUtil.countPlankEquivalent(npc.getInventory())
-                            <= removedLogs() * 4 - 9,
+                            <= removedLogs() * 4 - consumedPlanks,
                     "table pickaxe and sticks consume real harvested wood");
             SmartNpcFunctional.check(npc.getInventory().countItem(Items.BEEF) == 2
                             && npc.getInventory().countItem(Items.COBBLESTONE) == 0
