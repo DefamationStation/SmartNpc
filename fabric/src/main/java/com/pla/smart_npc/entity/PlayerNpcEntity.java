@@ -235,8 +235,6 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     private static final Vec3i ITEM_PICKUP_REACH = new Vec3i(1, 1, 1);
     private static final double EXPERIENCE_PICKUP_RADIUS = 3.0D;
     private static final long DAY_LENGTH_TICKS = 24000L;
-    private static final long DAILY_JOB_ROLL_TIME = 1L;
-    private static final long DAILY_JOB_FALLBACK_ROLL_END_TIME = 12000L;
     private static final int FISHING_STARTER_STRING_VERSION = 1;
     private static final int FISHING_STARTER_STRING_REQUIRED = 2;
     private static final int FISHING_STARTER_MIGRATION_INTERVAL_TICKS = 20 * 5;
@@ -2163,7 +2161,8 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.goalSelector.addGoal(1, new DescendHighColumnGoal(this, terraformBuildSiteGoal));
         this.goalSelector.addGoal(1, new CallForHelpGoal(this));
         this.goalSelector.addGoal(1, this.gated(new CautiousAvoidThreatGoal(this), PlayerNpcInterest.CAUTIOUS));
-        this.addWorkGoal(2, this.gated(new SleepAtHomeGoal(this), PlayerNpcInterest.BUILDING));
+        // Rest is a survival need for every personality, independent of today's profession.
+        this.addWorkGoal(2, new SleepAtHomeGoal(this));
         this.goalSelector.addGoal(2, this.gated(new ScaredHideGoal(this), PlayerNpcInterest.CAUTIOUS));
         // Personal maintenance must yield to priority-2 emergency bucket/projectile utilities.
         this.goalSelector.addGoal(3, new ThrowTrashItemsGoal(this));
@@ -4436,26 +4435,16 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
             return;
         }
 
-        if (this.selectedDailyJobDay == day
-                && this.selectedDailyJobInterest != null
-                && this.hasInterest(this.selectedDailyJobInterest)) {
-            return;
-        }
-        if (this.selectedDailyJobDay == day
-                && this.selectedDailyJobInterest == null
-                && this.availableDailyJobs().isEmpty()) {
-            return;
-        }
-
-        boolean exactRollTime = timeOfDay == DAILY_JOB_ROLL_TIME;
-        boolean fallbackDayRoll = timeOfDay > DAILY_JOB_ROLL_TIME
-                && timeOfDay < DAILY_JOB_FALLBACK_ROLL_END_TIME
-                && this.selectedDailyJobDay != day;
-        if (!exactRollTime && !fallbackDayRoll) {
-            return;
-        }
-
+        boolean validJob = this.selectedDailyJobInterest != null
+                && this.selectedDailyJobInterest.isJob() && this.hasInterest(this.selectedDailyJobInterest);
+        if (this.selectedDailyJobDay == day && validJob) return;
         List<PlayerNpcInterest> jobs = this.availableDailyJobs();
+        if (this.selectedDailyJobInterest == null || validJob) {
+            if (!com.pla.smart_npc.fabric.survival.DailyRoutine.needsSelection(
+                day, timeOfDay, this.selectedDailyJobDay, validJob, !jobs.isEmpty())) {
+                return;
+            }
+        }
         if (jobs.isEmpty()) {
             this.selectDailyJob(day, null, "no job interests");
             return;

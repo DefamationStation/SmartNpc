@@ -20,6 +20,9 @@ public final class SmartNpcSurvivalChecks {
     static BlockPos chestPos;
     static int phase;
     static volatile boolean networkTheftPassed;
+    static PlayerNpcEntity sleeper;
+    static com.pla.smart_npc.entity.goal.SleepAtHomeGoal sleepGoal;
+    static volatile boolean sleepPassed;
     static void check(boolean value, String message) { SmartNpcFunctional.check(value, message); }
     static PlayerNpcEntity npc(ServerLevel level, ServerPlayer player) {
         var npc = SmartNpcModEntities.PLAYER_NPC.get().create(level, EntitySpawnReason.COMMAND);
@@ -28,6 +31,48 @@ public final class SmartNpcSurvivalChecks {
         level.addFreshEntity(npc); return npc;
     }
     public static void setup(ServerLevel level, ServerPlayer player) {
+        // World spawn can choose a different nearby spot on the same seed. Keep witnessed
+        // offence fixtures in a clear arena: an owner inside terrain legitimately has no
+        // line of sight, which must not be confused with broken offence handling.
+        var arena=player.blockPosition();
+        for(int x=-3;x<=4;x++)for(int z=-2;z<=2;z++){
+            level.setBlockAndUpdate(arena.offset(x,-1,z),Blocks.STONE.defaultBlockState());
+            for(int y=0;y<=3;y++)level.setBlockAndUpdate(arena.offset(x,y,z),Blocks.AIR.defaultBlockState());
+        }
+        // Exercise the entity's scheduler at a night-time clock: this used to miss the
+        // morning selection window and leave a newly loaded/spawned NPC without a job.
+        var worker=npc(level,player);
+        var jobName=com.pla.smart_npc.config.SmartNpcNamesConfig.getPlayerNpcNameEntries().stream()
+            .map(com.pla.smart_npc.config.SmartNpcNamesConfig::parseNameEntry).flatMap(Optional::stream)
+            .filter(n->n.interests().stream().anyMatch(com.pla.smart_npc.clazz.PlayerNpcInterest::isJob)
+                && !n.interests().contains(com.pla.smart_npc.clazz.PlayerNpcInterest.BUILDING))
+            .findFirst().orElseThrow();
+        worker.setUsername(jobName.skinName());
+        try {
+            var select=PlayerNpcEntity.class.getDeclaredMethod("tickDailyJobSelection",ServerLevel.class);select.setAccessible(true);
+            var dayField=PlayerNpcEntity.class.getDeclaredField("selectedDailyJobDay");dayField.setAccessible(true);
+            var interestField=PlayerNpcEntity.class.getDeclaredField("selectedDailyJobInterest");interestField.setAccessible(true);
+            var clocks=level.getServer().getCommands();
+            long previousTime=level.getOverworldClockTime();
+            try {
+                clocks.performPrefixedCommand(player.createCommandSourceStack(),"time set 18000");
+                dayField.setLong(worker,-1);interestField.set(worker,null);select.invoke(worker,level);
+                check(worker.getSelectedDailyJobInterest().isPresent(),"night-time spawn receives a daily job immediately");
+                var selected=worker.getSelectedDailyJobInterest();select.invoke(worker,level);
+                check(worker.getSelectedDailyJobInterest().equals(selected),"daily job remains committed during the same day");
+                dayField.setLong(worker,-1);select.invoke(worker,level);
+                check(worker.getSelectedDailyJobDay()==level.getOverworldClockTime()/24000,"missed morning selection repairs a stale assignment");
+                interestField.set(worker,com.pla.smart_npc.clazz.PlayerNpcInterest.BUILDING);select.invoke(worker,level);
+                check(worker.getSelectedDailyJobInterest().orElseThrow()!=com.pla.smart_npc.clazz.PlayerNpcInterest.BUILDING,
+                    "saved job that no longer matches personality is repaired immediately");
+            } finally { clocks.performPrefixedCommand(player.createCommandSourceStack(),"time set "+previousTime); }
+            var field=net.minecraft.world.entity.Mob.class.getDeclaredField("goalSelector");field.setAccessible(true);
+            var selector=(net.minecraft.world.entity.ai.goal.GoalSelector)field.get(worker);
+            check(selector.getAvailableGoals().stream().anyMatch(g ->
+                g.getGoal() instanceof com.pla.smart_npc.entity.goal.StartupWorkGatedGoal gate
+                && gate.getDelegateGoal() instanceof com.pla.smart_npc.entity.goal.SleepAtHomeGoal),
+                "home sleep is registered for every personality without a building-interest gate");
+        } catch(ReflectiveOperationException e){throw new RuntimeException(e);} finally {worker.discard();}
         var legacy = PlayerNpcBuildLayoutLoader.getLayout("smart_npc:easy_survival_house").orElseThrow();
         check(!legacy.footprint().isEmpty() && legacy.requiredBlocks()>0,"legacy blueprint loads real blocks instead of air");
         check(legacy.blocks().stream().anyMatch(b -> b.state().getBlock() instanceof StairBlock
@@ -57,6 +102,7 @@ public final class SmartNpcSurvivalChecks {
         victim.discard(); neighbour.discard();
 
         var vandalOwner=npc(level,player);
+        check(SocialSafety.witnesses(vandalOwner,player),"property offence fixture has clear witnessed sight");
         var origin=player.blockPosition().offset(8,0,0);
         PlayerNpcHomeUtil.setHome(vandalOwner,new PlayerNpcHomeUtil.HomeArea(origin,starter.width(),starter.depth()),starter.id());
         level.setBlockAndUpdate(origin,Blocks.DIRT.defaultBlockState());
@@ -66,6 +112,32 @@ public final class SmartNpcSurvivalChecks {
         check(player.gameMode.destroyBlock(origin),"constructed fixture broken through player game mode");
         check(SocialSafety.hasCause(vandalOwner,player),"damage to a tracked matching base block permits defence");
         vandalOwner.discard();
+
+        // Keep this copied fixture at night and test the registered sleep delegate after
+        // the sky clock has updated, without random profession or movement competition.
+        level.getServer().getCommands().performPrefixedCommand(player.createCommandSourceStack(),"time set 18000");
+        sleeper=npc(level,player);
+        var nonBuilder=com.pla.smart_npc.config.SmartNpcNamesConfig.getPlayerNpcNameEntries().stream()
+            .map(com.pla.smart_npc.config.SmartNpcNamesConfig::parseNameEntry).flatMap(Optional::stream)
+            .filter(n->!n.interests().contains(com.pla.smart_npc.clazz.PlayerNpcInterest.BUILDING)).findFirst().orElseThrow();
+        sleeper.setUsername(nonBuilder.skinName());
+        var bed=new BlockPos(player.getBlockX()+6,280,player.getBlockZ());
+        level.setBlockAndUpdate(bed.below(),Blocks.STONE.defaultBlockState());
+        level.setBlockAndUpdate(bed.east().below(),Blocks.STONE.defaultBlockState());
+        var foot=starter.blocks().stream().map(b->b.state()).filter(s->s.getBlock() instanceof BedBlock).findFirst().orElseThrow()
+            .setValue(BedBlock.FACING,net.minecraft.core.Direction.EAST).setValue(BedBlock.PART,BedPart.FOOT);
+        level.setBlockAndUpdate(bed,foot);level.setBlockAndUpdate(bed.east(),foot.setValue(BedBlock.PART,BedPart.HEAD));
+        sleeper.setPos(bed.getX()+0.5,280,bed.getZ()+0.5);
+        PlayerNpcHomeUtil.setHome(sleeper,new PlayerNpcHomeUtil.HomeArea(bed,2,1));
+        try {
+            var field=net.minecraft.world.entity.Mob.class.getDeclaredField("goalSelector");field.setAccessible(true);
+            var selector=(net.minecraft.world.entity.ai.goal.GoalSelector)field.get(sleeper);
+            sleepGoal=(com.pla.smart_npc.entity.goal.SleepAtHomeGoal)selector.getAvailableGoals().stream()
+                .map(g->g.getGoal()).filter(g->g instanceof com.pla.smart_npc.entity.goal.StartupWorkGatedGoal)
+                .map(g->((com.pla.smart_npc.entity.goal.StartupWorkGatedGoal)g).getDelegateGoal())
+                .filter(g->g instanceof com.pla.smart_npc.entity.goal.SleepAtHomeGoal).findFirst().orElseThrow();
+            selector.removeAllGoals(g->true);
+        } catch(ReflectiveOperationException e){throw new RuntimeException(e);}
 
         owner=npc(level,player); chestPos=player.blockPosition().offset(-2,0,0);
         level.setBlockAndUpdate(chestPos,Blocks.CHEST.defaultBlockState()); owner.setOwnedChestPos(chestPos);
@@ -95,6 +167,13 @@ public final class SmartNpcSurvivalChecks {
                 check(SocialSafety.memory(owner).cause(player.getUUID(),owner.level().getGameTime()).orElseThrow()==GrievanceMemory.Cause.THEFT,
                     "real network chest click records actual theft");
                 check(((ChestBlockEntity)owner.level().getBlockEntity(chestPos)).getItem(0).isEmpty(),"theft corresponds to actual removed contents");
+                sleeper.setNoAi(false);sleeper.getRandom().setSeed(12345);
+                boolean ready=false;
+                for(int attempt=0;attempt<100 && !ready;attempt++){sleeper.tickCount+=40;ready=sleepGoal.canUse();}
+                check(ready,"non-builder can select its existing home bed at night");
+                sleepGoal.start();sleepGoal.tick();
+                check(sleeper.isSleeping(),"non-builder actually enters sleeping pose in its home bed");
+                sleepGoal.stop();sleeper.discard();sleepPassed=true;
                 networkTheftPassed=true;owner.discard();
             }catch(Throwable t){t.printStackTrace();}});
         }

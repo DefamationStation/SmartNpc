@@ -1,5 +1,9 @@
 # Fabric 26.4 Snapshot 2 port
 
+Behaviour design: [player journey and automation reuse](PLAYER_JOURNEY.md),
+[development roadmap](DEVELOPMENT_ROADMAP.md).
+Latest experimental milestone: [daily routine verification](verification/ROUTINE-RESULTS.md).
+
 Experimental, independently built Fabric port of Smart NPC 3.0.0. Tested in
 fresh worlds on Minecraft **26.4 Snapshot 2**, including an actual saved-world
 restart. See [validation results](verification/RESULTS.md) for the tested scope.

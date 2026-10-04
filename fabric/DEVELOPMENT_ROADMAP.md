@@ -183,6 +183,19 @@ Every milestone must pass migration/save-load tests, targeted gameplay scenarios
 
 Evaluate believability with short observed play sessions as well as telemetry: can a player explain what the NPC wants, why it changed plans, and how its history affected the choice?
 
+## Player journey and current routine milestone
+
+Use [the researched player journey](PLAYER_JOURNEY.md) to guide prerequisites,
+base timing, repeatable resource trips, farm investment and capability milestones.
+It distinguishes proposed NPC policy from a universal human progression and
+records the Baritone/Buddy/Mineflayer reuse assessment.
+
+The routine milestone initialises jobs after late spawn or a missed morning window
+and makes existing home sleep independent of a building interest. See
+[routine verification](verification/ROUTINE-RESULTS.md). This is a
+targeted foundation improvement; full survival, shelter construction and earned
+progression remain separate acceptance gates in that document.
+
 ## First implementation backlog
 
 Keep each item separately reviewable and gated:
