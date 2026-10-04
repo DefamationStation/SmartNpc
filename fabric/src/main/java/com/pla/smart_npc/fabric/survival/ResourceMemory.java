@@ -17,6 +17,10 @@ public final class ResourceMemory {
     public String purpose = "no resource task";
     public long started, nextDecision;
     public int cursor;
+    public boolean cookingActive, cookingProduced;
+    public String cookingDimension = "", cookingStep = "READY", cookingStatus = "no cooking intention";
+    public long cookingStarted, cookingNextDecision, cookingOrigin;
+    public int cookingBaselineCooked, cookingLogGoal;
 
     public void observe(String dimension, long position, long now) {
         coal.removeIf(o -> o.dimension.equals(dimension) && o.position == position);
@@ -50,6 +54,16 @@ public final class ResourceMemory {
         tag.putLong("nextDecision", nextDecision);
         tag.putString("status", status);
         tag.putInt("count", coal.size());
+        tag.putBoolean("cookingActive", cookingActive);
+        tag.putBoolean("cookingProduced", cookingProduced);
+        tag.putString("cookingDimension", cookingDimension);
+        tag.putString("cookingStep", cookingStep);
+        tag.putString("cookingStatus", cookingStatus);
+        tag.putLong("cookingStarted", cookingStarted);
+        tag.putLong("cookingNextDecision", cookingNextDecision);
+        tag.putLong("cookingOrigin", cookingOrigin);
+        tag.putInt("cookingBaselineCooked", cookingBaselineCooked);
+        tag.putInt("cookingLogGoal", cookingLogGoal);
         for (int i = 0; i < coal.size(); i++) {
             var entry = new CompoundTag(); var o = coal.get(i);
             entry.putString("dimension", o.dimension);
@@ -73,6 +87,16 @@ public final class ResourceMemory {
         m.started = tag.getLongOr("started", 0);
         m.nextDecision = tag.getLongOr("nextDecision", 0);
         m.status = tag.getStringOr("status", "idle");
+        m.cookingDimension = tag.getStringOr("cookingDimension", "");
+        m.cookingActive = tag.getBooleanOr("cookingActive", false) && !m.cookingDimension.isEmpty();
+        m.cookingProduced = tag.getBooleanOr("cookingProduced", false);
+        m.cookingStep = tag.getStringOr("cookingStep", "READY");
+        m.cookingStatus = tag.getStringOr("cookingStatus", "no cooking intention");
+        m.cookingStarted = tag.getLongOr("cookingStarted", 0);
+        m.cookingNextDecision = tag.getLongOr("cookingNextDecision", 0);
+        m.cookingOrigin = tag.getLongOr("cookingOrigin", 0);
+        m.cookingBaselineCooked = Math.max(0, tag.getIntOr("cookingBaselineCooked", 0));
+        m.cookingLogGoal = Math.clamp(tag.getIntOr("cookingLogGoal", 0), 0, 64);
         for (int i = 0; i < Math.clamp(tag.getIntOr("count", 0), 0, LIMIT); i++) {
             var e = tag.getCompoundOrEmpty("coal" + i);
             var dimension = e.getStringOr("dimension", "");

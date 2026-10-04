@@ -39,4 +39,22 @@ class ResourceMemoryTest {
         var tag = new CompoundTag(); tag.putInt("version", 99); tag.putBoolean("active", true);
         assertFalse(ResourceMemory.load(tag).active);
     }
+    @Test void cookingIntentResumesWithoutInventingACompletion() {
+        var before = new ResourceMemory();
+        before.cookingActive = true; before.cookingDimension = "overworld";
+        before.cookingStarted = 200; before.cookingNextDecision = 240; before.cookingOrigin = 123;
+        before.cookingStep = "NEED_STONE"; before.cookingStatus = "collect furnace stone";
+        before.cookingBaselineCooked = 3; before.cookingLogGoal = 2;
+        var after = ResourceMemory.load(before.save());
+        assertTrue(after.cookingActive); assertFalse(after.cookingProduced);
+        assertEquals(before.cookingStep, after.cookingStep);
+        assertEquals(before.cookingStatus, after.cookingStatus);
+        assertEquals(200, after.cookingStarted); assertEquals(240, after.cookingNextDecision);
+        assertEquals(123, after.cookingOrigin); assertEquals(3, after.cookingBaselineCooked);
+        assertEquals(2, after.cookingLogGoal);
+        var legacy = new CompoundTag(); legacy.putInt("version", 1);
+        assertFalse(ResourceMemory.load(legacy).cookingActive);
+        legacy.putBoolean("cookingActive", true);
+        assertFalse(ResourceMemory.load(legacy).cookingActive, "missing dimension cannot activate a migrated intention");
+    }
 }

@@ -35,7 +35,7 @@ public final class SmartNpcSurvivalChecks {
         // offence fixtures in a clear arena: an owner inside terrain legitimately has no
         // line of sight, which must not be confused with broken offence handling.
         var arena=player.blockPosition();
-        for(int x=-3;x<=4;x++)for(int z=-2;z<=2;z++){
+        for(int x=-3;x<=4;x++)for(int z=-6;z<=6;z++){
             level.setBlockAndUpdate(arena.offset(x,-1,z),Blocks.STONE.defaultBlockState());
             for(int y=0;y<=3;y++)level.setBlockAndUpdate(arena.offset(x,y,z),Blocks.AIR.defaultBlockState());
         }
@@ -80,6 +80,30 @@ public final class SmartNpcSurvivalChecks {
         var starter = PlayerNpcBuildLayoutLoader.getLayout("smart_npc:starter_survival_cabin").orElseThrow();
         check(starter.blocks().stream().anyMatch(b->b.state().is(Blocks.CHEST)) && starter.blocks().stream().anyMatch(b->b.state().is(Blocks.FURNACE))
             && starter.blocks().stream().filter(b->b.state().getBlock() instanceof BedBlock).count()==2,"starter cabin contains bed, storage and furnace");
+        var cabinOrigin=new BlockPos(player.getBlockX()+20,270,player.getBlockZ());
+        for(int x=-2;x<starter.width()+2;x++)for(int z=-2;z<starter.depth()+2;z++){
+            level.getChunk(cabinOrigin.offset(x,0,z));
+            level.setBlockAndUpdate(cabinOrigin.offset(x,0,z),Blocks.BEDROCK.defaultBlockState());
+            for(int y=1;y<6;y++)level.setBlockAndUpdate(cabinOrigin.offset(x,y,z),Blocks.AIR.defaultBlockState());
+        }
+        var cabinHome=new PlayerNpcHomeUtil.HomeArea(cabinOrigin,starter.width(),starter.depth());
+        check(ShelterReadiness.assess(level,cabinHome,starter).status()==ShelterReadiness.Status.INCOMPLETE,
+            "an empty recorded home is not a usable shelter");
+        for(var block:starter.blocks())level.setBlockAndUpdate(block.toWorld(cabinOrigin),block.state());
+        var cabin=ShelterReadiness.assess(level,cabinHome,starter);
+        check(cabin.status()==ShelterReadiness.Status.BASIC_SHELTER,"complete starter cabin has structural and station evidence: "+cabin.describe());
+        var roof=cabinOrigin.offset(1,3,1);var roofState=level.getBlockState(roof);
+        level.setBlockAndUpdate(roof,Blocks.AIR.defaultBlockState());
+        check(ShelterReadiness.assess(level,cabinHome,starter).status()==ShelterReadiness.Status.INCOMPLETE,"missing interior roof invalidates shelter");
+        level.setBlockAndUpdate(roof,roofState);
+        var light=cabinOrigin.offset(2,2,1);var lightState=level.getBlockState(light);
+        level.setBlockAndUpdate(light,Blocks.AIR.defaultBlockState());
+        check(ShelterReadiness.assess(level,cabinHome,starter).status()==ShelterReadiness.Status.TEMPORARY_REFUGE,"unlit cabin is reported as temporary refuge");
+        level.setBlockAndUpdate(light,lightState);
+        var far=new BlockPos(1000000,270,1000000);
+        check(!level.hasChunkAt(far),"unloaded shelter fixture begins unloaded");
+        check(ShelterReadiness.assess(level,new PlayerNpcHomeUtil.HomeArea(far,4,5),starter).status()==ShelterReadiness.Status.UNKNOWN
+            && !level.hasChunkAt(far),"unloaded home remains unknown without generating chunks");
         var victim=npc(level,player); var neighbour=npc(level,player);
         try {
             var field=net.minecraft.world.entity.Mob.class.getDeclaredField("goalSelector");field.setAccessible(true);

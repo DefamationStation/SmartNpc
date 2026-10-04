@@ -13,6 +13,7 @@ Operator commands, targeting one loaded NPC (a UUID can replace the selector):
 ```mcfunction
 /smart_npc survival @e[type=smart_npc:player_npc,sort=nearest,limit=1] coal 10
 /smart_npc survival @e[type=smart_npc:player_npc,sort=nearest,limit=1] status
+/smart_npc survival @e[type=smart_npc:player_npc,sort=nearest,limit=1] shelter
 /smart_npc survival @e[type=smart_npc:player_npc,sort=nearest,limit=1] cancel
 ```
 
@@ -22,7 +23,7 @@ The request survives an interruption or save/reload. Actual movement, tools and 
 
 ## Current boundaries
 
-- Observation is automatic. The first automatic decision gathers two coal when the NPC has cookable food, lacks carried fuel, can use/craft a furnace, has a pickaxe and remembers nearby coal. Missing prerequisites are explained in status and the inspector. Manual requests remain available. The complete food/tool/shelter planner, storage delivery, trading and learning remain subsequent milestones.
+- Observation is automatic. Cookable food starts a bounded cooking intention that checks wood, crafting access, pickaxe, eight furnace stones, furnace and fuel as needed. Existing supplies/stations skip fulfilled needs. Remembered coal can become an automatic fuel child task; wood fuel at an existing furnace avoids requiring a pickaxe when no coal is known. Manual requests remain available and take precedence. The complete food/tool/shelter planner, storage delivery, trading and learning remain subsequent milestones.
 - Automatic coal work pauses after one minute without completion and waits another minute before reconsidering. Manual requests remain resumable until cancelled. Cancellation also suppresses immediate automatic replanning. Timers and task purpose persist across saves.
 - The task uses walking navigation and only considers remembered ore within 32 blocks. It does not tunnel, bridge, explore unknown terrain or port Baritone yet.
 - Waiting tasks permit other routine goals to run. Those goals can consume resources; the task's inventory target accounts for that, but this is not yet a complete intention/prerequisite scheduler.
@@ -35,7 +36,87 @@ Player/NPC/villager/golem targets require recorded defensive evidence. Prank hit
 
 Opening an owned chest issues a rate-limited warning. A server-side hook compares its contents immediately before and after the player's real container input. Item/component totals distinguish removal from rearrangement and deposits. NPC inventory transfers report theft after items actually move. Shared/team access is respected by existing ally rules; a dedicated per-container permission system remains planned. Taking an item onto the cursor counts as removal in this first implementation. Returning supplies does not yet automatically reconcile a defensive encounter.
 
-Idle NPCs queued for routine work take short attentive pauses instead of decorative random walks. Fresh configs cap natural spawns at four; existing configured values are preserved. The bundled legacy blueprint palettes now convert to 26.4 keys, restoring their blocks and orientations. An original 4×5 starter cabin includes a bed, chest, furnace and door. Full autonomous cabin construction and the multi-day survival loop are still to be validated.
+Idle NPCs queued for routine work take short attentive pauses instead of decorative random walks. Fresh configs cap natural spawns at four; existing configured values are preserved. The bundled legacy blueprint palettes now convert to 26.4 keys, restoring their blocks and orientations. An original 4×5 starter cabin includes a bed, chest, furnace, door, crafting table and wall torch. Full autonomous cabin construction and the multi-day survival loop are still to be validated.
+
+## Cooking prerequisites milestone
+
+Artifact version: `3.0.0-fabric.26.4-snapshot-2.5-prerequisites`. The intention
+persists its current step, origin/dimension, start time and cooked-output evidence
+in the NPC attachment. Wood and stone shortages feed the existing native
+gathering goals. A narrow crafting goal finds a loaded visible nearby table or
+places one from carried/recipe-crafted materials at a valid local site. Starter
+pickaxe and furnace recipes use the target game's native recipe backend and real
+inventory. Placement, navigation, tool selection, breaking, pickup and cooking
+continue through Smart NPC's existing execution systems.
+
+Cooking decisions are staggered and reconsidered at a 40-tick interval; local
+station searches, table placement candidates and navigation attempts are bounded.
+Successful furnace interactions during a committed cooking intention retry after
+40–59 ticks, so short-burning fuel can be topped up without the ordinary
+400–799-tick idle cooldown. Failed interactions retain their existing backoff.
+Stone discovery retains a bounded cursor instead of repeatedly inspecting the
+same first 16 positions; a cooking-only continuation preserves the native
+connected-stone queue between block breaks. The scanner requests no new chunks.
+Danger, low health, healing, sleep and team-following suspend prerequisite work.
+The cooking intention pauses after 6,000 game ticks, with a 1,200-tick retry
+delay. Removing inputs without collecting cooked output reports a pause rather
+than successful cooking. Completion records an actual native output transfer
+that increased carried cooked-food stock. Full inventories, missing recipes,
+unreachable stations and unavailable local resources remain honest blockers.
+This chain does not find food, generate resources while unloaded, or implement
+charcoal production as a durable task.
+
+Prerequisite snapshots are inventory/station evidence rather than completed
+navigation proofs: a carried furnace still needs placement, and a tracked/home
+furnace can still have an unavailable interaction stand or route. Table discovery
+is local and visible; native cooking retains its existing nearby-furnace discovery
+and footprint policy. New temporary cooking furnace records include a dimension;
+parent-task station facts require the cooking kind, matching dimension and a
+loaded furnace within eight blocks. Native execution preserves old records with
+no dimension but refuses an explicitly different dimension. Home records still
+lack a dimension registry, and a general per-station permission/reservation
+system and complete home migration remain outside this milestone.
+Do not infer that every nearby station is owned or usable merely because the
+planner has skipped its recipe.
+
+## Shelter diagnostic
+
+The `shelter` command reads the NPC's existing home record and the current loaded
+blocks. It creates no home, places nothing and requests no chunks. A two-block
+chunk margin is checked before world reads; assessment is capped at 16×16×8.
+Unloaded or oversized homes return `UNKNOWN`, and unavailable checks are not
+evidence that a feature is absent.
+
+| Status | Meaning |
+| --- | --- |
+| `NO_HOME` | No home record exists. |
+| `UNKNOWN` | Required chunks are unloaded or dimensions exceed the scan bound. |
+| `INCOMPLETE` | Access, interior, cover/perimeter evidence or the observed hazard checks fail. |
+| `TEMPORARY_REFUGE` | Enclosed accessible covered space passes those checks, but some bed/station/light evidence is missing. |
+| `BASIC_SHELTER` | Those checks pass with a paired unoccupied usable bed, furnace, crafting table, storage and a light source. |
+
+Access uses a flat ground-floor flood fill with solid support and two-block
+clearance, treating complete wooden doors as operable. Roof evidence requires
+a solid overhead block above every rectangular interior column; perimeter
+evidence requires two blocks of solid wall or a complete wooden door. Beds need
+matching halves, support, overhead clearance and a dimension bed rule that
+permits sleep without destroying the bed. Time of day is deliberately excluded.
+Stations must be adjacent to reachable ground-floor space; furnace/storage
+checks require actual container block entities. Storage is conservatively limited
+to single chests with clear overhead space and barrels.
+
+Observed fluids, fire and selected damaging blocks count as hazards. A light
+source is evidence of illumination equipment, not a spawn-proof lighting survey.
+The check does not establish routes from the NPC to its home, mob safety, external
+ownership permissions, stairs, multiple floors or every arbitrary house shape.
+Conservative results can reject otherwise useful nonrectangular/glass structures.
+`BASIC_SHELTER` is local structural/equipment evidence; it does not prove that the
+NPC autonomously completed construction or sustained a full survival day.
+
+Runtime acceptance remains separate from this description of code. Use isolated
+fixtures for complete cabin, removed roof/wall, missing stations/light, blocked
+entrance, bed obstruction and unloaded/oversized home cases. Main-game Smart NPC
+installation remains disabled while broader behaviour is validated.
 
 ## Why Buddy commands work
 

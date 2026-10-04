@@ -22,6 +22,10 @@ public class SmartNpcFunctional implements ClientModInitializer {
  com.pla.smart_npc.fabric.NpcBowAttackGoal bowGoal; PlayerNpcEntity bowNpc; net.minecraft.world.entity.Mob bowTarget; int bowTicks; volatile boolean bowPassed;
  int stage,step;long start,readyAt;volatile int target=-1;volatile Throwable failure;boolean replay=Boolean.getBoolean("smartnpcsmoke.replay");
  public void onInitializeClient(){ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+ net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server->{try{
+  SmartNpcCookingChecks.tick(server);
+  SmartNpcWoodChecks.tick(server);
+ }catch(Throwable t){failure=t;}});
  net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server->{if(coalGoal==null)return;try{
   if(++coalTicks==300){
    var m=SurvivalTasks.memory(coalNpc);
@@ -56,14 +60,15 @@ public class SmartNpcFunctional implements ClientModInitializer {
   var s=mc.getSingleplayerServer();var file=mc.gameDirectory.toPath().resolve("npc-uuid.txt");
   if(stage==2){stage=3;start=System.nanoTime();server(mc,()->{try{
    var p=s.getPlayerList().getPlayers().getFirst();var level=p.level();PlayerNpcEntity npc;
-   if(replay){npc=(PlayerNpcEntity)level.getEntity(UUID.fromString(Files.readString(file)));check(npc!=null,"saved NPC reloaded");check(PersistentData.get(npc).getStringOr("PortTest","").equals("retained"),"NPC attachment survived world restart");check(npc.getStoredExperience()==37,"NPC XP survived world restart");check(SurvivalTasks.memory(npc).active && SurvivalTasks.memory(npc).coal.size()==1,"pending resource task and observations survive world restart");check(SocialSafety.hasCause(npc,p),"defensive evidence survives world restart within its expiry");}
+   if(replay){npc=(PlayerNpcEntity)level.getEntity(UUID.fromString(Files.readString(file)));check(npc!=null,"saved NPC reloaded");check(PersistentData.get(npc).getStringOr("PortTest","").equals("retained"),"NPC attachment survived world restart");check(npc.getStoredExperience()==37,"NPC XP survived world restart");check(SurvivalTasks.memory(npc).active && SurvivalTasks.memory(npc).coal.size()==1,"pending resource task and observations survive world restart");boolean unexpired=level.getGameTime()-PersistentData.get(npc).getLongOr("PortAssaultAt",0)<1200;check(SocialSafety.hasCause(npc,p)==unexpired,"defensive evidence respects its expiry after world restart");}
    else {
-    s.getCommands().performPrefixedCommand(p.createCommandSourceStack(),"summon smart_npc:player_npc ~ ~ ~4 {NoAI:1b}");
+    s.getCommands().performPrefixedCommand(p.createCommandSourceStack(),"summon smart_npc:player_npc ~ ~ ~4 {NoAI:1b,NoGravity:1b}");
     npc=level.getEntitiesOfClass(PlayerNpcEntity.class,p.getBoundingBox().inflate(8)).stream().min(java.util.Comparator.comparingDouble(p::distanceToSqr)).orElseThrow();
-    npc.setNoAi(true);npc.setPersistenceRequired();PersistentData.get(npc).putString("PortTest","retained");npc.awardStoredExperience(37);
+    npc.setNoAi(true);npc.setNoGravity(true);npc.setPersistenceRequired();PersistentData.get(npc).putString("PortTest","retained");npc.awardStoredExperience(37);
     Files.writeString(file,npc.getUUID().toString());
     SurvivalTasks.memory(npc).observe(SurvivalTasks.dimension(npc),npc.blockPosition().asLong(),level.getGameTime());SurvivalTasks.request(npc,10);
     check(npc.hurtServer(level,level.damageSources().playerAttack(p),1),"saved defensive evidence comes from actual player damage");
+    PersistentData.get(npc).putLong("PortAssaultAt",level.getGameTime());
     var output=TagValueOutput.createWithContext(ProblemReporter.DISCARDING,level.registryAccess());npc.saveWithoutId(output);
     var clone=SmartNpcModEntities.PLAYER_NPC.get().create(level,EntitySpawnReason.LOAD);
     clone.load(TagValueInput.create(ProblemReporter.DISCARDING,level.registryAccess(),output.buildResult()));
@@ -94,6 +99,8 @@ public class SmartNpcFunctional implements ClientModInitializer {
    var targetField=net.minecraft.world.entity.Mob.class.getDeclaredField("targetSelector");targetField.setAccessible(true);
    ((net.minecraft.world.entity.ai.goal.GoalSelector)targetField.get(coalNpc)).removeAllGoals(g->true);
    SmartNpcSurvivalChecks.setup(level,p);
+   SmartNpcCookingChecks.setup(level,p);
+   SmartNpcWoodChecks.setup(level,p);
    var tickets=com.pla.smart_npc.util.PlayerNpcForceTickManager.PLAYER_NPC_TICKET;
    var chunk=new net.minecraft.world.level.ChunkPos(p.chunkPosition().x()+20,p.chunkPosition().z()+20);
    var a=UUID.randomUUID();var b=UUID.randomUUID();
@@ -127,6 +134,6 @@ public class SmartNpcFunctional implements ClientModInitializer {
   if(step==2 && elapsed>12){step++;check(SmartNpcInspectorOverlay.isInspectatorActive(),"spectator client active");server(mc,()->check(PlayerNpcInspectatorModePacket.isInspectatorActive(s.getPlayerList().getPlayers().getFirst()),"spectator server active"));net.minecraft.client.Screenshot.grab(mc,false);mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);}
   if(step==3 && elapsed>16){step++;net.minecraft.client.Screenshot.grab(mc,false);var method=SmartNpcInspectorOverlay.class.getDeclaredMethod("stopInspectator",Minecraft.class,boolean.class);method.setAccessible(true);method.invoke(null,mc,true);}
   if(step==4 && elapsed>20){step++;check(!SmartNpcInspectorOverlay.isInspectatorActive(),"spectator client restored");server(mc,()->check(!PlayerNpcInspectatorModePacket.isInspectatorActive(s.getPlayerList().getPlayers().getFirst()),"spectator server restored"));}
-  if(elapsed>25){check(bowPassed,"bow controller completed");check(coalPassed,"resource task controller completed");check(SmartNpcSurvivalChecks.networkTheftPassed,"chest click theft detection completed");check(SmartNpcSurvivalChecks.sleepPassed,"non-builder home sleep completed");Files.writeString(mc.gameDirectory.toPath().resolve(replay?"replay-complete.txt":"complete.txt"),"All functional assertions passed");stage=4;mc.stop();}
+  if(elapsed>185 || elapsed>25 && SmartNpcCookingChecks.passed && SmartNpcWoodChecks.passed){check(bowPassed,"bow controller completed");check(coalPassed,"resource task controller completed");check(SmartNpcSurvivalChecks.networkTheftPassed,"chest click theft detection completed");check(SmartNpcSurvivalChecks.sleepPassed,"non-builder home sleep completed");check(SmartNpcCookingChecks.passed,"autonomous cooking prerequisites completed");check(SmartNpcWoodChecks.passed,"autonomous wood prerequisites completed");Files.writeString(mc.gameDirectory.toPath().resolve(replay?"replay-complete.txt":"complete.txt"),"All functional assertions passed");stage=4;mc.stop();}
  }catch(Throwable t){t.printStackTrace();try{Files.writeString(mc.gameDirectory.toPath().resolve("failure.txt"),t.toString());}catch(Exception ignored){}stage=4;mc.stop();}}
 }

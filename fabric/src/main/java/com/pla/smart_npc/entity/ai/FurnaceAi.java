@@ -139,12 +139,13 @@ public final class FurnaceAi {
             return false;
         }
 
+        int previousCooked = com.pla.smart_npc.fabric.survival.SurvivalTasks.cookedFoodCount(this.playerNpc);
         ItemStack moved = output.copy();
         furnace.setItem(2, ItemStack.EMPTY);
         furnace.setChanged();
-        if (!InventoryUtils.addItem(this.playerNpc, moved)) {
-            this.playerNpc.spawnAtLocation(moved);
-        }
+        ItemStack remainder = InventoryUtils.addItemAndReturnRemainder(this.playerNpc, moved);
+        if (!remainder.isEmpty()) this.playerNpc.spawnAtLocation(remainder);
+        com.pla.smart_npc.fabric.survival.SurvivalTasks.cookedOutputCollected(this.playerNpc, output, previousCooked);
         this.playerNpc.triggerMainHandUseAnimation();
         serverLevel.playSound(null, furnacePos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.4F, 1.0F);
         this.playerNpc.setCurrentAiDetail("taking furnace output");

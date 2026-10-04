@@ -2,7 +2,9 @@
 
 Behaviour design: [player journey and automation reuse](PLAYER_JOURNEY.md),
 [development roadmap](DEVELOPMENT_ROADMAP.md).
-Latest experimental milestone: [daily routine verification](verification/ROUTINE-RESULTS.md).
+Current implementation milestone: [cooking prerequisites and shelter diagnostic](RESOURCE_TASKS.md).
+Current checks: [prerequisite verification](verification/PREREQUISITE-RESULTS.md).
+Earlier completed checks: [daily routine verification](verification/ROUTINE-RESULTS.md).
 
 Experimental, independently built Fabric port of Smart NPC 3.0.0. Tested in
 fresh worlds on Minecraft **26.4 Snapshot 2**, including an actual saved-world
@@ -74,8 +76,13 @@ Port: https://github.com/DefamationStation/SmartNpc/tree/fabric-26.4-snapshot-2
 
 The original author is pla_is_me. GPLv3 and the upstream third-party notices apply.
 
-The experimental personal-memory branch adds a first resumable coal-gathering
-task. See [RESOURCE_TASKS.md](RESOURCE_TASKS.md) for commands and limitations,
+The experimental personal-memory branch adds a resumable coal-gathering task,
+bounded cooking prerequisites and a read-only shelter readiness diagnostic.
+The `3.0.0-fabric.26.4-snapshot-2.5-prerequisites` milestone reuses native gathering,
+recipes, navigation, placement, pickup and cooking. Its starter cabin includes
+crafting and lighting alongside the bed, storage and furnace. Shelter status is
+local structural/equipment evidence, not proof of autonomous house construction.
+See [RESOURCE_TASKS.md](RESOURCE_TASKS.md) for commands and limitations,
 and [DEVELOPMENT_ROADMAP.md](DEVELOPMENT_ROADMAP.md) for the approved direction.
 The survival prototype also makes neutral encounters peaceful, records defensive
 causes, attributes actual chest withdrawals, gathers cooking fuel automatically,

@@ -198,6 +198,23 @@ progression remain separate acceptance gates in that document.
 
 ## First implementation backlog
 
+The current prerequisite milestone (`3.0.0-fabric.26.4-snapshot-2.5-prerequisites`)
+adds a bounded cooking intention for wood → crafting access/pickaxe → furnace
+stone → furnace → fuel → actual cooked output, skipping prerequisites already
+fulfilled by carried supplies or usable stations. It reuses native gathering,
+recipe, movement, placement, pickup and furnace systems rather than introducing
+a second general execution controller. Persistent status names missing supplies
+and records actual output collection; no complete survival-day claim follows
+from this one chain.
+
+The shelter diagnostic separately checks an existing home against bounded loaded
+ground-floor geometry, actual stations, sleeping access, light and selected block
+hazards. Temporary refuge and basic equipped shelter have distinct statuses.
+The starter cabin now has crafting and lighting space, but assessing a fixture
+does not prove autonomous construction. See [resource task scope](RESOURCE_TASKS.md)
+for exact checks and limitations. Runtime results for this milestone must be
+recorded before claiming its acceptance; main-game installation stays disabled.
+
 Keep each item separately reviewable and gated:
 
 1. Add a repeatable survival scenario and missing-state diagnostics; capture performance and behavioural baselines.

@@ -12,7 +12,8 @@
     "ServerChunkCacheAccessor",
     "MonsterMixin",
     "BoatMixin",
-    "MinecartMixin"
+    "MinecartMixin",
+    "SurvivalStoneGatherMixin"
   ],
   "client": [
     "ClientInputAccessor",

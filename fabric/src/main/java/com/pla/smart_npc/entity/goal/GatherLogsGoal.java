@@ -2,6 +2,7 @@ package com.pla.smart_npc.entity.goal;
 
 import com.pla.smart_npc.clazz.PlayerNpcInterest;
 import com.pla.smart_npc.entity.PlayerNpcEntity;
+import com.pla.smart_npc.fabric.survival.SurvivalTasks;
 import com.pla.smart_npc.entity.ai.BreakingBlockAi;
 import com.pla.smart_npc.entity.ai.ClearBlockAi;
 import com.pla.smart_npc.entity.ai.FarmAi;
@@ -1856,6 +1857,9 @@ public class GatherLogsGoal extends Goal implements GatheringGoal {
         if (playerNpc == null || serverLevel == null) {
             return false;
         }
+        if (SurvivalTasks.cookingActive(playerNpc)) {
+            return SurvivalTasks.needsCookingLogs(playerNpc);
+        }
         boolean supplyLogJob = (playerNpc.isDailyJobActive(PlayerNpcInterest.MINING)
                 && !playerNpc.hasInterest(PlayerNpcInterest.BUILDING))
                 || playerNpc.isDailyJobActive(PlayerNpcInterest.FISHING)
@@ -1907,6 +1911,9 @@ public class GatherLogsGoal extends Goal implements GatheringGoal {
     }
 
     private boolean isSupplyLogJob() {
+        if (SurvivalTasks.cookingActive(this.playerNpc)) {
+            return SurvivalTasks.needsCookingLogs(this.playerNpc);
+        }
         return this.isMiningOnlyLogSupply()
                 || this.playerNpc.isDailyJobActive(PlayerNpcInterest.FISHING)
                 || this.playerNpc.isDailyJobActive(PlayerNpcInterest.FARMING)

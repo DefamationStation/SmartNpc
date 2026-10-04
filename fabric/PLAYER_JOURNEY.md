@@ -79,10 +79,14 @@ on an acceptable site; reject occupied/claimed property. Break a project into
 material batches, place real blocks, and record its remaining work. A matching
 layout is a construction target, not permission to copy its stored inventory.
 
-“Has a home record” is insufficient evidence of shelter. A future readiness check
-must inspect entrance access, usable interior, hazards, light, surviving stations
-and sleeping access. The current starter cabin has bed, chest and furnace but
-still needs a light/crafting plan and a complete construction test.
+“Has a home record” is insufficient evidence of shelter. The prerequisite
+milestone now provides a read-only shelter diagnostic for that record. It checks
+loaded ground-floor access, roof/perimeter evidence, sleeping access, observed
+hazard blocks, actual stations and a light source. The starter cabin now includes
+bed, chest, furnace, door, a crafting table in its west wall and an interior wall
+torch, while preserving its narrow aisle. A supplied or test-placed cabin can
+exercise this diagnostic without proving autonomous construction. Completing
+the cabin from gathered materials remains a separate acceptance gate.
 
 ### Iron: useful upgrades and a dependable home
 
@@ -158,11 +162,20 @@ A proposed decision order is emergency → immediate food/rest → tool replacem
 job/exploration. Scores and thresholds remain design work. Re-evaluate meaningful
 interruptions, not every tick, and explain any change in the inspector.
 
-For example: “cook food” → usable furnace → usable fuel → acquire two coal from
-a remembered exposed deposit → equip suitable pickaxe → navigate/mine/pick up
-→ return → cook. The first coal prerequisite already exists. Missing furnace or
-tool currently produces an explanation; it does not yet recursively schedule
-their supply chains. Next work must close those explicit gaps.
+The current bounded cooking intention follows actual shortages: nearby wood for
+crafting → crafting access and a starter pickaxe when needed → eight furnace
+stones → furnace → fuel → native cooking and real output collection. Existing
+stations and suitable carried supplies skip fulfilled prerequisites. At an
+existing furnace with no remembered coal, nearby wood can supply fuel without
+requiring a new pickaxe or an invented coal deposit. Remembered coal remains an
+available child task. Status describes the current shortage, and completion
+requires real cooked output to increase the NPC's carried food stock.
+
+This is one concrete prerequisite chain using native gathering, recipes,
+placement, navigation, pickup and furnace work. It is not yet the general owner
+of every survival intention. Full food acquisition, shelter material gathering,
+deposit/return outcomes, renewable food, equipment progression and multi-day
+recovery still need their own execution and acceptance evidence.
 
 Persist intention, quantity semantics, prerequisite, origin/return site,
 observations, failure cooldowns and completion evidence. Positions include a
@@ -240,7 +253,9 @@ fixture tests distinct from multi-day survival so a passing fixture is not
 reported as proof of a complete autonomous life.
 
 The experimental branch currently has peaceful targeting, witnessed property
-offences, personal coal observations, one resumable coal task and automatic
-cooking-fuel selection. It still lacks a complete prerequisite planner, earned
-age progression, verified full-home construction and a multi-day autonomous
-survival demonstration. Main-game installation remains disabled.
+offences, personal coal observations, a resumable coal task, bounded cooking
+prerequisites and a shelter readiness diagnostic. Runtime verification of this
+prerequisite milestone is recorded separately when available. A complete general
+prerequisite planner, earned age progression, verified autonomous full-home
+construction and a multi-day survival demonstration remain outstanding.
+Main-game installation remains disabled.

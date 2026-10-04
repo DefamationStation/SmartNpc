@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class CookFoodGoal extends Goal {
+    public static final String TEMP_FURNACE_DIMENSION = "PlayerNpcTemporaryCookingFurnaceDimension";
     private static final int COOLDOWN_TICKS = 20 * 20;
     private static final int FAIL_COOLDOWN_TICKS = 20 * 4;
     private static final int FURNACE_SCAN_RADIUS = 5;
@@ -263,7 +264,9 @@ public class CookFoodGoal extends Goal {
         this.toolAi.restoreMainHand();
         this.restorePreviousMainHand();
         int cooldown = this.acted
-                ? COOLDOWN_TICKS + this.playerNpc.getRandom().nextInt(20 * 20)
+                ? (com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingActive(this.playerNpc)
+                    ? 40 + this.playerNpc.getRandom().nextInt(20)
+                    : COOLDOWN_TICKS + this.playerNpc.getRandom().nextInt(20 * 20))
                 : FAIL_COOLDOWN_TICKS + this.playerNpc.getRandom().nextInt(20 * 4);
         this.playerNpc.setCookFoodCooldown(cooldown);
         this.playerNpc.setCurrentAiState(PlayerNpcEntity.AI_IDLE);
@@ -449,12 +452,13 @@ public class CookFoodGoal extends Goal {
             return false;
         }
 
+        int previousCooked = com.pla.smart_npc.fabric.survival.SurvivalTasks.cookedFoodCount(this.playerNpc);
         ItemStack moved = output.copy();
         furnace.setItem(2, ItemStack.EMPTY);
         furnace.setChanged();
-        if (!InventoryUtils.addItem(this.playerNpc, moved)) {
-            this.playerNpc.spawnAtLocation(moved);
-        }
+        ItemStack remainder = InventoryUtils.addItemAndReturnRemainder(this.playerNpc, moved);
+        if (!remainder.isEmpty()) this.playerNpc.spawnAtLocation(remainder);
+        com.pla.smart_npc.fabric.survival.SurvivalTasks.cookedOutputCollected(this.playerNpc, output, previousCooked);
         serverLevel.playSound(null, this.furnacePos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.4F, 1.0F);
         this.playerNpc.setCurrentAiDetail("taking furnace output");
         return true;
@@ -880,6 +884,14 @@ public class CookFoodGoal extends Goal {
             return null;
         }
 
+        String recordedDimension = com.pla.smart_npc.fabric.PersistentData.get(this.playerNpc)
+                .getStringOr(TEMP_FURNACE_DIMENSION, "");
+        // Legacy native entries remain usable; an explicitly recorded different dimension is never followed.
+        if (!recordedDimension.isEmpty()
+                && !recordedDimension.equals(this.playerNpc.level().dimension().identifier().toString())) {
+            return null;
+        }
+
         return new BlockPos(
                 com.pla.smart_npc.fabric.PersistentData.get(this.playerNpc).getIntOr(FurnaceAi.TEMP_FURNACE_X, 0),
                 com.pla.smart_npc.fabric.PersistentData.get(this.playerNpc).getIntOr(FurnaceAi.TEMP_FURNACE_Y, 0),
@@ -891,6 +903,8 @@ public class CookFoodGoal extends Goal {
         com.pla.smart_npc.fabric.PersistentData.get(this.playerNpc).putInt(FurnaceAi.TEMP_FURNACE_X, pos.getX());
         com.pla.smart_npc.fabric.PersistentData.get(this.playerNpc).putInt(FurnaceAi.TEMP_FURNACE_Y, pos.getY());
         com.pla.smart_npc.fabric.PersistentData.get(this.playerNpc).putInt(FurnaceAi.TEMP_FURNACE_Z, pos.getZ());
+        com.pla.smart_npc.fabric.PersistentData.get(this.playerNpc).putString(TEMP_FURNACE_DIMENSION,
+                this.playerNpc.level().dimension().identifier().toString());
         com.pla.smart_npc.fabric.PersistentData.get(this.playerNpc).putString(
                 FurnaceAi.TEMP_FURNACE_KIND,
                 FurnaceAi.TEMP_FURNACE_KIND_COOKING
@@ -902,6 +916,7 @@ public class CookFoodGoal extends Goal {
         com.pla.smart_npc.fabric.PersistentData.get(this.playerNpc).remove(FurnaceAi.TEMP_FURNACE_Y);
         com.pla.smart_npc.fabric.PersistentData.get(this.playerNpc).remove(FurnaceAi.TEMP_FURNACE_Z);
         com.pla.smart_npc.fabric.PersistentData.get(this.playerNpc).remove(FurnaceAi.TEMP_FURNACE_KIND);
+        com.pla.smart_npc.fabric.PersistentData.get(this.playerNpc).remove(TEMP_FURNACE_DIMENSION);
     }
 
     private String placementDetail(String action) {

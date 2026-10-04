@@ -831,7 +831,8 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
                 continue;
             }
             if (interest.isJob()) {
-                matchedSelectedJob = matchedSelectedJob || this.isDailyJobActive(interest);
+                matchedSelectedJob = matchedSelectedJob || !com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingActive(this)
+                    && this.isDailyJobActive(interest);
             } else {
                 matchedCharacteristic = true;
             }
@@ -1351,10 +1352,13 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     public int getRawLogReserveTarget() {
+        if (com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingActive(this)) return 0;
         return this.rawLogReserveTarget;
     }
 
     public int getLogSupplyGoal() {
+        if (com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingActive(this))
+            return com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingLogTarget(this);
         return Math.max(this.rawLogReserveTarget, this.activeLogSupplyTarget);
     }
 
@@ -1367,6 +1371,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     public int getStoneSupplyGoal() {
+        if (com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingActive(this)) return 8;
         return Math.max(this.cobblestoneSupplyTarget, this.activeStoneSupplyTarget);
     }
 
@@ -1391,10 +1396,16 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     public boolean shouldPrioritizeLogGathering() {
+        if (com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingActive(this))
+            return com.pla.smart_npc.fabric.survival.SurvivalTasks.needsCookingLogs(this)
+                && ResourceAi.countLogs(this) < this.getLogSupplyGoal();
         return ResourceAi.countLogs(this) < this.getLogSupplyGoal();
     }
 
     public boolean shouldPrioritizeCobblestoneGathering() {
+        if (com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingActive(this))
+            return com.pla.smart_npc.fabric.survival.SurvivalTasks.needsCookingStone(this)
+                && com.pla.smart_npc.util.PlayerNpcCraftingUtil.countFurnaceStone(this.inventory) < 8;
         return ResourceAi.countStone(this) < this.getStoneSupplyGoal();
     }
 
@@ -2167,12 +2178,15 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         // Personal maintenance must yield to priority-2 emergency bucket/projectile utilities.
         this.goalSelector.addGoal(3, new ThrowTrashItemsGoal(this));
         this.addWorkGoal(3, new PickupNearbyItemGoal(this, 1.0D));
+        this.addWorkGoal(3, new com.pla.smart_npc.fabric.survival.CookingCraftGoal(this,
+            () -> com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingActive(this)));
         // Must outrank Epic Fight's priority-1 chasing goal so a disarmed NPC can
         // break pursuit long enough to recover and equip a nearby weapon.
         this.goalSelector.addGoal(0, new RecoverWeaponInCombatGoal(this, 1.2D, 10.0D));
         this.goalSelector.addGoal(3, this.gated(new RareSneakGoal(this), PlayerNpcInterest.CAUTIOUS));
         this.addWorkGoal(4, this.gated(new ReturnHomeGoal(this, 1.0D), PlayerNpcInterest.BUILDING));
         this.addWorkGoal(5, this.gated(terraformBuildSiteGoal, PlayerNpcInterest.BUILDING));
+        this.addWorkGoal(5, new com.pla.smart_npc.fabric.survival.SurvivalGatherGoal(this, gatherLogsGoal));
         this.addWorkGoal(5, new com.pla.smart_npc.fabric.survival.GatherCoalGoal(this));
         this.goalSelector.addGoal(6, new PlayerNpcMeleeAttackGoal(this));
         this.addWorkGoal(5, this.gated(new BuildHouseGoal(this), PlayerNpcInterest.BUILDING));
@@ -2192,7 +2206,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         // Survival personalities no longer initiate prank attacks on neutral neighbours.
         this.addWorkGoal(5, new ManageHomeBaseGoal(this));
         this.addWorkGoal(5, new CheckHomeSuppliesGoal(this));
-        this.addWorkGoal(5, new CraftBasicGearGoal(this));
+        this.addWorkGoal(5, new com.pla.smart_npc.fabric.survival.RoutineWorkGoal(this, new CraftBasicGearGoal(this)));
         this.goalSelector.addGoal(5, new BreakTargetObstructionGoal(this));
         this.addWorkGoal(5, this.gated(new CraftIronGearGoal(this), PlayerNpcInterest.MINING, PlayerNpcInterest.HUNT_MONSTERS, PlayerNpcInterest.HUNT_ANIMALS, PlayerNpcInterest.HUNT_PLAYERS, PlayerNpcInterest.HUNT_VILLAGERS));
         this.addWorkGoal(5, this.gated(new CraftShieldGoal(this), PlayerNpcInterest.CAUTIOUS, PlayerNpcInterest.HUNT_MONSTERS, PlayerNpcInterest.HUNT_PLAYERS, PlayerNpcInterest.HUNT_VILLAGERS));

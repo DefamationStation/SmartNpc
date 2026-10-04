@@ -211,8 +211,8 @@
         1,
         2
       ],
-      "state": "minecraft:oak_planks",
-      "marker": "wall"
+      "state": "minecraft:crafting_table",
+      "marker": "crafting"
     },
     {
       "pos": [
@@ -674,6 +674,18 @@
         "facing": "north"
       },
       "marker": "furnace"
+    },
+    {
+      "pos": [
+        2,
+        2,
+        1
+      ],
+      "state": "minecraft:wall_torch",
+      "properties": {
+        "facing": "west"
+      },
+      "marker": "light"
     }
   ]
 }

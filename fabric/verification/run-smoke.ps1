@@ -36,6 +36,26 @@ if ($FullModStack) {
     if (Test-Path $irisConfig) { Copy-Item $irisConfig (Join-Path $output 'config') -Force }
     Get-ChildItem (Join-Path $InstanceDirectory 'shaderpacks') -File | Copy-Item -Destination (Join-Path $output 'shaderpacks') -Force
 }
+# Natural NPCs can retain daily worker leases before the fixture starts. Disable
+# only natural population in this isolated instance; retain native scheduler limits.
+$verificationConfigPath = Join-Path $output 'config/smart_npc-server.toml'
+$verificationConfigText = if (Test-Path -LiteralPath $verificationConfigPath) {
+    [IO.File]::ReadAllText($verificationConfigPath)
+} else { '' }
+foreach ($setting in @(
+    @{ Key = 'maxNaturalPlayerNpcs'; Value = '0' },
+    @{ Key = 'spawnPlayerNpc'; Value = '[0, 1, 1]' }
+)) {
+    $settingPattern = '(?m)^\s*' + [regex]::Escape($setting.Key) + '\s*=.*$'
+    $settingLine = $setting.Key + ' = ' + $setting.Value
+    if ([regex]::IsMatch($verificationConfigText, $settingPattern)) {
+        $verificationConfigText = [regex]::Replace($verificationConfigText, $settingPattern, $settingLine)
+    } else {
+        # Prepend absent root keys before any existing TOML section headers.
+        $verificationConfigText = $settingLine + "`n" + $verificationConfigText
+    }
+}
+[IO.File]::WriteAllText($verificationConfigPath, $verificationConfigText)
 $launchArgs = [Collections.Generic.List[string]]::new()
 Get-Content -LiteralPath $LaunchTemplate | ForEach-Object { $launchArgs.Add($_) }
 $cpIndex = $launchArgs.IndexOf('"-cp"') + 1
