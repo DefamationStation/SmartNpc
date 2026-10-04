@@ -3,7 +3,8 @@
 Behaviour design: [player journey and automation reuse](PLAYER_JOURNEY.md),
 [development roadmap](DEVELOPMENT_ROADMAP.md).
 Current implementation milestone: [bounded food acquisition, cooking prerequisites and shelter diagnostic](RESOURCE_TASKS.md).
-Current checks: [food acquisition verification](verification/FOOD-RESULTS.md).
+Current checks: [rod and equipment verification](verification/EQUIPMENT-RESULTS.md).
+Earlier food checks: [food acquisition verification](verification/FOOD-RESULTS.md).
 Earlier prerequisite checks: [prerequisite verification](verification/PREREQUISITE-RESULTS.md).
 Earlier completed checks: [daily routine verification](verification/ROUTINE-RESULTS.md).
 
@@ -79,14 +80,23 @@ The original author is pla_is_me. GPLv3 and the upstream third-party notices app
 
 The experimental personal-memory branch adds a resumable coal-gathering task,
 bounded food acquisition, cooking prerequisites and a read-only shelter readiness
-diagnostic. The current `3.0.0-fabric.26.4-snapshot-2.6-food` milestone lets an NPC
+diagnostic. The food milestone lets an NPC
 with a carried fishing rod use native fishing when fewer than four safe edible
 items remain, including without a fishing interest. Cookable catches hand off
 immediately to cooking. Acquisition attempts are bounded to 120 seconds of game
 time with a 60-second retry delay; their local state is not persisted. Missing
-rods are explicit blockers, with no automatic crafting or free supplies. The
+rod materials are explicit blockers. The equipment milestone
+`3.0.0-fabric.26.4-snapshot-2.7-equipment` crafts a missing rod from two real string
+and carried sticks/wood, reusing a reachable table or crafting/placing one from
+enough carried wood. Native recipe transactions preserve materials on failure;
+no string or equipment is granted. The
 food reserve is an inventory policy rather than a physiological hunger model;
 existing eating for healing retains its role.
+
+Temporary mining and fishing equipment swaps now share one saved transaction.
+Reload finishes the interrupted transfer while preserving original held stacks,
+current tool wear and insertion remainders. This recovers items rather than live
+navigation; separate bow-swap nesting remains a follow-up.
 
 Cooking reuses native gathering, recipes, navigation, placement, pickup and
 furnace output collection. Its retained stone survey now reaches `(4, 0, 0)` at
@@ -108,6 +118,9 @@ causes, attributes actual chest withdrawals, gathers cooking fuel automatically,
 and restores legacy blueprint block states for 26.4. The main game remains disabled
 while the complete survival-day behaviour is developed and tested.
 Fresh and saved-world targeted food fixtures pass; see
-[food results](verification/FOOD-RESULTS.md) for measurements and limits. A complete
+[food results](verification/FOOD-RESULTS.md) for those measurements and limits.
+Fresh and saved-world equipment runs also pass the same-actor rod → catch → cooked
+fish chain and temporary equipment conservation checks; see
+[equipment results](verification/EQUIPMENT-RESULTS.md). A complete
 autonomous survival day remains outstanding. The root
 NeoForge project remains unchanged.

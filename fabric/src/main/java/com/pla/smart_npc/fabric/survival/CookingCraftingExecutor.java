@@ -17,7 +17,7 @@ import net.minecraft.world.phys.Vec3;
  * recipes or inventory capacity never consume the NPC's real materials on a failed attempt.
  */
 public final class CookingCraftingExecutor {
-    public enum Action { CRAFTING_TABLE, WOODEN_PICKAXE, FURNACE }
+    public enum Action { CRAFTING_TABLE, WOODEN_PICKAXE, FURNACE, FISHING_ROD }
     private static final double TABLE_REACH_SQUARED = 2.25D * 2.25D;
 
     private CookingCraftingExecutor() { }
@@ -43,6 +43,9 @@ public final class CookingCraftingExecutor {
             case WOODEN_PICKAXE -> preparePickaxe(level, prepared)
                     && PlayerNpcCraftingUtil.tryCraft(level, prepared, Items.WOODEN_PICKAXE, true);
             case FURNACE -> PlayerNpcCraftingUtil.tryCraftFurnace(level, prepared);
+            case FISHING_ROD -> prepared.countItem(Items.STRING) >= 2
+                    && prepareSticks(level, prepared, 3)
+                    && PlayerNpcCraftingUtil.tryCraft(level, prepared, Items.FISHING_ROD, true);
         };
         if (!crafted) return false;
         for (int slot = 0; slot < real.getContainerSize(); slot++) {
@@ -58,6 +61,16 @@ public final class CookingCraftingExecutor {
                     || !PlayerNpcCraftingUtil.tryCraft(level, inventory, Items.STICK, false)) return false;
         }
         return preparePlanks(level, inventory, 3);
+    }
+
+    private static boolean prepareSticks(ServerLevel level, SimpleContainer inventory, int count) {
+        while (PlayerNpcCraftingUtil.countSticks(inventory) < count) {
+            int previous = PlayerNpcCraftingUtil.countSticks(inventory);
+            if (!preparePlanks(level, inventory, 2)
+                    || !PlayerNpcCraftingUtil.tryCraft(level, inventory, Items.STICK, false)
+                    || PlayerNpcCraftingUtil.countSticks(inventory) <= previous) return false;
+        }
+        return true;
     }
 
     private static boolean preparePlanks(ServerLevel level, SimpleContainer inventory, int count) {

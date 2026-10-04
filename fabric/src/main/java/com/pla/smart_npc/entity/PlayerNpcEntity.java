@@ -387,6 +387,13 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     @Nullable
     private BlockPos explorationClimbSafeStandTarget;
     private int explorationClimbStuckTicks = 0;
+    private ToolAi.SwapState toolSwapState;
+
+    public ToolAi.SwapState getToolSwapState() {
+        if (this.toolSwapState == null) this.toolSwapState = new ToolAi.SwapState();
+        return this.toolSwapState;
+    }
+
     private final ToolAi explorationClimbToolAi = new ToolAi(this);
     private final BreakingBlockAi explorationClimbBreakingBlockAi = new BreakingBlockAi(this, this.explorationClimbToolAi);
     private final ClearBlockAi explorationClimbClearBlockAi = new ClearBlockAi(this, this.explorationClimbBreakingBlockAi);
@@ -1763,6 +1770,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         super.addAdditionalSaveData(tag);
         tag.putBoolean(PENDING_SPAWN_INITIALIZATION_TAG, this.pendingSpawnInitialization);
         this.inventory.storeAsItemList(tag.list("Inventory", ItemStack.CODEC));
+        ToolAi.save(this, tag);
         tag.putInt("GapCooldown", this.gapCooldown);
         tag.putInt("BucketCooldown", this.bucketCooldown);
         tag.putInt("FlintAndSteelCooldown", this.flintAndSteelCooldown);
@@ -2003,6 +2011,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         }
         PlayerNpcHomeUtil.readHome(this, tag);
         this.mainWeaponDisarmed = tag.getBooleanOr("MainWeaponDisarmed", false);
+        ToolAi.restoreAfterLoad(this, tag);
         this.restoreMainHandAfterTemporaryBow();
         this.repairLegacyRangedMainHandAfterLoad();
         this.materializeCachedMainWeaponAfterLoad();
@@ -2197,6 +2206,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.addWorkGoal(5, this.gated(new FarmSetupGoal(this), PlayerNpcInterest.FARMING));
         this.addWorkGoal(5, this.gated(new FarmCropGoal(this), PlayerNpcInterest.FARMING));
         this.addWorkGoal(5, this.gated(new CraftCropFoodGoal(this), PlayerNpcInterest.FARMING));
+        this.addWorkGoal(3, new com.pla.smart_npc.fabric.survival.FishingRodCraftGoal(this));
         this.addWorkGoal(5, new com.pla.smart_npc.fabric.survival.SurvivalFishingGoal(this));
         // Characteristics are opportunistic personality behavior, not daily/routine worker jobs.
         // Keep the same priority and delegate flags, but do not make their availability depend on

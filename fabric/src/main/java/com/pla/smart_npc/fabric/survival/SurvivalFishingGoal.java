@@ -32,7 +32,7 @@ public final class SurvivalFishingGoal extends Goal {
             case RESERVE_READY -> "carried food reserve ready";
             case UNSAFE -> "food acquisition paused: unsafe or busy";
             case COOK_FIRST -> "cook carried raw food before fishing";
-            case NEED_ROD -> "food acquisition blocked: no usable carried fishing rod";
+            case NEED_ROD -> FishingRodCraftGoal.describe(npc);
             case FISH -> "fish nearby loaded water to replenish food";
         };
         return purpose + "; food=" + foodCount(npc) + "/" + FoodSupply.RESERVE;

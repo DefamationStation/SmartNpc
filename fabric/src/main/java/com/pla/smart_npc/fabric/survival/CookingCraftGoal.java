@@ -186,7 +186,7 @@ public final class CookingCraftGoal extends Goal {
 
     @Override public void start() {
         finished = false; started = npc.tickCount; nextPath = npc.tickCount + 40; actionTicks = 0;
-        npc.setCurrentAiState("ai.player_npc.crafting_cooking_supplies");
+        npc.setCurrentAiState("ai.player_npc.crafting");
         detail("walking to a table for cooking supplies");
         npc.getNavigation().moveTo(path, 1.0);
     }
@@ -222,7 +222,8 @@ public final class CookingCraftGoal extends Goal {
             ItemStack item = npc.consumeInventoryItem(Items.CRAFTING_TABLE, 1).orElse(ItemStack.EMPTY);
             if (item.isEmpty()) { fail("cooking table is no longer carried"); return; }
             if (!placing.placeBlock(level, table, Blocks.CRAFTING_TABLE.defaultBlockState())) {
-                InventoryUtils.addItem(npc.getInventory(), item);
+                ItemStack remainder = InventoryUtils.addItemAndReturnRemainder(npc.getInventory(), item);
+                if (!remainder.isEmpty()) npc.spawnAtLocation(remainder);
                 fail("cooking table placement failed"); return;
             }
             placement = false;
@@ -247,6 +248,6 @@ public final class CookingCraftGoal extends Goal {
 
     @Override public void stop() {
         npc.getNavigation().stop(); table = null; stand = null; path = null;
-        if ("ai.player_npc.crafting_cooking_supplies".equals(npc.getCurrentAiState())) npc.setCurrentAiState(PlayerNpcEntity.AI_IDLE);
+        if ("ai.player_npc.crafting".equals(npc.getCurrentAiState())) npc.setCurrentAiState(PlayerNpcEntity.AI_IDLE);
     }
 }

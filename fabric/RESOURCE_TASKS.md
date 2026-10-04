@@ -114,7 +114,7 @@ Ordinary NPC fishing casts refuse to hook or pull living entities; item hooks
 remain available. Existing animal/crop acquisition behaviour and
 external-station ownership limitations remain baseline behaviour; this milestone
 does not extend or establish their property guarantees. General station
-permissions/reservations, food-source planning and rod acquisition remain work
+permissions/reservations, food-source planning and rod material acquisition remain work
 for later milestones.
 
 The targeted fresh-world fixture passes: a non-fisher with a carried rod obtains
@@ -123,6 +123,22 @@ real edible fishing loot and hands it to cooking. See the
 This does not establish a complete survival day or persistent acquisition
 checkpoint. Main-game installation
 remains disabled until the broader release gates are met.
+
+### Rod and equipment prerequisites
+
+Version `3.0.0-fabric.26.4-snapshot-2.7-equipment` can craft a missing food rod from
+two real carried string and sufficient sticks/wood, using a reachable loaded
+table. It can craft/place a table from carried wood, reserving enough material
+for both station and rod. The native recipe executor commits preparatory recipes
+and rod output together; failed rod attempts preserve real inventory. Missing
+string and wood remain explicit blockers. Station scans/path starts retain native
+worker admission and bounded retries; cooking and active log recovery preempt them.
+
+Temporary tool swaps share a saved transaction across goal instances. Reload
+finishes the interrupted transfer, preserves tool wear and original held stacks,
+and drops only any actual insertion remainder. It resumes no live navigation.
+See [equipment verification](verification/EQUIPMENT-RESULTS.md) for exact evidence
+and remaining cache/food-source limitations.
 
 ## Shelter diagnostic
 

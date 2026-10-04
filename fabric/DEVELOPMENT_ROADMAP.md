@@ -1,6 +1,6 @@
 # Smart NPC: believable survival and progression
 
-Status: approved direction, experimental food milestone verified, 2026-10-04. Most milestones below remain planned. See `RESOURCE_TASKS.md` for the implemented scope and verification limits. Fresh and saved-world targeted fixtures pass; a complete survival day remains outstanding.
+Status: approved direction, experimental equipment milestone verified, 2026-10-04. Most milestones below remain planned. See `RESOURCE_TASKS.md` for the implemented scope and verification limits. A complete survival day remains outstanding.
 
 ## Direction
 
@@ -233,6 +233,12 @@ does not prove autonomous construction. See [resource task scope](RESOURCE_TASKS
 for exact checks and limitations. Fresh and saved-world targeted fixtures pass;
 measurements and remaining gaps are recorded in [food results](verification/FOOD-RESULTS.md). Main-game
 installation stays disabled and the root NeoForge source/build remain unchanged.
+
+The equipment milestone adds rod crafting from carried string/wood and real table
+access, plus durable temporary tool transfers. Missing source acquisition remains
+blocked, and completed transfers on reload do not resume a live goal. A same-actor
+rod → fish → cooked food fixture passes in fresh and saved-world runs; see
+[equipment results](verification/EQUIPMENT-RESULTS.md).
 
 Keep each item separately reviewable and gated:
 

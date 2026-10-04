@@ -180,6 +180,15 @@ last at most 120 seconds of game time and retry after 60 seconds; this local
 attempt state is not a persisted intention. The reserve is an inventory policy,
 not a physiological hunger model, and eating for healing keeps its existing role.
 
+The equipment milestone (`3.0.0-fabric.26.4-snapshot-2.7-equipment`) adds a narrow
+rod prerequisite: real carried string and wood/sticks can become a rod at a
+reachable table. When necessary, carried wood also supplies a real table. Two
+missing string or insufficient combined table/stick materials remain explicit
+blockers. It supplies neither a string acquisition plan nor free equipment.
+Temporary equipment swaps now save the previous held stack and recover it on
+load while conserving the current tool's wear and actual item count. See
+[equipment checks](verification/EQUIPMENT-RESULTS.md) for scope and verification.
+
 Cooking stone discovery now favors nearby ground through bounded 3D shells.
 The foot-height offset `(4, 0, 0)` is reached at probe 175 instead of 665 with the
 same retained 16-probe slices. The cursor still covers the complete horizontal

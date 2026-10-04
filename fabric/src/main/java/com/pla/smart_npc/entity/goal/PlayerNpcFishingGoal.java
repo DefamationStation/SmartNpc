@@ -5,6 +5,7 @@ import com.pla.smart_npc.entity.PlayerNpcEntity;
 import com.pla.smart_npc.entity.PlayerNpcFishingBobberEntity;
 import com.pla.smart_npc.entity.ai.PathNavigationAi;
 import com.pla.smart_npc.entity.ai.ResourceAi;
+import com.pla.smart_npc.entity.ai.ToolAi;
 import com.pla.smart_npc.init.SmartNpcModEntities;
 import com.pla.smart_npc.util.InventoryUtils;
 import com.pla.smart_npc.util.PlayerNpcCraftingUtil;
@@ -15,7 +16,6 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
@@ -78,8 +78,7 @@ public class PlayerNpcFishingGoal extends Goal {
     private final CanUseThrottle canUseThrottle = new CanUseThrottle();
     private FishingSpot fishingSpot;
     private PlayerNpcFishingBobberEntity bobber;
-    private ItemStack previousMainHand = ItemStack.EMPTY;
-    private boolean usingTemporaryRod;
+    private final ToolAi toolAi;
     private int fishingTicks;
     private int aimTicks;
     private int repathTicks;
@@ -95,6 +94,7 @@ public class PlayerNpcFishingGoal extends Goal {
 
     public PlayerNpcFishingGoal(PlayerNpcEntity playerNpc, BooleanSupplier foodDemand) {
         this.playerNpc = playerNpc;
+        this.toolAi = new ToolAi(playerNpc);
         this.foodDemand = foodDemand;
         this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
     }
@@ -246,13 +246,7 @@ public class PlayerNpcFishingGoal extends Goal {
         }
         this.bobber = null;
 
-        if (this.usingTemporaryRod) {
-            ItemStack rod = this.playerNpc.getMainHandItem().copy();
-            if (!rod.isEmpty() && rod.is(net.minecraft.world.item.Items.FISHING_ROD) && !InventoryUtils.addItem(this.playerNpc, rod)) {
-                this.playerNpc.spawnAtLocation(rod);
-            }
-            this.playerNpc.setMainHandItemForAi(this.previousMainHand.copy());
-        }
+        this.toolAi.restoreMainHand();
 
         if (!this.playerNpc.level().isClientSide()) {
             int cooldown = this.nextCooldownTicks();
@@ -260,8 +254,6 @@ public class PlayerNpcFishingGoal extends Goal {
         }
 
         this.fishingSpot = null;
-        this.previousMainHand = ItemStack.EMPTY;
-        this.usingTemporaryRod = false;
         this.fishingTicks = 0;
         this.aimTicks = 0;
         this.repathTicks = 0;
@@ -350,28 +342,7 @@ public class PlayerNpcFishingGoal extends Goal {
     }
 
     private boolean equipRodIfNeeded() {
-        if (this.hasEquippedFishingRod()) {
-            return true;
-        }
-
-        if (isFishingRod(this.playerNpc.getOffhandItem())) {
-            ItemStack rod = this.playerNpc.getOffhandItem().copy();
-            this.previousMainHand = this.playerNpc.getMainHandItem().copy();
-            this.usingTemporaryRod = true;
-            this.playerNpc.setItemSlot(EquipmentSlot.OFFHAND, ItemStack.EMPTY);
-            this.playerNpc.setMainHandItemForAi(rod);
-            return true;
-        }
-
-        ItemStack rod = this.playerNpc.consumeInventoryItem(PlayerNpcFishingGoal::isFishingRod, 1).orElse(ItemStack.EMPTY);
-        if (rod.isEmpty()) {
-            return false;
-        }
-
-        this.previousMainHand = this.playerNpc.getMainHandItem().copy();
-        this.usingTemporaryRod = true;
-        this.playerNpc.setMainHandItemForAi(rod);
-        return true;
+        return this.toolAi.equipItem(Items.FISHING_ROD);
     }
 
     private static boolean isReadyForFishingWork(PlayerNpcEntity playerNpc, ServerLevel serverLevel) {
