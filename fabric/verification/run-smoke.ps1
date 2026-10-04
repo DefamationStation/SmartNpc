@@ -27,7 +27,8 @@ foreach ($pattern in $patterns) {
     Get-ChildItem (Join-Path $InstanceDirectory 'mods') -Filter $pattern |
         Where-Object Name -NotLike 'SmartNpc-*' | Copy-Item -Destination (Join-Path $output 'mods') -Force
 }
-$modJar = Get-ChildItem (Join-Path $PSScriptRoot '../build/libs') -Filter '*.jar' | Where-Object Name -NotMatch 'sources' | Select-Object -First 1
+$modVersion = (Get-Content (Join-Path $PSScriptRoot '../gradle.properties') | Where-Object { $_ -match '^mod_version=' }) -replace '^mod_version=', ''
+$modJar = Get-Item (Join-Path $PSScriptRoot "../build/libs/SmartNpc-Fabric-$modVersion.jar")
 if (!$modJar) { throw 'Build the Fabric module first.' }
 Copy-Item -LiteralPath $modJar.FullName -Destination (Join-Path $output 'mods') -Force
 if ($FullModStack) {

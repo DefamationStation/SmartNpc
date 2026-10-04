@@ -1,7 +1,7 @@
 name: Fabric snapshot port
 on:
   push:
-    branches: [fabric-26.4-snapshot-2]
+    branches: [fabric-26.4-snapshot-2, feature/personal-resource-memory]
     paths: ['fabric/**', 'src/**', '.github/workflows/fabric.yml']
   pull_request:
     paths: ['fabric/**', 'src/**', '.github/workflows/fabric.yml']

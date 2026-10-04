@@ -56,7 +56,7 @@ refactor during the initial snapshot port.
 
 ## Verification
 
-`./gradlew build` runs four config/event tests and validates the access widener.
+`./gradlew build` runs config/event and resource-memory tests and validates the access widener.
 The Windows integration harness in `verification/run-smoke.ps1` creates its own
 world, then `-Replay` reopens that test world. It requires a local offline
 launcher argument template, an existing instance for its libraries/mods/options,
@@ -69,3 +69,7 @@ Upstream: https://github.com/PlaIsMe/SmartNpc (26.1.2 branch).
 Port: https://github.com/DefamationStation/SmartNpc/tree/fabric-26.4-snapshot-2
 
 The original author is pla_is_me. GPLv3 and the upstream third-party notices apply.
+
+The experimental personal-memory branch adds a first resumable coal-gathering
+task. See [RESOURCE_TASKS.md](RESOURCE_TASKS.md) for commands and limitations,
+and [DEVELOPMENT_ROADMAP.md](DEVELOPMENT_ROADMAP.md) for the approved direction.

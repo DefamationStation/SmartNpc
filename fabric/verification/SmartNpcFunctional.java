@@ -16,10 +16,20 @@ import com.pla.smart_npc.network.*;
 import com.pla.smart_npc.client.gui.SmartNpcInspectorOverlay;
 import java.nio.file.*;
 import java.util.UUID;
+import com.pla.smart_npc.fabric.survival.*;
 public class SmartNpcFunctional implements ClientModInitializer {
+ GatherCoalGoal coalGoal; PlayerNpcEntity coalNpc; int coalTicks; boolean coalRunning; volatile boolean coalPassed;
  com.pla.smart_npc.fabric.NpcBowAttackGoal bowGoal; PlayerNpcEntity bowNpc; net.minecraft.world.entity.Mob bowTarget; int bowTicks; volatile boolean bowPassed;
  int stage,step;long start,readyAt;volatile int target=-1;volatile Throwable failure;boolean replay=Boolean.getBoolean("smartnpcsmoke.replay");
  public void onInitializeClient(){ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+ net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server->{if(coalGoal==null)return;try{
+  if(++coalTicks==300){
+   var m=SurvivalTasks.memory(coalNpc);
+   check(!m.active && m.status.startsWith("complete"),"coal task completes after real pickup and return: "+m.status+" inventory="+coalNpc.getInventory().countItem(net.minecraft.world.item.Items.COAL));
+   check(coalNpc.getInventory().countItem(net.minecraft.world.item.Items.COAL)>=9,"additional coal inventory target reached");
+   coalGoal.stop();coalGoal=null;coalNpc.discard();coalPassed=true;
+  }
+ }catch(Throwable t){failure=t;coalGoal=null;}});
  net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server->{if(bowGoal==null)return;try{
   bowGoal.tick();
   if(++bowTicks==120){
@@ -45,20 +55,40 @@ public class SmartNpcFunctional implements ClientModInitializer {
   var s=mc.getSingleplayerServer();var file=mc.gameDirectory.toPath().resolve("npc-uuid.txt");
   if(stage==2){stage=3;start=System.nanoTime();server(mc,()->{try{
    var p=s.getPlayerList().getPlayers().getFirst();var level=p.level();PlayerNpcEntity npc;
-   if(replay){npc=(PlayerNpcEntity)level.getEntity(UUID.fromString(Files.readString(file)));check(npc!=null,"saved NPC reloaded");check(PersistentData.get(npc).getStringOr("PortTest","").equals("retained"),"NPC attachment survived world restart");check(npc.getStoredExperience()==37,"NPC XP survived world restart");}
+   if(replay){npc=(PlayerNpcEntity)level.getEntity(UUID.fromString(Files.readString(file)));check(npc!=null,"saved NPC reloaded");check(PersistentData.get(npc).getStringOr("PortTest","").equals("retained"),"NPC attachment survived world restart");check(npc.getStoredExperience()==37,"NPC XP survived world restart");check(SurvivalTasks.memory(npc).active && SurvivalTasks.memory(npc).coal.size()==1,"pending resource task and observations survive world restart");}
    else {
     s.getCommands().performPrefixedCommand(p.createCommandSourceStack(),"summon smart_npc:player_npc ~ ~ ~4 {NoAI:1b}");
     npc=level.getEntitiesOfClass(PlayerNpcEntity.class,p.getBoundingBox().inflate(8)).stream().min(java.util.Comparator.comparingDouble(p::distanceToSqr)).orElseThrow();
     npc.setNoAi(true);npc.setPersistenceRequired();PersistentData.get(npc).putString("PortTest","retained");npc.awardStoredExperience(37);
     Files.writeString(file,npc.getUUID().toString());
+    SurvivalTasks.memory(npc).observe(SurvivalTasks.dimension(npc),npc.blockPosition().asLong(),level.getGameTime());SurvivalTasks.request(npc,10);
     var output=TagValueOutput.createWithContext(ProblemReporter.DISCARDING,level.registryAccess());npc.saveWithoutId(output);
     var clone=SmartNpcModEntities.PLAYER_NPC.get().create(level,EntitySpawnReason.LOAD);
     clone.load(TagValueInput.create(ProblemReporter.DISCARDING,level.registryAccess(),output.buildResult()));
     check(PersistentData.get(clone).getStringOr("PortTest","").equals("retained"),"NPC attachment round trip");check(clone.getStoredExperience()==37,"NPC XP round trip");
+    check(SurvivalTasks.memory(clone).active && SurvivalTasks.memory(clone).target==SurvivalTasks.memory(npc).target,"pending coal request survives entity serialization");
     var pos=p.blockPosition().offset(2,0,0);level.setBlockAndUpdate(pos,Blocks.FURNACE.defaultBlockState());var furnace=(FurnaceBlockEntity)level.getBlockEntity(pos);PersistentData.get(furnace).putString("PortOwner","retained");furnace.setChanged();
     var fresh=new FurnaceBlockEntity(pos,Blocks.FURNACE.defaultBlockState());fresh.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING,level.registryAccess(),furnace.saveWithFullMetadata(level.registryAccess())));
     check(PersistentData.get(fresh).getStringOr("PortOwner","").equals("retained"),"furnace ownership round trip");
    }
+   coalNpc=SmartNpcModEntities.PLAYER_NPC.get().create(level,EntitySpawnReason.COMMAND);
+   var coalBase=new net.minecraft.core.BlockPos(p.getBlockX(),280,p.getBlockZ());
+   for(int x=-5;x<=5;x++)for(int z=-5;z<=5;z++)level.setBlockAndUpdate(coalBase.offset(x,-1,z),Blocks.STONE.defaultBlockState());
+   coalNpc.setPos(coalBase.getX()+0.5,280,coalBase.getZ()+0.5);
+   coalNpc.getInventory().addItem(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_PICKAXE));
+   coalNpc.getInventory().addItem(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COAL,7));level.addFreshEntity(coalNpc);
+   level.setBlockAndUpdate(coalBase.offset(1,0,0),Blocks.COAL_ORE.defaultBlockState());level.setBlockAndUpdate(coalBase.offset(0,0,1),Blocks.COAL_ORE.defaultBlockState());
+   var hidden=coalBase.offset(-3,0,0);level.setBlockAndUpdate(hidden,Blocks.COAL_ORE.defaultBlockState());
+   for(var direction:net.minecraft.core.Direction.values())level.setBlockAndUpdate(hidden.relative(direction),Blocks.STONE.defaultBlockState());
+   for(int scan=0;scan<17;scan++)SurvivalTasks.observeNearby(coalNpc,level);
+   check(SurvivalTasks.memory(coalNpc).coal.size()==2,"perception remembers exposed coal and excludes enclosed ore");
+   SurvivalTasks.request(coalNpc,2);coalGoal=new GatherCoalGoal(coalNpc);
+   var goalField=net.minecraft.world.entity.Mob.class.getDeclaredField("goalSelector");goalField.setAccessible(true);
+   var selector=(net.minecraft.world.entity.ai.goal.GoalSelector)goalField.get(coalNpc);selector.removeAllGoals(g->true);
+   selector.addGoal(3,new com.pla.smart_npc.entity.goal.StartupWorkGatedGoal(coalNpc,new com.pla.smart_npc.entity.goal.PickupNearbyItemGoal(coalNpc,1.0),0));
+   selector.addGoal(5,new com.pla.smart_npc.entity.goal.StartupWorkGatedGoal(coalNpc,coalGoal,1));
+   var targetField=net.minecraft.world.entity.Mob.class.getDeclaredField("targetSelector");targetField.setAccessible(true);
+   ((net.minecraft.world.entity.ai.goal.GoalSelector)targetField.get(coalNpc)).removeAllGoals(g->true);
    var tickets=com.pla.smart_npc.util.PlayerNpcForceTickManager.PLAYER_NPC_TICKET;
    var chunk=new net.minecraft.world.level.ChunkPos(p.chunkPosition().x()+20,p.chunkPosition().z()+20);
    var a=UUID.randomUUID();var b=UUID.randomUUID();
@@ -91,6 +121,6 @@ public class SmartNpcFunctional implements ClientModInitializer {
   if(step==2 && elapsed>12){step++;check(SmartNpcInspectorOverlay.isInspectatorActive(),"spectator client active");server(mc,()->check(PlayerNpcInspectatorModePacket.isInspectatorActive(s.getPlayerList().getPlayers().getFirst()),"spectator server active"));net.minecraft.client.Screenshot.grab(mc,false);mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);}
   if(step==3 && elapsed>16){step++;net.minecraft.client.Screenshot.grab(mc,false);var method=SmartNpcInspectorOverlay.class.getDeclaredMethod("stopInspectator",Minecraft.class,boolean.class);method.setAccessible(true);method.invoke(null,mc,true);}
   if(step==4 && elapsed>20){step++;check(!SmartNpcInspectorOverlay.isInspectatorActive(),"spectator client restored");server(mc,()->check(!PlayerNpcInspectatorModePacket.isInspectatorActive(s.getPlayerList().getPlayers().getFirst()),"spectator server restored"));}
-  if(elapsed>25){check(bowPassed,"bow controller completed");Files.writeString(mc.gameDirectory.toPath().resolve(replay?"replay-complete.txt":"complete.txt"),"All functional assertions passed");stage=4;mc.stop();}
+  if(elapsed>25){check(bowPassed,"bow controller completed");check(coalPassed,"resource task controller completed");Files.writeString(mc.gameDirectory.toPath().resolve(replay?"replay-complete.txt":"complete.txt"),"All functional assertions passed");stage=4;mc.stop();}
  }catch(Throwable t){t.printStackTrace();try{Files.writeString(mc.gameDirectory.toPath().resolve("failure.txt"),t.toString());}catch(Exception ignored){}stage=4;mc.stop();}}
 }
