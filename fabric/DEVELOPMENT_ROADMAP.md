@@ -1,6 +1,6 @@
 # Smart NPC: believable survival and progression
 
-Status: approved direction, experimental equipment milestone verified, 2026-10-04. Most milestones below remain planned. See `RESOURCE_TASKS.md` for the implemented scope and verification limits. A complete survival day remains outstanding.
+Status: approved direction, experimental workflow milestone verified in controlled fresh/reopened worlds, 2026-10-04. Most milestones below remain planned. See `RESOURCE_TASKS.md` for the implemented scope and verification limits. A complete survival day remains outstanding.
 
 ## Direction
 
@@ -197,6 +197,15 @@ targeted foundation improvement; full survival, shelter construction and earned
 progression remain separate acceptance gates in that document.
 
 ## First implementation backlog
+
+The [independent workflow audit](WORKFLOW_AUDIT.md) now guides integration fixes.
+Version `3.0.0-fabric.26.4-snapshot-2.8-workflows` addresses survival rod/string
+storage handoffs, pending coal retention and shared bow/tool recovery. Its food
+fixture requires the same actor to craft/place its table first. Verification and
+limits are recorded in [workflow results](verification/WORKFLOW-RESULTS.md).
+The next priority is the cooking exploration/dig fallback gate (WF-01), followed
+by a broader ordinary-selector storage/rest/interruption scenario. Controlled
+material fixtures cannot close those release gates.
 
 The current food milestone (`3.0.0-fabric.26.4-snapshot-2.6-food`)
 extends the bounded cooking intention for wood → crafting access/pickaxe → furnace

@@ -491,6 +491,8 @@ public class CheckHomeSuppliesGoal extends Goal {
         return this.needsMissingTool(need, stack)
                 || need.fishingRod() && stack.getItem() instanceof FishingRodItem
                 || need.fishingString() && stack.is(Items.STRING)
+                && (this.playerNpc.hasInterest(PlayerNpcInterest.FISHING)
+                    || !PlayerNpcFishingGoal.hasFishingRod(this.playerNpc))
                 || need.food() && stack.has(net.minecraft.core.component.DataComponents.FOOD)
                 || need.wood() && this.isWoodSupply(stack)
                 || need.toolCraftingMaterials() && this.isToolCraftingSupply(stack)
@@ -584,12 +586,14 @@ public class CheckHomeSuppliesGoal extends Goal {
     }
 
     private boolean needsFishingRod() {
-        return this.playerNpc.hasInterest(PlayerNpcInterest.FISHING)
+        return (this.playerNpc.hasInterest(PlayerNpcInterest.FISHING)
+                || com.pla.smart_npc.fabric.survival.SurvivalHomeSupplies.needsFoodRod(this.playerNpc))
                 && !PlayerNpcFishingGoal.hasFishingRod(this.playerNpc);
     }
 
     private boolean needsFishingString() {
-        return this.playerNpc.hasInterest(PlayerNpcInterest.FISHING)
+        return (this.playerNpc.hasInterest(PlayerNpcInterest.FISHING)
+                || com.pla.smart_npc.fabric.survival.SurvivalHomeSupplies.needsFoodString(this.playerNpc))
                 && this.countInventory(stack -> stack.is(Items.STRING)) < FISHING_STRING_RESERVE;
     }
 

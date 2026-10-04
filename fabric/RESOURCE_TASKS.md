@@ -140,6 +140,16 @@ and drops only any actual insertion remainder. It resumes no live navigation.
 See [equipment verification](verification/EQUIPMENT-RESULTS.md) for exact evidence
 and remaining cache/food-source limitations.
 
+## Workflow handoffs
+
+The workflow milestone adds food-driven rod/string withdrawal to existing home
+supply checks and retains reusable rods during deposits for every personality.
+It keeps pending coal requests and rod recipe materials from being deposited
+before their work completes. Normal coal deposits resume after task completion.
+Bow equipment now shares the saved temporary tool transaction, with old save
+migration. See [workflow verification](verification/WORKFLOW-RESULTS.md) and the
+[independent audit](WORKFLOW_AUDIT.md) for acceptance and remaining handoff gaps.
+
 ## Shelter diagnostic
 
 The `shelter` command reads the NPC's existing home record and the current loaded

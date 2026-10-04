@@ -39,8 +39,9 @@ import java.util.UUID;
 
 /**
  * One actor, actual registered selectors, native recipe/cast/loot/pickup/smelting.
- * This controlled fixture supplies string, logs, fuel, a carried furnace and a real
- * table. It proves that material-to-food chain, not an empty-inventory survival day.
+ * This controlled fixture supplies string, logs, fuel and a carried furnace. The
+ * actor must craft and place its real table before crafting its rod. It proves
+ * that material-to-food chain, not an empty-inventory survival day.
  * No bite timer, loot table, delegate tick or work-admission override is injected.
  */
 public final class SmartNpcFoodChainChecks {
@@ -51,7 +52,7 @@ public final class SmartNpcFoodChainChecks {
     private static BlockPos base, table;
     private static AABB bounds;
     private static int ticks, peakRodDamage, retainSince;
-    private static boolean crafted, cast, rawPickup, handoff, furnaceInput, furnaceLit, furnaceOutput;
+    private static boolean tablePlaced, crafted, cast, rawPickup, handoff, furnaceInput, furnaceLit, furnaceOutput;
     private static final Map<UUID, Integer> codDrops = new HashMap<>(), salmonDrops = new HashMap<>();
     public static volatile boolean passed;
     private SmartNpcFoodChainChecks() { }
@@ -69,7 +70,7 @@ public final class SmartNpcFoodChainChecks {
         level = testLevel;
         // Prior fixtures have completed sleep; give this isolated chain a daylight window.
         level.getServer().getCommands().performPrefixedCommand(player.createCommandSourceStack(), "time set 6000");
-        passed = crafted = cast = rawPickup = handoff = furnaceInput = furnaceLit = furnaceOutput = false;
+        passed = tablePlaced = crafted = cast = rawPickup = handoff = furnaceInput = furnaceLit = furnaceOutput = false;
         ticks = peakRodDamage = retainSince = 0;
         codDrops.clear(); salmonDrops.clear();
         base = new BlockPos(player.getBlockX() + 60, 285, player.getBlockZ() + 32);
@@ -78,6 +79,17 @@ public final class SmartNpcFoodChainChecks {
         for (var item : level.getEntitiesOfClass(ItemEntity.class, bounds)) item.discard();
         for (var previous : level.getEntitiesOfClass(PlayerNpcEntity.class, bounds)) previous.discard();
         for (var bobber : level.getEntitiesOfClass(PlayerNpcFishingBobberEntity.class, bounds)) bobber.discard();
+        // A named leftover-fuel marker proves that clearing real old containers is
+        // covered even when the previous run already removed its own furnace.
+        BlockPos resetProbePos = base.offset(-4, 0, -4);
+        level.getChunk(resetProbePos);
+        level.setBlockAndUpdate(resetProbePos, Blocks.FURNACE.defaultBlockState());
+        var resetProbe = (FurnaceBlockEntity) level.getBlockEntity(resetProbePos);
+        check(resetProbe != null, "fixture reset probe uses a real loaded furnace block entity");
+        var resetMarker = new ItemStack(Items.STICK);
+        resetMarker.set(DataComponents.CUSTOM_NAME, Component.literal("fixture reset probe"));
+        resetProbe.setItem(1, resetMarker.copy());
+        resetProbe.setChanged();
         // Two source layers and open sky: real loaded water, no harvestable substitute inputs.
         for (int x = -11; x <= 11; x++) for (int z = -11; z <= 11; z++) {
             level.getChunk(base.offset(x, 0, z));
@@ -88,14 +100,35 @@ public final class SmartNpcFoodChainChecks {
                 level.setBlockAndUpdate(base.offset(x, y, z), block.defaultBlockState());
             }
         }
+        // Replacing an old furnace drops its remaining input/fuel/output AFTER the
+        // first cleanup. Remove those real container drops before supplying the new
+        // actor, so replay cannot pick up fuel left by the previous successful run.
+        var displacedDrops = level.getEntitiesOfClass(ItemEntity.class, bounds);
+        int resetMarkers = displacedDrops.stream()
+                .filter(drop -> ItemStack.isSameItemSameComponents(drop.getItem(), resetMarker))
+                .mapToInt(drop -> drop.getItem().getCount()).sum();
+        check(resetMarkers == 1,
+                "platform reset exposes exactly one named fuel marker from the old native furnace");
+        if (!displacedDrops.isEmpty()) System.out.println("SMARTNPC_FOOD_CHAIN_REPLAY_CLEANUP "
+                + displacedDrops.stream().map(ItemEntity::getItem).toList());
+        for (var displaced : displacedDrops) displaced.discard();
+        check(level.getEntitiesOfClass(ItemEntity.class, bounds,
+                        drop -> ItemStack.isSameItemSameComponents(drop.getItem(), resetMarker)).isEmpty(),
+                "second cleanup removes the old furnace marker before the food-chain actor exists");
         table = base.offset(-1, 0, -1);
         level.setBlockAndUpdate(table, Blocks.CRAFTING_TABLE.defaultBlockState());
-        checkFailedRodConservation();
+        // Conservation probes alone use this temporary station; the live chain gets none.
+        try { checkFailedRodConservation(); }
+        finally {
+            level.setBlockAndUpdate(table, Blocks.AIR.defaultBlockState());
+            table = null;
+        }
         var personality = SmartNpcNamesConfig.getPlayerNpcNameEntries().stream()
                 .map(SmartNpcNamesConfig::parseNameEntry).flatMap(Optional::stream)
                 .filter(name -> !name.interests().contains(PlayerNpcInterest.FISHING)
                         && !name.interests().contains(PlayerNpcInterest.CAUTIOUS)
                         && !name.interests().contains(PlayerNpcInterest.BUILDING))
+                .sorted(java.util.Comparator.comparing(name -> !name.skinName().equals("Technoblade")))
                 .findFirst().orElseThrow();
         npc = SmartNpcModEntities.PLAYER_NPC.get().create(level, EntitySpawnReason.COMMAND);
         npc.setUsername(personality.skinName());
@@ -108,24 +141,34 @@ public final class SmartNpcFoodChainChecks {
         npc.getInventory().addItem(new ItemStack(Items.STRING, 2));
         npc.getInventory().addItem(new ItemStack(Items.FURNACE));
         npc.getInventory().addItem(new ItemStack(Items.COAL));
-        check(count(Items.FISHING_ROD) == 0 && SurvivalFishingGoal.foodCount(npc) == 0,
-                "same food-chain actor starts with no rod and no raw or cooked food");
+        check(count(Items.OAK_LOG) == 2 && count(Items.STRING) == 2 && count(Items.FURNACE) == 1
+                        && count(Items.COAL) == 1 && count(Items.STICK) == 0 && count(Items.OAK_PLANKS) == 0
+                        && level.getEntitiesOfClass(ItemEntity.class, bounds).isEmpty(),
+                "fresh and replay food-chain inputs contain only the supplied materials, with no old furnace drops");
+        check(count(Items.FISHING_ROD) == 0 && SurvivalFishingGoal.foodCount(npc) == 0
+                        && count(Items.CRAFTING_TABLE) == 0 && placedTables().isEmpty(),
+                "same food-chain actor starts with no rod, no food and no carried or world crafting table");
         level.addFreshEntity(npc);
         try {
             var field = Mob.class.getDeclaredField("goalSelector"); field.setAccessible(true);
             GoalSelector goals = (GoalSelector) field.get(npc);
-            goals.removeAllGoals(goal -> !RETAINED.contains(unwrap(goal).getClass().getSimpleName()));
+            // Keep normal swimming safety when native pickup/navigation enters the pond.
+            goals.removeAllGoals(goal -> !RETAINED.contains(unwrap(goal).getClass().getSimpleName())
+                    && !(goal instanceof net.minecraft.world.entity.ai.goal.FloatGoal));
             var targets = Mob.class.getDeclaredField("targetSelector"); targets.setAccessible(true);
             ((GoalSelector) targets.get(npc)).removeAllGoals(goal -> true);
             for (String name : RETAINED) check(goals.getAvailableGoals().stream().anyMatch(wrapped ->
                     wrapped.getGoal() instanceof StartupWorkGatedGoal
                             && unwrap(wrapped.getGoal()).getClass().getSimpleName().equals(name)),
                     "food-chain actor retains registered startup admission wrapper for " + name);
+            check(goals.getAvailableGoals().stream().anyMatch(wrapped -> wrapped.getPriority() == 0
+                            && wrapped.getGoal() instanceof net.minecraft.world.entity.ai.goal.FloatGoal),
+                    "food-chain fixture preserves the actor's registered priority-zero native swimming safety");
         } catch (ReflectiveOperationException exception) { throw new RuntimeException(exception); }
         check(!npc.hasInterest(PlayerNpcInterest.FISHING) && !npc.isDailyJobActive(PlayerNpcInterest.FISHING),
                 "food chain requires neither fishing personality nor fishing daily job");
         System.out.println("SMARTNPC_FOOD_CHAIN_FIXTURE " + personality.skinName() + " at " + base
-                + " supplied=2logs,2string,1furnace,1coal,realTable; scope=controlled-material-to-food-chain");
+                + " supplied=2logs,2string,1furnace,1coal; noTable; scope=craft-place-table-rod-native-fish-cook");
     }
 
     private static ArrayList<ItemStack> stacks() {
@@ -138,6 +181,12 @@ public final class SmartNpcFoodChainChecks {
         return stacks().stream().filter(stack -> stack.is(item)).mapToInt(ItemStack::getCount).sum();
     }
     private static int caught(Map<UUID, Integer> drops) { return drops.values().stream().mapToInt(Integer::intValue).sum(); }
+    private static ArrayList<BlockPos> placedTables() {
+        var tables = new ArrayList<BlockPos>();
+        for (BlockPos pos : BlockPos.betweenClosed(base.offset(-11, 0, -11), base.offset(11, 2, 11)))
+            if (level.getBlockState(pos).is(Blocks.CRAFTING_TABLE)) tables.add(pos.immutable());
+        return tables;
+    }
     private static int stationCount(Item item) {
         int count = 0;
         for (BlockPos pos : BlockPos.betweenClosed(base.offset(-11, 0, -11), base.offset(11, 2, 11)))
@@ -150,11 +199,14 @@ public final class SmartNpcFoodChainChecks {
                 .stream().mapToInt(drop -> drop.getItem().getCount()).sum();
     }
     private static String diagnostic() {
-        return "ticks=" + ticks + " crafted=" + crafted + " cast=" + cast + " wear=" + peakRodDamage
+        return "ticks=" + ticks + " tablePlaced=" + tablePlaced + " table=" + table
+                + " crafted=" + crafted + " cast=" + cast + " wear=" + peakRodDamage
                 + " rawPickup=" + rawPickup + " handoff=" + handoff + " furnace=" + furnaceInput + "/" + furnaceLit + "/" + furnaceOutput
                 + " drops=" + caught(codDrops) + "cod," + caught(salmonDrops) + "salmon"
                 + " decision=" + SurvivalFishingGoal.decision(npc) + " cooking=" + SurvivalTasks.memory(npc).cookingStatus
                 + " ai=" + npc.getCurrentAiState() + " detail=" + npc.getCurrentAiDetail() + " pos=" + npc.blockPosition()
+                + " health=" + npc.getHealth() + "/" + npc.getMaxHealth() + " air=" + npc.getAirSupply()
+                + " inWater=" + npc.isInWater() + " dark=" + level.isDarkOutside()
                 + " waiting=" + PlayerNpcAiWorkBudget.isWaitingForTurn(npc)
                 + " budget=" + PlayerNpcAiWorkBudget.resourceSnapshot(level.getServer()) + " inventory=" + stacks();
     }
@@ -162,13 +214,28 @@ public final class SmartNpcFoodChainChecks {
     public static void tick(MinecraftServer server) {
         if (npc == null || passed) return;
         ticks++;
+        if (!tablePlaced) {
+            var tables = placedTables();
+            if (!tables.isEmpty()) {
+                check(tables.size() == 1 && count(Items.CRAFTING_TABLE) == 0,
+                        "same actor crafts and places exactly one native crafting table from its carried logs");
+                table = tables.getFirst();
+                if (count(Items.FISHING_ROD) == 0) {
+                    check(count(Items.OAK_LOG) == 1 && count(Items.OAK_PLANKS) == 0
+                                    && count(Items.STICK) == 0 && count(Items.STRING) == 2,
+                            "native table placement consumes exactly one log's four planks and preserves both string: " + diagnostic());
+                }
+                tablePlaced = true;
+            }
+        }
         if (!crafted && count(Items.FISHING_ROD) > 0) {
-            check(count(Items.FISHING_ROD) == 1 && count(Items.STRING) == 0 && count(Items.OAK_LOG) == 1
+            check(tablePlaced && placedTables().size() == 1 && count(Items.CRAFTING_TABLE) == 0
+                            && count(Items.FISHING_ROD) == 1 && count(Items.STRING) == 0 && count(Items.OAK_LOG) == 0
                             && count(Items.OAK_PLANKS) == 2 && count(Items.STICK) == 1,
-                    "same actor's native rod recipe consumes exactly two string and three crafted sticks from one log");
+                    "two native logs become exactly one placed table, one rod, two spare planks and one spare stick; both string consumed: " + diagnostic());
             check(level.getBlockState(table).is(Blocks.CRAFTING_TABLE)
                             && npc.distanceToSqr(Vec3.atCenterOf(table)) <= 2.25D * 2.25D,
-                    "rod is crafted within interaction reach of the supplied real crafting table");
+                    "rod is crafted within interaction reach of the real table this same actor crafted and placed");
             crafted = true;
         }
         cast |= !level.getEntitiesOfClass(PlayerNpcFishingBobberEntity.class, bounds, bobber -> bobber.getAngler() == npc).isEmpty();
@@ -191,8 +258,8 @@ public final class SmartNpcFoodChainChecks {
         if (count(Items.COOKED_COD) + count(Items.COOKED_SALMON) > 0 && !SurvivalTasks.cookingActive(npc)) {
             if (retainSince == 0) retainSince = ticks;
             if (ticks - retainSince >= 80) {
-                check(crafted && cast && peakRodDamage > 0 && caught(codDrops) + caught(salmonDrops) > 0,
-                        "same actor crafts its rod then obtains observed native fishing drops with real rod wear");
+                check(tablePlaced && crafted && cast && peakRodDamage > 0 && caught(codDrops) + caught(salmonDrops) > 0,
+                        "same actor crafts and places its table, crafts its rod, then obtains observed native fishing drops with real rod wear");
                 check(rawPickup && handoff && furnaceInput && furnaceLit && furnaceOutput,
                         "real drop pickup hands raw fish to native cooking with actual furnace input burn and output");
                 check(count(Items.COAL) + stationCount(Items.COAL) + looseCount(Items.COAL) == 0,

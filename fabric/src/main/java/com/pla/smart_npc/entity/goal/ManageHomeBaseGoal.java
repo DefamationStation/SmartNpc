@@ -896,6 +896,7 @@ public class ManageHomeBaseGoal extends Goal {
     }
 
     private static boolean shouldKeepStack(PlayerNpcEntity playerNpc, ServerLevel serverLevel, ItemStack stack) {
+        if (com.pla.smart_npc.fabric.survival.SurvivalHomeSupplies.keepForSurvival(playerNpc, stack)) return true;
         if (PlayerNpcBuildStatusUtil.shouldKeepForCurrentBuild(serverLevel, playerNpc, stack)) {
             return true;
         }

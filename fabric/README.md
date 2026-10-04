@@ -3,7 +3,9 @@
 Behaviour design: [player journey and automation reuse](PLAYER_JOURNEY.md),
 [development roadmap](DEVELOPMENT_ROADMAP.md).
 Current implementation milestone: [bounded food acquisition, cooking prerequisites and shelter diagnostic](RESOURCE_TASKS.md).
-Current checks: [rod and equipment verification](verification/EQUIPMENT-RESULTS.md).
+Current checks: [workflow handoffs and shared bow recovery](verification/WORKFLOW-RESULTS.md).
+Independent review: [workflow audit and acceptance gaps](WORKFLOW_AUDIT.md).
+Earlier equipment checks: [rod and equipment verification](verification/EQUIPMENT-RESULTS.md).
 Earlier food checks: [food acquisition verification](verification/FOOD-RESULTS.md).
 Earlier prerequisite checks: [prerequisite verification](verification/PREREQUISITE-RESULTS.md).
 Earlier completed checks: [daily routine verification](verification/ROUTINE-RESULTS.md).
@@ -96,7 +98,12 @@ existing eating for healing retains its role.
 Temporary mining and fishing equipment swaps now share one saved transaction.
 Reload finishes the interrupted transfer while preserving original held stacks,
 current tool wear and insertion remainders. This recovers items rather than live
-navigation; separate bow-swap nesting remains a follow-up.
+navigation. The workflow milestone `3.0.0-fabric.26.4-snapshot-2.8-workflows` also
+unifies bow swaps and migrates older nested bow/tool saves. Home storage now
+recognises non-fisher food rod/string needs, retains reusable rods and protects
+coal committed to an active task. Its food fixture starts without a table, requiring
+the same actor to craft/place one before making its rod. See the current workflow
+report for native checks and remaining ordinary-selector integration limits.
 
 Cooking reuses native gathering, recipes, navigation, placement, pickup and
 furnace output collection. Its retained stone survey now reaches `(4, 0, 0)` at

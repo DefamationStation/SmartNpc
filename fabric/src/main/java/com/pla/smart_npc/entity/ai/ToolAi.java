@@ -3,6 +3,7 @@ package com.pla.smart_npc.entity.ai;
 import com.pla.smart_npc.util.SmartNpcItemUtil;
 
 import net.minecraft.tags.ItemTags;
+import net.minecraft.world.item.BowItem;
 
 import com.pla.smart_npc.entity.PlayerNpcEntity;
 import com.pla.smart_npc.util.InventoryUtils;
@@ -25,6 +26,7 @@ public final class ToolAi {
         private MainHandSource currentMainHandSource = MainHandSource.NONE;
         private boolean swappedMainHand;
         private ToolAi owner;
+        private boolean bowUsed;
     }
 
     private SwapState state() {
@@ -33,10 +35,12 @@ public final class ToolAi {
 
     public static void save(PlayerNpcEntity npc, ValueOutput output) {
         SwapState state = npc.getToolSwapState();
+        output.putInt("MainHandSwapFormatVersion", 1);
         output.discard("TemporaryToolSwap");
         if (!state.swappedMainHand) return;
         ValueOutput swap = output.child("TemporaryToolSwap");
         swap.putBoolean("Active", true);
+        swap.putBoolean("BowUsed", state.bowUsed);
         swap.putString("Source", state.currentMainHandSource.name());
         if (!state.previousMainHand.isEmpty()) {
             swap.store("PreviousMainHand", ItemStack.CODEC, state.previousMainHand);
@@ -44,12 +48,39 @@ public final class ToolAi {
     }
 
     /** Goals do not resume after load; complete the saved transaction before cache repair. */
-    public static void restoreAfterLoad(PlayerNpcEntity npc, ValueInput input) {
+    public static boolean restoreAfterLoad(PlayerNpcEntity npc, ValueInput input) {
         SwapState state = npc.getToolSwapState();
         state.previousMainHand = ItemStack.EMPTY;
         state.currentMainHandSource = MainHandSource.NONE;
         state.swappedMainHand = false;
         state.owner = null;
+        state.bowUsed = false;
+        boolean legacyBow = input.getBooleanOr("TemporaryBowEquipped", false);
+        ItemStack legacyPrevious = legacyBow
+                ? input.read("TemporaryBowPreviousMainHand", ItemStack.CODEC).orElse(ItemStack.EMPTY)
+                : ItemStack.EMPTY;
+        boolean legacyTool = input.child("TemporaryToolSwap")
+                .map(swap -> swap.getBooleanOr("Active", false)).orElse(false);
+        ItemStack toolPrevious = input.child("TemporaryToolSwap")
+                .flatMap(swap -> swap.read("PreviousMainHand", ItemStack.CODEC)).orElse(ItemStack.EMPTY);
+        boolean bowOnTop = false;
+        if (legacyBow) {
+            ItemStack current = npc.getMainHandItem();
+            if (!legacyTool || current.getItem() instanceof BowItem) {
+                bowOnTop = true;
+            } else if (current.isEmpty()) {
+                // A non-bow tool predecessor proves tool -> bow. An original bow instead
+                // requires the weapon cache to identify it when the final stack broke.
+                bowOnTop = !(toolPrevious.getItem() instanceof BowItem)
+                        || (!toolPrevious.isEmpty()
+                        && ItemStack.isSameItemSameComponents(npc.getMainWeaponItem(), toolPrevious)
+                        && !ItemStack.isSameItemSameComponents(npc.getMainWeaponItem(), legacyPrevious));
+                // Without cache evidence, original-bow -> tool -> broken-bow and
+                // original-tool -> bow -> broken-tool are indistinguishable in old saves.
+                // Default to bow -> tool; conserve both saved stacks without inventing gear.
+            }
+        }
+        if (bowOnTop) restoreLegacyBow(npc, legacyPrevious);
         input.child("TemporaryToolSwap").ifPresent(swap -> {
             if (!swap.getBooleanOr("Active", false)) return;
             state.previousMainHand = swap.read("PreviousMainHand", ItemStack.CODEC).orElse(ItemStack.EMPTY);
@@ -59,10 +90,53 @@ public final class ToolAi {
                 state.currentMainHandSource = MainHandSource.NONE;
             }
             state.swappedMainHand = true;
+            state.bowUsed = swap.getBooleanOr("BowUsed", false);
             ToolAi recovery = new ToolAi(npc);
             state.owner = recovery;
             recovery.restoreMainHand();
+
         });
+        if (legacyBow && !bowOnTop) restoreLegacyBow(npc, legacyPrevious);
+        return legacyBow || legacyTool;
+    }
+
+    private static void restoreLegacyBow(PlayerNpcEntity npc, ItemStack previous) {
+        ItemStack current = npc.getMainHandItem().copy();
+        npc.setMainHandItemForAi(previous);
+        if (!current.isEmpty()) {
+            ItemStack remainder = InventoryUtils.addItemAndReturnRemainder(npc.getInventory(), current);
+            if (!remainder.isEmpty()) npc.spawnAtLocation(remainder);
+        }
+        npc.setSwapToBowCooldown();
+    }
+
+    public boolean ownsSwap() {
+        return this.state().swappedMainHand && this.state().owner == this;
+    }
+
+    /** Bow uses the same original hand and owner guard as tools, and only consumes inventory gear. */
+    public boolean equipInventoryBow() {
+        if (this.playerNpc.getMainHandItem().getItem() instanceof BowItem) {
+            if (this.state().swappedMainHand) {
+                this.state().owner = this;
+                this.state().bowUsed = true;
+            }
+            return true;
+        }
+        if (this.state().swappedMainHand && this.state().previousMainHand.getItem() instanceof BowItem) {
+            this.state().owner = this;
+            this.restoreMainHand();
+            return true;
+        }
+        for (int i = 0; i < this.playerNpc.getInventory().getContainerSize(); i++) {
+            ItemStack stack = this.playerNpc.getInventory().getItem(i);
+            if (!stack.isEmpty() && stack.getItem() instanceof BowItem) {
+                this.swapMainHandWithSlot(i, stack);
+                this.state().bowUsed = true;
+                return true;
+            }
+        }
+        return false;
     }
 
     public ToolAi(PlayerNpcEntity playerNpc) {
@@ -189,6 +263,8 @@ public final class ToolAi {
         this.playerNpc.setMainHandItemForAi(this.state().previousMainHand);
         this.state().swappedMainHand = false;
         this.state().owner = null;
+        if (this.state().bowUsed) this.playerNpc.setSwapToBowCooldown();
+        this.state().bowUsed = false;
         this.state().previousMainHand = ItemStack.EMPTY;
         this.state().currentMainHandSource = MainHandSource.NONE;
     }

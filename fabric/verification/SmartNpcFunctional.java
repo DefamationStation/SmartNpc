@@ -109,6 +109,8 @@ public class SmartNpcFunctional implements ClientModInitializer {
    ((net.minecraft.world.entity.ai.goal.GoalSelector)targetField.get(coalNpc)).removeAllGoals(g->true);
    SmartNpcSurvivalChecks.setup(level,p);
    SmartNpcToolSwapChecks.run(level,p);
+   SmartNpcBowSwapChecks.run(level,p);
+   SmartNpcHomeSupplyChecks.run(level,p);
    SmartNpcCookingChecks.setup(level,p);
    SmartNpcWoodChecks.setup(level,p);
    SmartNpcFishingChecks.setup(level,p);

@@ -189,6 +189,16 @@ Temporary equipment swaps now save the previous held stack and recover it on
 load while conserving the current tool's wear and actual item count. See
 [equipment checks](verification/EQUIPMENT-RESULTS.md) for scope and verification.
 
+The workflow milestone (`3.0.0-fabric.26.4-snapshot-2.8-workflows`) connects food
+rod/string shortages to existing home supply withdrawals and prevents deposits
+from removing reusable rods or coal committed to an active task. Bow/tool
+interruptions share the saved equipment transfer. Its strengthened food fixture
+requires the same actor to craft/place a table first. The
+[independent workflow audit](WORKFLOW_AUDIT.md) identifies remaining integration
+gaps, especially cooking exploration admission and ordinary-selector multi-day
+arbitration; [workflow results](verification/WORKFLOW-RESULTS.md) distinguish
+verified transfers from broader autonomous behavior.
+
 Cooking stone discovery now favors nearby ground through bounded 3D shells.
 The foot-height offset `(4, 0, 0)` is reached at probe 175 instead of 665 with the
 same retained 16-probe slices. The cursor still covers the complete horizontal

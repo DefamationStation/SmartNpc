@@ -353,8 +353,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     private long selectedDailyJobDay = -1L;
     private ItemStack mainWeaponItem = ItemStack.EMPTY;
     private ItemStack offWeaponItem = ItemStack.EMPTY;
-    private ItemStack temporaryBowPreviousMainHand = ItemStack.EMPTY;
-    private boolean temporaryBowEquipped = false;
+    private final ToolAi temporaryBowToolAi = new ToolAi(this);
     private boolean suppressHeldItemCacheUpdate = false;
     private boolean useBow = true;
     @Nullable
@@ -1573,38 +1572,12 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     }
 
     public boolean equipTemporaryBowFromInventory() {
-        if (this.temporaryBowEquipped || this.getMainHandItem().getItem() instanceof BowItem) {
-            return true;
-        }
-
-        ItemStack bow = this.consumeInventoryItem(stack -> stack.getItem() instanceof BowItem, 1)
-                .orElse(ItemStack.EMPTY);
-        if (bow.isEmpty()) {
-            return false;
-        }
-
-        this.temporaryBowPreviousMainHand = this.getMainHandItem().copy();
-        this.temporaryBowEquipped = true;
-        this.setMainHandItemForAi(bow);
-        return true;
+        return this.temporaryBowToolAi.equipInventoryBow();
     }
 
     public void restoreMainHandAfterTemporaryBow() {
-        if (!this.temporaryBowEquipped) {
-            return;
-        }
-
-        ItemStack temporaryItem = this.getMainHandItem().copy();
-        ItemStack previousMainHand = this.temporaryBowPreviousMainHand.copy();
-        this.temporaryBowPreviousMainHand = ItemStack.EMPTY;
-        this.temporaryBowEquipped = false;
-
-        this.setMainHandItemForAi(previousMainHand);
-        if (!temporaryItem.isEmpty()
-                && !ItemStack.isSameItemSameComponents(temporaryItem, previousMainHand)) {
-            this.addOrDropInventoryItem(temporaryItem);
-        }
-        this.setSwapToBowCooldown();
+        if (!this.temporaryBowToolAi.ownsSwap()) return;
+        this.temporaryBowToolAi.restoreMainHand();
     }
 
     private void replaceMainWeaponItem(ItemStack stack, boolean moveOldToInventory, ItemStack oldEquippedItem) {
@@ -1827,12 +1800,8 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         if (!this.offWeaponItem.isEmpty()) {
             tag.store("OffHandItem", ItemStack.CODEC, this.offWeaponItem);
         }
-        if (this.temporaryBowEquipped) {
-            tag.putBoolean("TemporaryBowEquipped", true);
-            if (!this.temporaryBowPreviousMainHand.isEmpty()) {
-                tag.store("TemporaryBowPreviousMainHand", ItemStack.CODEC, this.temporaryBowPreviousMainHand);
-            }
-        }
+        tag.discard("TemporaryBowEquipped");
+        tag.discard("TemporaryBowPreviousMainHand");
         if (this.ownedChestPos != null) {
             tag.putInt("OwnedChestX", this.ownedChestPos.getX());
             tag.putInt("OwnedChestY", this.ownedChestPos.getY());
@@ -1991,13 +1960,6 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.placeBlockParryCooldown = tag.getIntOr("BlockParryCooldown", 0);
         this.mainWeaponItem = tag.read("MainHandItem", ItemStack.CODEC).orElse(ItemStack.EMPTY);
         this.offWeaponItem = tag.read("OffHandItem", ItemStack.CODEC).orElse(ItemStack.EMPTY);
-        this.temporaryBowEquipped = tag.getBooleanOr("TemporaryBowEquipped", false);
-        if (this.temporaryBowEquipped && tag.keySet().contains("TemporaryBowPreviousMainHand")) {
-            this.temporaryBowPreviousMainHand = tag.read("TemporaryBowPreviousMainHand", ItemStack.CODEC)
-                    .orElse(ItemStack.EMPTY);
-        } else {
-            this.temporaryBowPreviousMainHand = ItemStack.EMPTY;
-        }
         if (tag.keySet().contains("OwnedChestX")
                 && tag.keySet().contains("OwnedChestY")
                 && tag.keySet().contains("OwnedChestZ")) {
@@ -2011,9 +1973,10 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         }
         PlayerNpcHomeUtil.readHome(this, tag);
         this.mainWeaponDisarmed = tag.getBooleanOr("MainWeaponDisarmed", false);
-        ToolAi.restoreAfterLoad(this, tag);
-        this.restoreMainHandAfterTemporaryBow();
-        this.repairLegacyRangedMainHandAfterLoad();
+        boolean recoveredMainHand = ToolAi.restoreAfterLoad(this, tag);
+        if (!recoveredMainHand && tag.getIntOr("MainHandSwapFormatVersion", 0) < 1) {
+            this.repairLegacyRangedMainHandAfterLoad();
+        }
         this.materializeCachedMainWeaponAfterLoad();
     }
 
@@ -2711,7 +2674,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
 
     public boolean isMainHandReservedForAi() {
         String state = this.getCurrentAiState();
-        return this.temporaryBowEquipped
+        return this.temporaryBowToolAi.ownsSwap()
                 || this.isHealing()
                 || this.goalSelector.getAvailableGoals().stream().filter(WrappedGoal::isRunning).anyMatch(wrapped -> {
                     Goal goal = wrapped.getGoal();

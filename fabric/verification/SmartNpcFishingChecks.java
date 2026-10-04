@@ -94,7 +94,9 @@ public final class SmartNpcFishingChecks {
             var goalsField = Mob.class.getDeclaredField("goalSelector");
             goalsField.setAccessible(true);
             GoalSelector goals = (GoalSelector) goalsField.get(npc);
-            goals.removeAllGoals(goal -> !RETAINED.contains(unwrap(goal).getClass().getSimpleName()));
+            // Native swimming is ordinary safety, needed if pickup/navigation enters the pond.
+            goals.removeAllGoals(goal -> !RETAINED.contains(unwrap(goal).getClass().getSimpleName())
+                    && !(goal instanceof net.minecraft.world.entity.ai.goal.FloatGoal));
             var targetsField = Mob.class.getDeclaredField("targetSelector");
             targetsField.setAccessible(true);
             ((GoalSelector) targetsField.get(npc)).removeAllGoals(goal -> true);
@@ -102,6 +104,9 @@ public final class SmartNpcFishingChecks {
                     wrapped.getGoal() instanceof StartupWorkGatedGoal
                         && unwrap(wrapped.getGoal()).getClass().getSimpleName().equals(retained)),
                     "fishing fixture retains registered native startup wrapper for " + retained);
+            check(goals.getAvailableGoals().stream().anyMatch(wrapped -> wrapped.getPriority() == 0
+                            && wrapped.getGoal() instanceof net.minecraft.world.entity.ai.goal.FloatGoal),
+                    "fishing fixture preserves the actor's registered priority-zero native swimming safety");
         } catch (ReflectiveOperationException exception) { throw new RuntimeException(exception); }
         check(!npc.hasInterest(PlayerNpcInterest.FISHING) && !npc.isDailyJobActive(PlayerNpcInterest.FISHING),
                 "food fishing requires no fishing interest or selected fishing job");
@@ -127,6 +132,8 @@ public final class SmartNpcFishingChecks {
             + " decision=" + SurvivalFishingGoal.decision(npc) + " cast=" + sawCast
             + " rodDamage=" + peakRodDamage + " ai=" + npc.getCurrentAiState()
             + " detail=" + npc.getCurrentAiDetail() + " cooking=" + SurvivalTasks.memory(npc).cookingStatus
+            + " health=" + npc.getHealth() + "/" + npc.getMaxHealth() + " air=" + npc.getAirSupply()
+            + " inWater=" + npc.isInWater() + " dark=" + level.isDarkOutside()
             + " pos=" + npc.blockPosition();
     }
     public static void tick(MinecraftServer server) {
