@@ -6,6 +6,10 @@ plugins {
 version = project.mod_version
 group = 'com.pla.smart_npc'
 base { archivesName = 'SmartNpc-Fabric' }
+// Maintenance builds use fresh staging without replacing a previous artifact.
+if (project.hasProperty('portBuildDirectory')) {
+    layout.buildDirectory = file(project.property('portBuildDirectory'))
+}
 
 repositories { mavenCentral() }
 dependencies {
@@ -50,4 +54,11 @@ tasks.named('processResources') {
 tasks.named('jar') {
     from('../LICENSE.md')
     from('../NOTICE.md')
+}
+
+// Normalize primary entries. Loom can still timestamp its nested-jar additions;
+// compare entry contents across builds and freeze the exact tested archive.
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
 }

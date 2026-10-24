@@ -92,7 +92,7 @@ public class BoatTrapMonsterGoal extends Goal {
         this.playerNpc.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
         this.playerNpc.setCurrentAiState("ai.player_npc.trapping_monster_boat");
         this.playerNpc.setCurrentAiDetail(this.target.getDisplayName().getString());
-        serverLevel.playSound(null, this.target.blockPosition(), SoundEvents.WOOD_PLACE, SoundSource.HOSTILE, 0.8F, 1.0F);
+        serverLevel.playSound(null, this.target.blockPosition(), SoundEvents.WOOD.placeSound().orElseThrow().value(), SoundSource.HOSTILE, 0.8F, 1.0F);
         this.playerNpc.setBoatTrapCooldown(COOLDOWN_TICKS + this.playerNpc.getRandom().nextInt(20 * 25));
         this.target = null;
         this.playerNpc.setCurrentAiState(PlayerNpcEntity.AI_IDLE);

@@ -126,17 +126,19 @@ public final class SmartNpcWoodChecks {
         return "ticks=" + ticks + " step=" + memory.cookingStep + " status=" + memory.cookingStatus
                 + " detail=" + npc.getCurrentAiDetail() + " ai=" + npc.getCurrentAiState()
                 + " pos=" + npc.blockPosition() + " requiredLogs=" + requiredLogs + " peakLogs=" + peakLogs
-                + " removedLogs=" + removedLogs() + " table=" + sawTable + " inventory=" + inventory;
+                + " liveLogGoal=" + memory.cookingLogGoal + " removedLogs=" + removedLogs() + " table=" + sawTable + " inventory=" + inventory;
     }
 
     public static void tick(MinecraftServer server) {
         if (npc == null || passed) return;
         ticks++;
         var memory = SurvivalTasks.memory(npc);
-        if (SurvivalTasks.cookingActive(npc) && memory.cookingStep.equals("NEED_WOOD")) {
+        // Pickup can satisfy sticks and advance the task between END_SERVER_TICK
+        // samples. The retained goal still records the revised real log requirement.
+        if (SurvivalTasks.cookingActive(npc) && SurvivalTasks.cookingLogTarget(npc) >= 2)
             requiredLogs = SurvivalTasks.cookingLogTarget(npc);
+        if (SurvivalTasks.cookingActive(npc) && memory.cookingStep.equals("NEED_WOOD"))
             committedWood = true;
-        }
         peakLogs = Math.max(peakLogs, PlayerNpcCraftingUtil.countLogs(npc.getInventory()));
         if (ticks % 10 == 0) {
             for (BlockPos pos : BlockPos.betweenClosed(base.offset(-8, 0, -8), base.offset(8, 2, 8))) {

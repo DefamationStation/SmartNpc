@@ -92,7 +92,7 @@ public class IronGolemTrollGoal extends Goal {
         this.playerNpc.setCurrentAiState("ai.player_npc.trolling_golem");
         this.playerNpc.setCurrentAiDetail(this.golem.getDisplayName().getString());
         this.playerNpc.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
-        serverLevel.playSound(null, this.pillarBase, SoundEvents.STONE_PLACE, SoundSource.BLOCKS, 0.9F, 1.0F);
+        serverLevel.playSound(null, this.pillarBase, SoundEvents.STONE.placeSound().orElseThrow().value(), SoundSource.BLOCKS, 0.9F, 1.0F);
         serverLevel.playSound(null, this.playerNpc.blockPosition(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.HOSTILE, 0.6F, 1.1F);
         this.playerNpc.setIronGolemTrollCooldown(20 * 60 * 10 + this.playerNpc.getRandom().nextInt(20 * 60 * 10));
         this.golem = null;

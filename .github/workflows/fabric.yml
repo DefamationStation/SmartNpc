@@ -21,5 +21,5 @@ jobs:
         run: bash fabric/gradlew -p fabric build --no-daemon
       - uses: actions/upload-artifact@v4
         with:
-          name: SmartNpc-Fabric-26.4-snapshot-2
+          name: SmartNpc-Fabric-26.4-snapshot-5
           path: fabric/build/libs/*.jar

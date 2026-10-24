@@ -3,7 +3,7 @@
   "id": "smart_npc",
   "version": "${version}",
   "name": "Smart NPC (Fabric snapshot port)",
-  "description": "Fabric port of Smart NPC for Minecraft 26.4 Snapshot 2.",
+  "description": "Fabric port of Smart NPC for Minecraft 26.4 Snapshot 5.",
   "authors": [
     "pla_is_me"
   ],
@@ -27,7 +27,7 @@
   },
   "depends": {
     "fabricloader": ">=0.19.5",
-    "minecraft": "26.4-alpha.2",
+    "minecraft": "26.4-alpha.5",
     "java": ">=25",
     "fabric-api": "*"
   },

@@ -139,7 +139,7 @@ public class FakePlayerRenderer<T extends FakePlayer>
                 state.swingAnimation = 0.0F;
             } else if (state.swingAnimation <= 0.0F && playerNpc.getMainHandAttackAnimationTicks() > 0) {
                 float duration = playerNpc.getMainHandAttackAnimationDuration();
-                state.swingAnimation = Mth.clamp(1.0F - ((float) playerNpc.getMainHandAttackAnimationTicks() - partialTick) / duration, 0.0F, 1.0F);
+                state.swingAnimation = Math.clamp(1.0F - ((float) playerNpc.getMainHandAttackAnimationTicks() - partialTick) / duration, 0.0F, 1.0F);
             }
         }
         extractCapeState(entity, state, partialTick);
@@ -152,9 +152,9 @@ public class FakePlayerRenderer<T extends FakePlayer>
         float bodyRot = Mth.rotLerp(partialTick, entity.yBodyRotO, entity.yBodyRot);
         double forwardX = Mth.sin(bodyRot * ((float) Math.PI / 180.0F));
         double forwardZ = -Mth.cos(bodyRot * ((float) Math.PI / 180.0F));
-        state.capeFlap = Mth.clamp((float) deltaY * 10.0F, -6.0F, 32.0F);
-        state.capeLean = Mth.clamp((float) (deltaX * forwardX + deltaZ * forwardZ) * 100.0F, 0.0F, 150.0F);
-        state.capeLean2 = Mth.clamp((float) (deltaX * forwardZ - deltaZ * forwardX) * 100.0F, -20.0F, 20.0F);
+        state.capeFlap = Math.clamp((float) deltaY * 10.0F, -6.0F, 32.0F);
+        state.capeLean = Math.clamp((float) (deltaX * forwardX + deltaZ * forwardZ) * 100.0F, 0.0F, 150.0F);
+        state.capeLean2 = Math.clamp((float) (deltaX * forwardZ - deltaZ * forwardX) * 100.0F, -20.0F, 20.0F);
         if (state.isCrouching) state.capeFlap += 25.0F;
     }
 

@@ -109,7 +109,7 @@ public class PlayerNpcFishingBobberEntity extends Projectile {
         if (castVector.lengthSqr() < 1.0E-4D) {
             castVector = angler.getViewVector(1.0F);
         }
-        double speed = Mth.clamp(horizontalDistance * 0.13D + angler.getRandom().nextDouble() * 0.12D, CAST_SPEED_MIN, CAST_SPEED_MAX);
+        double speed = Math.clamp(horizontalDistance * 0.13D + angler.getRandom().nextDouble() * 0.12D, CAST_SPEED_MIN, CAST_SPEED_MAX);
         Vec3 motion = castVector.normalize().scale(speed);
         this.setDeltaMovement(motion);
         this.setYRot((float) (Mth.atan2(motion.x, motion.z) * (180F / (float) Math.PI)));

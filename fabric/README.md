@@ -1,4 +1,6 @@
-# Fabric 26.4 Snapshot 2 port
+# Fabric 26.4 Snapshot 5 port
+
+Snapshot 5 changes and current validation: [port results](verification/SNAPSHOT5-RESULTS.md).
 
 Behaviour design: [player journey and automation reuse](PLAYER_JOURNEY.md),
 [development roadmap](DEVELOPMENT_ROADMAP.md).
@@ -13,14 +15,14 @@ Earlier prerequisite checks: [prerequisite verification](verification/PREREQUISI
 Earlier completed checks: [daily routine verification](verification/ROUTINE-RESULTS.md).
 
 Experimental, independently built Fabric port of Smart NPC 3.0.0. Tested in
-fresh worlds on Minecraft **26.4 Snapshot 2**, including an actual saved-world
+fresh worlds on Minecraft **26.4 Snapshot 5**, including an actual saved-world
 restart. See [validation results](verification/RESULTS.md) for the tested scope.
 
-This module targets launcher version `26.4-snapshot-2` (internal version
-`26.4-alpha.2`), Java 25 and Fabric Loader 0.19.5. The root project continues to
+This module targets launcher version `26.4-snapshot-5` (internal version
+`26.4-alpha.5`), Java 25 and Fabric Loader 0.19.5. The root project continues to
 target NeoForge 26.1.2 without changes to its source or build configuration.
 
-Requires Fabric API **0.161.2+26.4**. Install the jar from the fork's releases in
+Requires Fabric API **0.165.0+26.4**. Install the jar from the fork's releases in
 the `mods` directory on both client and server. The tested deployment is an
 integrated singleplayer server; dedicated-server deployment is not yet verified.
 This jar is not a NeoForge build and does not target other 26.4 snapshots.
@@ -30,7 +32,8 @@ The module shares the upstream Java/resources and provides explicit replacement
 files only for platform or snapshot API differences. `prepareSources` merges
 them in the build directory without modifying the upstream files.
 
-The jar is written to `fabric/build/libs/`. Configuration uses the original keys
+For a maintenance build use `-PportBuildDirectory=<fresh-private-directory>`
+to preserve previous artifacts. The default jar output is `fabric/build/libs/`. Configuration uses the original keys
 in `config/smart_npc-server.toml` and `config/smart_npc-names.toml`; restart the
 game after changing them. The inspector item is
 `smart_npc:player_npc_inspector`, and the NPC entity is `smart_npc:player_npc`.
@@ -66,7 +69,18 @@ Overlays should be reconciled when rebasing upstream changes; this layout
 prioritizes keeping the existing release untouched over a wider common-code
 refactor during the initial snapshot port.
 
-## Verification
+## Snapshot 5 verification
+
+`verification/run-snapshot5.ps1` uses the maintained full-stack test runner. Pass
+`-Workspace`, an exact built `-ModJar`, a fresh `-TestName` and `-Suite`
+(`Functional`, `Population`, `Inventory`, `RenderBuddy` or `Settings`). `-Replay` reopens only
+a completed functional fixture world with the same jar. Inspect completion and
+failure markers; the launcher returning alone is not a pass. Functional tests run
+at 60 ticks/second and restore 20 before saving; the population fixture runs three
+simulated days at up to 200 ticks/second. These are correctness tests, not FPS
+benchmarks. Prepared terrain/supplies are explicit test inputs.
+
+## Earlier verification
 
 `./gradlew build` runs config/event and resource-memory tests and validates the access widener.
 The Windows integration harness in `verification/run-smoke.ps1` creates its own
@@ -78,7 +92,7 @@ It never copies or opens the source instance's saves. Inspect `complete.txt`,
 `replay-complete.txt`, `failure.txt`, and the `SMARTNPC_PASS` log entries.
 
 Upstream: https://github.com/PlaIsMe/SmartNpc (26.1.2 branch).
-Port: https://github.com/DefamationStation/SmartNpc/tree/fabric-26.4-snapshot-2
+Port: https://github.com/DefamationStation/SmartNpc/tree/feature/personal-resource-memory
 
 The original author is pla_is_me. GPLv3 and the upstream third-party notices apply.
 

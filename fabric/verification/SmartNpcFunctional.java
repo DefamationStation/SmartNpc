@@ -21,7 +21,10 @@ public class SmartNpcFunctional implements ClientModInitializer {
  GatherCoalGoal coalGoal; PlayerNpcEntity coalNpc; int coalTicks; volatile boolean coalPassed;
  com.pla.smart_npc.fabric.NpcBowAttackGoal bowGoal; PlayerNpcEntity bowNpc; net.minecraft.world.entity.Mob bowTarget; int bowTicks; volatile boolean bowPassed;
  int stage,step;long start,readyAt;boolean foodChainStarted,cookingSearchStarted;volatile int target=-1;volatile Throwable failure;boolean replay=Boolean.getBoolean("smartnpcsmoke.replay");
- public void onInitializeClient(){ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+ public void onInitializeClient(){
+ com.pla.smart_npc.config.SmartNpcConfig.MAX_NATURAL_PLAYER_NPCS.set(0);
+ com.pla.smart_npc.config.SmartNpcConfig.PLAYER_NPC_SPAWN.set(java.util.List.of(0,1,1));
+ ClientTickEvents.END_CLIENT_TICK.register(this::tick);
  net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server->{try{
   SmartNpcCookingChecks.tick(server);
   SmartNpcWoodChecks.tick(server);
@@ -70,6 +73,7 @@ public class SmartNpcFunctional implements ClientModInitializer {
   if(replay && stage==0)stage=2;
   var s=mc.getSingleplayerServer();var file=mc.gameDirectory.toPath().resolve("npc-uuid.txt");
   if(stage==2){stage=3;start=System.nanoTime();server(mc,()->{try{
+   s.tickRateManager().setTickRate(60);
    var p=s.getPlayerList().getPlayers().getFirst();var level=p.level();PlayerNpcEntity npc;
    if(replay){npc=(PlayerNpcEntity)level.getEntity(UUID.fromString(Files.readString(file)));check(npc!=null,"saved NPC reloaded");check(PersistentData.get(npc).getStringOr("PortTest","").equals("retained"),"NPC attachment survived world restart");check(npc.getStoredExperience()==37,"NPC XP survived world restart");check(SurvivalTasks.memory(npc).active && SurvivalTasks.memory(npc).coal.size()==1,"pending resource task and observations survive world restart");boolean unexpired=level.getGameTime()-PersistentData.get(npc).getLongOr("PortAssaultAt",0)<1200;check(SocialSafety.hasCause(npc,p)==unexpired,"defensive evidence respects its expiry after world restart");}
    else {
@@ -152,6 +156,6 @@ public class SmartNpcFunctional implements ClientModInitializer {
   if(step==2 && elapsed>12){step++;check(SmartNpcInspectorOverlay.isInspectatorActive(),"spectator client active");server(mc,()->check(PlayerNpcInspectatorModePacket.isInspectatorActive(s.getPlayerList().getPlayers().getFirst()),"spectator server active"));net.minecraft.client.Screenshot.grab(mc,false);mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);}
   if(step==3 && elapsed>16){step++;net.minecraft.client.Screenshot.grab(mc,false);var method=SmartNpcInspectorOverlay.class.getDeclaredMethod("stopInspectator",Minecraft.class,boolean.class);method.setAccessible(true);method.invoke(null,mc,true);}
   if(step==4 && elapsed>20){step++;check(!SmartNpcInspectorOverlay.isInspectatorActive(),"spectator client restored");server(mc,()->check(!PlayerNpcInspectatorModePacket.isInspectatorActive(s.getPlayerList().getPlayers().getFirst()),"spectator server restored"));}
-  if(elapsed>750 || elapsed>25 && SmartNpcCookingChecks.passed && SmartNpcWoodChecks.passed && SmartNpcFishingChecks.passed && SmartNpcCookingSearchChecks.passed && SmartNpcFoodChainChecks.passed){check(bowPassed,"bow controller completed");check(coalPassed,"resource task controller completed");check(SmartNpcSurvivalChecks.networkTheftPassed,"chest click theft detection completed");check(SmartNpcSurvivalChecks.sleepPassed,"non-builder home sleep completed");check(SmartNpcCookingChecks.passed,"autonomous cooking prerequisites completed");check(SmartNpcWoodChecks.passed,"autonomous wood prerequisites completed");check(SmartNpcFishingChecks.passed,"autonomous fishing food acquisition completed");check(SmartNpcCookingSearchChecks.passed,"cooking search with closed job gates and enclosed stone fallback completed");check(SmartNpcFoodChainChecks.passed,"same NPC crafts rod catches and cooks fish");Files.writeString(mc.gameDirectory.toPath().resolve(replay?"replay-complete.txt":"complete.txt"),"All functional assertions passed");stage=4;mc.stop();}
+  if(elapsed>750 || elapsed>25 && SmartNpcCookingChecks.passed && SmartNpcWoodChecks.passed && SmartNpcFishingChecks.passed && SmartNpcCookingSearchChecks.passed && SmartNpcFoodChainChecks.passed){check(bowPassed,"bow controller completed");check(coalPassed,"resource task controller completed");check(SmartNpcSurvivalChecks.networkTheftPassed,"chest click theft detection completed");check(SmartNpcSurvivalChecks.sleepPassed,"non-builder home sleep completed");check(SmartNpcCookingChecks.passed,"autonomous cooking prerequisites completed");check(SmartNpcWoodChecks.passed,"autonomous wood prerequisites completed");check(SmartNpcFishingChecks.passed,"autonomous fishing food acquisition completed");check(SmartNpcCookingSearchChecks.passed,"cooking search with closed job gates and enclosed stone fallback completed");check(SmartNpcFoodChainChecks.passed,"same NPC crafts rod catches and cooks fish");Files.writeString(mc.gameDirectory.toPath().resolve(replay?"replay-complete.txt":"complete.txt"),"All functional assertions passed");s.tickRateManager().setTickRate(20);stage=4;mc.stop();}
  }catch(Throwable t){t.printStackTrace();try{Files.writeString(mc.gameDirectory.toPath().resolve("failure.txt"),t.toString());}catch(Exception ignored){}stage=4;mc.stop();}}
 }

@@ -67,7 +67,7 @@ public class BoatStockpileGoal extends Goal {
         if (PlayerNpcCraftingUtil.tryConsumePlanks(this.playerNpc.getInventory(), 5, this.playerNpc.getRawLogReserveTarget())) {
             InventoryUtils.addItem(this.playerNpc, new ItemStack(Items.OAK_BOAT));
             this.playerNpc.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
-            serverLevel.playSound(null, this.playerNpc.blockPosition(), SoundEvents.WOOD_PLACE, SoundSource.PLAYERS, 0.6F, 1.2F);
+            serverLevel.playSound(null, this.playerNpc.blockPosition(), SoundEvents.WOOD.placeSound().orElseThrow().value(), SoundSource.PLAYERS, 0.6F, 1.2F);
         }
         this.playerNpc.setBoatStockCooldown(COOLDOWN_TICKS + this.playerNpc.getRandom().nextInt(20 * 40));
         this.playerNpc.setCurrentAiState(PlayerNpcEntity.AI_IDLE);

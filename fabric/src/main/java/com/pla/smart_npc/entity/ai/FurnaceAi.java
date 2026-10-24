@@ -177,7 +177,7 @@ public final class FurnaceAi {
 
         furnace.setChanged();
         this.playerNpc.triggerMainHandUseAnimation();
-        serverLevel.playSound(null, furnacePos, SoundEvents.WOOD_PLACE, SoundSource.BLOCKS, 0.5F, 1.0F);
+        serverLevel.playSound(null, furnacePos, SoundEvents.WOOD.placeSound().orElseThrow().value(), SoundSource.BLOCKS, 0.5F, 1.0F);
         this.playerNpc.setCurrentAiDetail("loading furnace");
         return true;
     }

@@ -611,7 +611,7 @@ public class CraftBasicGearGoal extends Goal {
 
     private void playCraftStep(ServerLevel serverLevel, String detail) {
         this.playerNpc.setCurrentAiDetail(detail);
-        serverLevel.playSound(null, this.craftingTablePos == null ? this.playerNpc.blockPosition() : this.craftingTablePos, SoundEvents.WOOD_PLACE, SoundSource.PLAYERS, 0.6F, 1.2F);
+        serverLevel.playSound(null, this.craftingTablePos == null ? this.playerNpc.blockPosition() : this.craftingTablePos, SoundEvents.WOOD.placeSound().orElseThrow().value(), SoundSource.PLAYERS, 0.6F, 1.2F);
     }
 
     private void interactWithCraftingTableOnce() {

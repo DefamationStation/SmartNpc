@@ -487,7 +487,7 @@ public class CookFoodGoal extends Goal {
 
         if (movedAny) {
             furnace.setChanged();
-            serverLevel.playSound(null, this.furnacePos, SoundEvents.WOOD_PLACE, SoundSource.BLOCKS, 0.5F, 1.0F);
+            serverLevel.playSound(null, this.furnacePos, SoundEvents.WOOD.placeSound().orElseThrow().value(), SoundSource.BLOCKS, 0.5F, 1.0F);
             this.playerNpc.setCurrentAiDetail("loading furnace");
         }
         return movedAny;

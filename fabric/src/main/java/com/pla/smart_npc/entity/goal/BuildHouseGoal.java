@@ -1038,7 +1038,7 @@ public class BuildHouseGoal extends Goal {
 
         this.cachedCraftingNeeded = false;
         this.playerNpc.triggerMainHandUseAnimation();
-        this.playerNpc.level().playSound(null, tablePos, net.minecraft.sounds.SoundEvents.WOOD_PLACE, net.minecraft.sounds.SoundSource.BLOCKS, 0.45F, 1.0F);
+        this.playerNpc.level().playSound(null, tablePos, net.minecraft.sounds.SoundEvents.WOOD.placeSound().orElseThrow().value(), net.minecraft.sounds.SoundSource.BLOCKS, 0.45F, 1.0F);
         this.updateTaskDetail("crafted", block);
         return true;
     }

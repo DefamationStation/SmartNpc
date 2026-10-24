@@ -304,6 +304,9 @@ public final class SmartNpcCookingSearchChecks {
             throw new AssertionError("Synthetic jobless fixture personality was invalidated: " + diagnostic());
         ticks++;
         var memory = SurvivalTasks.memory(npc);
+        // A pickup may revise the retained target and advance phases in one tick.
+        if (phase == 0 && SurvivalTasks.cookingActive(npc) && SurvivalTasks.cookingLogTarget(npc) >= 2)
+            requiredLogs = SurvivalTasks.cookingLogTarget(npc);
         String shortage = phase == 0 ? "NEED_WOOD" : "NEED_STONE";
         if (SurvivalTasks.cookingActive(npc) && shortage.equals(memory.cookingStep)) {
             if (npc.isInterestGateActive(JOBS))

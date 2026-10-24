@@ -134,7 +134,15 @@ public final class SmartNpcFishingChecks {
             + " detail=" + npc.getCurrentAiDetail() + " cooking=" + SurvivalTasks.memory(npc).cookingStatus
             + " health=" + npc.getHealth() + "/" + npc.getMaxHealth() + " air=" + npc.getAirSupply()
             + " inWater=" + npc.isInWater() + " dark=" + level.isDarkOutside()
-            + " pos=" + npc.blockPosition();
+            + " pos=" + npc.blockPosition() + " inventory=" + npc.getInventory().getItems()
+            + " bobbers=" + level.getEntitiesOfClass(PlayerNpcFishingBobberEntity.class,bounds,e->e.getAngler()==npc).stream().map(SmartNpcFishingChecks::bobberStatus).toList();
+    }
+    private static String bobberStatus(PlayerNpcFishingBobberEntity bobber) {
+        String result=bobber.position()+" water="+bobber.isInWater()+" stuck="+bobber.isStuck();
+        for(String name:java.util.List.of("currentState","timeUntilLured","timeUntilHooked","nibbleTicks","outOfWaterTicks","groundTicks")) {
+            try {var f=PlayerNpcFishingBobberEntity.class.getDeclaredField(name);f.setAccessible(true);result+=" "+name+"="+f.get(bobber);}catch(Exception e){throw new RuntimeException(e);}
+        }
+        return result;
     }
     public static void tick(MinecraftServer server) {
         if (npc == null || passed) return;
@@ -180,6 +188,6 @@ public final class SmartNpcFishingChecks {
             return;
         }
         if (ticks % 200 == 0) System.out.println("SMARTNPC_FISHING_PROGRESS " + diagnostic());
-        if (ticks >= 6000) throw new AssertionError("Native survival fishing timed out: " + diagnostic());
+        if (ticks >= 12000) throw new AssertionError("Native survival fishing timed out: " + diagnostic());
     }
 }

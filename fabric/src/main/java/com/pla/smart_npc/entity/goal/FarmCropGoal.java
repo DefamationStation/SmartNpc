@@ -592,7 +592,7 @@ public final class FarmCropGoal extends Goal {
         if (crafted) {
             this.showActionItem(new ItemStack(Items.BONE_MEAL));
             this.placingBlockAi.playMainHandAction();
-            serverLevel.playSound(null, this.playerNpc.blockPosition(), SoundEvents.BONE_BLOCK_PLACE, SoundSource.PLAYERS, 0.35F, 1.3F);
+            serverLevel.playSound(null, this.playerNpc.blockPosition(), SoundEvents.BONE_BLOCK.placeSound().orElseThrow().value(), SoundSource.PLAYERS, 0.35F, 1.3F);
         }
         return crafted;
     }
