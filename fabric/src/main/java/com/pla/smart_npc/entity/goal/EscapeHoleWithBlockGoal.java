@@ -103,7 +103,7 @@ public class EscapeHoleWithBlockGoal extends Goal {
     private static final double PILLAR_BASE_REACHED_SQR = 1.2D * 1.2D;
     private static final int PILLAR_STUCK_MIN_TICKS = 20 * 5;
     private static final int PILLAR_STUCK_RECHECK_TICKS = 20 * 5;
-    private static final int FORCED_PILLAR_BASE_NO_PROGRESS_TICKS = 20;
+    private static final int FORCED_PILLAR_BASE_NO_PROGRESS_TICKS = 60;
     private static final int MAX_FORCED_PILLAR_BASE_RECOVERIES = 3;
     private static final int PILLAR_CLEAR_RETURN_NO_PROGRESS_TICKS = 20;
     private static final int PILLAR_CLEAR_RETURN_FAILED_PATH_WEIGHT = 4;
@@ -317,6 +317,14 @@ public class EscapeHoleWithBlockGoal extends Goal {
         if (combatTarget != null && combatTarget.isAlive()) {
             return this.prepareCombatUpwardEscape(serverLevel, feet, combatTarget);
         }
+        // A closed/furnished room at the owned home's living floor is not a passive
+        // mineshaft. Door/home routing owns it; explicit construction/team/combat
+        // recovery and genuinely lower pits retain their normal admission.
+        if (requestedTarget == null && !this.playerNpc.isTeamFollowUpwardEscapeRequested()) {
+            var home = PlayerNpcHomeUtil.getHome(this.playerNpc);
+            if (home.isPresent() && feet.getY() == home.get().origin().getY() + 1
+                    && PlayerNpcHomeUtil.isInsideBuildFootprint(this.playerNpc, feet)) return false;
+        }
         // Only borrow emergency access when normal work/team recovery cannot own it.
         // Cautious avoidance retains its threat proof; ordinary idle NPCs need a proven shaft.
         boolean cautiousRecovery = this.playerNpc.hasInterest(PlayerNpcInterest.CAUTIOUS)
@@ -472,7 +480,8 @@ public class EscapeHoleWithBlockGoal extends Goal {
         // cached confined-component proof for that explicit handoff: otherwise an adjacent cell
         // inside a 1x3 shaft is mistaken for a walkable surface side and the request is rejected.
         // Other existing forced requests retain the cheap surface/cliff guard without this scan.
-        boolean probeGenericShaft = requestedTarget != null && !this.playerNpc.isForcedUpwardEscape()
+        boolean probeGenericShaft = requestedTarget != null
+                && (!this.playerNpc.isForcedUpwardEscape() || this.isKnownHomeReturnPit(feet))
                 && this.passiveTrapProbeThrottle.canCheck(this.playerNpc);
         BlockPos openShaftTarget = requestedTarget == null || probeGenericShaft
                 || this.playerNpc.isCraftingUpwardEscapeRequested()
@@ -2412,27 +2421,23 @@ public class EscapeHoleWithBlockGoal extends Goal {
      * choose a different adjacent base instead of restarting the same failed route.
      */
     private boolean tryRecoverForcedPillarBase(ServerLevel serverLevel) {
-        if (!this.playerNpc.isForcedUpwardEscape()
-                || this.climbTargetPos == null
-                || this.pillarBasePos == null
-                || !this.playerNpc.onGround()) {
+        // This runs only inside an already admitted pillar episode. A live
+        // request flag or continuously restarted path is not evidence of progress.
+        // Keep all admission/protection rules; watch the actual actor/base instead.
+        if (this.pillarBasePos == null || !this.playerNpc.onGround()) {
             this.resetForcedPillarBaseWatch();
             return false;
         }
-        if (!this.playerNpc.getNavigation().isDone() && !this.playerNpc.getNavigation().isStuck()) {
-            this.resetForcedPillarBaseWatch();
-            return false;
-        }
-
         BlockPos feet = this.playerNpc.blockPosition();
-        if (!feet.equals(this.forcedPillarBaseWatchFeet)
-                || !this.pillarBasePos.equals(this.forcedPillarBaseWatchTarget)) {
+        if (!feet.equals(this.forcedPillarBaseWatchFeet)) {
+            this.forcedPillarBaseRecoveryAttempts = 0;
             this.forcedPillarBaseWatchFeet = feet.immutable();
             this.forcedPillarBaseWatchTarget = this.pillarBasePos.immutable();
             this.forcedPillarBaseWatchStartTick = this.playerNpc.tickCount;
             this.updatePillarRecoveryDetail("waiting for pillar base route");
             return true;
         }
+        this.forcedPillarBaseWatchTarget = this.pillarBasePos.immutable();
         if (this.playerNpc.tickCount - this.forcedPillarBaseWatchStartTick
                 < FORCED_PILLAR_BASE_NO_PROGRESS_TICKS) {
             this.updatePillarRecoveryDetail("waiting for pillar base route");
@@ -2453,18 +2458,24 @@ public class EscapeHoleWithBlockGoal extends Goal {
             return true;
         }
 
-        PillarPlan currentPlan = this.createPillarPlan(serverLevel, feet, this.climbTargetPos);
-        if (currentPlan != null && !this.exceedsRequestedRouteMax(currentPlan)) {
-            this.forcedPillarBaseRecoveryAttempts = 0;
-            this.applyRecoveredPillarPlan(currentPlan, "using current pillar base");
-            this.beginPillarStep(serverLevel);
-            return true;
-        }
+        // A viable plan or a different base is not actual actor progress. Bound
+        // repeated replans before trying the existing protected step-off fallback.
         if (this.forcedPillarBaseRecoveryAttempts >= MAX_FORCED_PILLAR_BASE_RECOVERIES) {
             return this.startForcedPillarBaseFallback(serverLevel);
         }
+        PillarPlan currentPlan = this.createPillarPlan(serverLevel, feet, this.climbTargetPos);
+        if (currentPlan != null && !this.exceedsRequestedRouteMax(currentPlan)) {
+            this.applyRecoveredPillarPlan(currentPlan, "using current pillar base");
+            this.forcedPillarBaseWatchFeet = feet.immutable();
+            this.forcedPillarBaseWatchTarget = this.pillarBasePos.immutable();
+            this.forcedPillarBaseWatchStartTick = this.playerNpc.tickCount;
+            this.beginPillarStep(serverLevel);
+            return true;
+        }
         if (this.tryMoveToAlternatePillarBase(serverLevel, feet, stalledBase, false)) {
-            this.resetForcedPillarBaseWatch();
+            this.forcedPillarBaseWatchFeet = feet.immutable();
+            this.forcedPillarBaseWatchTarget = this.pillarBasePos.immutable();
+            this.forcedPillarBaseWatchStartTick = this.playerNpc.tickCount;
             return true;
         }
 
@@ -2474,6 +2485,11 @@ public class EscapeHoleWithBlockGoal extends Goal {
     }
 
     private boolean startForcedPillarBaseFallback(ServerLevel serverLevel) {
+        if (this.climbTargetPos == null) {
+            this.finished = true;
+            this.playerNpc.setIdleTraceDetail("pillar base blocked: no safe local recovery; retry later", 100);
+            return true;
+        }
         boolean repositioning = this.protectedPillarPathStuckFallbackAi.start(
                 serverLevel,
                 this.climbTargetPos,
@@ -4825,6 +4841,8 @@ public class EscapeHoleWithBlockGoal extends Goal {
 
     @Nullable
     private BlockPos computeConfinedOpenShaftSurfaceTarget(ServerLevel serverLevel, BlockPos feet) {
+        boolean homeReturnPit = this.isKnownHomeReturnPit(feet);
+        int componentRadius = homeReturnPit ? 5 : OPEN_SHAFT_COMPONENT_RADIUS;
         boolean ownedSupport = this.playerNpc.isTemporaryPillarSupport(feet.below());
         if (!serverLevel.hasChunkAt(feet)
                 || !this.canStandAt(serverLevel, feet)
@@ -4858,21 +4876,21 @@ public class EscapeHoleWithBlockGoal extends Goal {
                 for (int dy : OPEN_SHAFT_STEP_OFFSETS) {
                     BlockPos candidate = adjacent.offset(0, dy, 0);
                     if (candidate.getY() < feet.getY() - 2
-                            || candidate.getY() > feet.getY() + OPEN_SHAFT_COMPONENT_RADIUS
+                            || candidate.getY() > feet.getY() + componentRadius
                             || !serverLevel.hasChunkAt(candidate)) {
                         return null;
                     }
                     if (!this.canStandAt(serverLevel, candidate)) {
                         continue;
                     }
-                    if (Math.abs(candidate.getX() - feet.getX()) >= OPEN_SHAFT_COMPONENT_RADIUS
-                            || Math.abs(candidate.getZ() - feet.getZ()) >= OPEN_SHAFT_COMPONENT_RADIUS) {
+                    if (Math.abs(candidate.getX() - feet.getX()) >= componentRadius
+                            || Math.abs(candidate.getZ() - feet.getZ()) >= componentRadius) {
                         // A real sequence of level/one-step stands leaves the local chamber.
                         return null;
                     }
                     BlockPos immutable = candidate.immutable();
                     if (chamber.add(immutable)) {
-                        if (chamber.size() > (ownedSupport || this.combatRecoveryEpisode
+                        if (chamber.size() > (ownedSupport || this.combatRecoveryEpisode || homeReturnPit
                                 ? MAX_LOCAL_TRAP_STANDS : MAX_OPEN_SHAFT_COMPONENT_STANDS)) {
                             return null;
                         }
@@ -4944,13 +4962,21 @@ public class EscapeHoleWithBlockGoal extends Goal {
         return bestTarget;
     }
 
+    private boolean isKnownHomeReturnPit(BlockPos feet) {
+        BlockPos requested = this.playerNpc.getUpwardEscapeTarget();
+        var home = PlayerNpcHomeUtil.getHome(this.playerNpc);
+        return home.isPresent() && feet.getY() < home.get().origin().getY()
+                && (requested != null && PlayerNpcHomeUtil.isInsideBuildFootprint(this.playerNpc, requested)
+                    || "ai.player_npc.returning_home".equals(this.playerNpc.getCurrentAiState()));
+    }
+
     private boolean hasNearbyShaftWalls(ServerLevel serverLevel, BlockPos feet) {
         // The middle edge of a 2x3 shaft (or center of a 3x3) need not touch two walls. Before allocating its tiny
         // component flood, require a nearby body-height wall in all four cardinal directions.
         // The full flood still proves no walking exit and validates every elevated rim side.
         for (Direction direction : Direction.Plane.HORIZONTAL) {
             boolean wall = false;
-            for (int distance = 1; distance <= OPEN_SHAFT_COMPONENT_RADIUS; distance++) {
+            for (int distance = 1; distance <= (this.isKnownHomeReturnPit(feet) ? 5 : OPEN_SHAFT_COMPONENT_RADIUS); distance++) {
                 BlockPos candidate = feet.relative(direction, distance);
                 if (!serverLevel.hasChunkAt(candidate)) {
                     return false;

@@ -172,6 +172,11 @@ public class CookFoodGoal extends Goal {
         if (GatherLogsGoal.isLogGatheringEpisodeActive(this.playerNpc)) {
             return true;
         }
+        // Cooking admission pauses unrelated stockpiles during a committed task.
+        // Yielding back to those same supplies here would deadlock until timeout.
+        if (com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingReady(this.playerNpc)) {
+            return false;
+        }
         return !serverLevel.isDarkOutside()
                 && !serverLevel.isThundering()
                 && (GatherLogsGoal.hasLogSupplyDemand(this.playerNpc, serverLevel)
@@ -729,7 +734,9 @@ public class CookFoodGoal extends Goal {
             return true;
         }
         this.movementRepathTicks = MOVEMENT_REPATH_TICKS;
-        Path path = PathNavigationAi.createBoundedPath(
+        Path path = this.homeArea != null && this.isInsideActiveBuildFootprint(this.furnacePos)
+                ? com.pla.smart_npc.fabric.survival.HomeWorkNavigation.createPath(this.playerNpc, this.furnaceStandPos)
+                : PathNavigationAi.createBoundedPath(
                 this.playerNpc,
                 this.furnaceStandPos,
                 FURNACE_PATH_NODE_MULTIPLIER

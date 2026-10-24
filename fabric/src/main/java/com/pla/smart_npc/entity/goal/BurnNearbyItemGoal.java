@@ -94,6 +94,7 @@ public class BurnNearbyItemGoal extends Goal implements GatheringGoal {
         if (mob.isPassenger()) return false;
         if (mob.getTarget() != null) return false;
         if (mob.isNoAi()) return false;
+        if (mob instanceof PlayerNpcEntity npc && burnTicks <= 0 && npc.shouldYieldRoutineForSurvival()) return false;
         if (mob instanceof PlayerNpcEntity playerNpcEntity && playerNpcEntity.isHealing()) {
             return false;
         }
@@ -108,6 +109,7 @@ public class BurnNearbyItemGoal extends Goal implements GatheringGoal {
         if (mob.isPassenger()) return false;
         if (mob.getTarget() != null) return false;
         if (mob.isNoAi()) return false;
+        if (mob instanceof PlayerNpcEntity npc && burnTicks <= 0 && npc.shouldYieldRoutineForSurvival()) return false;
 
         return targetItem != null
                 && (burnTicks > 0 || targetItem.isAlive())

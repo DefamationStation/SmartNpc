@@ -18,6 +18,21 @@ public final class SurvivalFishingGoal extends Goal {
     private long deadline;
     private long retryAfter;
     private long lastClock = Long.MIN_VALUE;
+    private long priorityClock = Long.MIN_VALUE, nextPriorityCheck;
+    private boolean cachedFoodOpportunity;
+
+    /** Bounded opportunity window, sampled once per second across all optional goals. */
+    public boolean shouldPrioritizeFood() {
+        long now = npc.level().getGameTime();
+        if (now < priorityClock) nextPriorityCheck = 0;
+        priorityClock = now;
+        if (now >= nextPriorityCheck) {
+            cachedFoodOpportunity = decision(npc) == FoodSupply.State.FISH;
+            nextPriorityCheck = now + 20;
+        }
+        return cachedFoodOpportunity && now >= retryAfter && (deadline == 0 || now < deadline);
+    }
+
 
     public SurvivalFishingGoal(PlayerNpcEntity npc) {
         this.npc = npc;
@@ -113,8 +128,9 @@ public final class SurvivalFishingGoal extends Goal {
             if (deadline == 0) deadline = now + EPISODE_TICKS;
             demandActive = true;
         }
-        runningForFood = demandActive;
-        return delegate.canUse();
+        boolean canStart = delegate.canUse();
+        runningForFood = demandActive && canStart;
+        return canStart;
     }
 
     @Override public boolean canContinueToUse() {

@@ -1,5 +1,7 @@
 # Fabric 26.4 Snapshot 5 port
 
+Ordinary daily resident routine and recovery: [daily results](verification/DAILY-RESULTS.md).
+
 Cooking stall and real restart regression: [cooking results](verification/COOKING-RECOVERY-RESULTS.md).
 
 Cabin completion fix and regression: [cabin results](verification/CABIN-RESULTS.md).
@@ -78,7 +80,8 @@ refactor during the initial snapshot port.
 `verification/run-snapshot5.ps1` uses the maintained full-stack test runner. Pass
 `-Workspace`, an exact built `-ModJar`, a fresh `-TestName` and `-Suite`
 (`Functional`, `Population`, `Cabin`, `Inventory`, `RenderBuddy`, `Settings`,
-`CookingRecovery`, `Food`, `FoodCheckpoint` or `FoodBurnCheckpoint`). `-Replay`
+`CookingRecovery`, `CookHome`, `Food`, `FoodCheckpoint`, `FoodBurnCheckpoint`,
+`Daily`, `DailyNight`, `DailyContinuous` or `SleepRecovery`). `-Replay`
 reopens a completed functional/cabin fixture or a saved food checkpoint with the
 same jar. Inspect completion and
 failure markers; the launcher returning alone is not a pass. Functional tests run
@@ -152,14 +155,15 @@ See [RESOURCE_TASKS.md](RESOURCE_TASKS.md) for commands and limitations,
 and [DEVELOPMENT_ROADMAP.md](DEVELOPMENT_ROADMAP.md) for the approved direction.
 The survival prototype also makes neutral encounters peaceful, records defensive
 causes, attributes actual chest withdrawals, gathers cooking fuel automatically,
-and restores legacy blueprint block states for 26.4. The main game remains disabled
-while the complete survival-day behaviour is developed and tested.
+and restores legacy blueprint block states for 26.4. The installed build preserves the player’s existing population and scheduling
+settings; wider survival milestones remain explicitly scoped below.
 Fresh and saved-world targeted food fixtures pass; see
 [food results](verification/FOOD-RESULTS.md) for those measurements and limits.
 Fresh and saved-world equipment runs also pass the same-actor rod → catch → cooked
 fish chain and temporary equipment conservation checks; see
-[equipment results](verification/EQUIPMENT-RESULTS.md). A complete
-autonomous survival day remains outstanding. The root
+[equipment results](verification/EQUIPMENT-RESULTS.md). The controlled resident daily routine and its evidence boundaries are described
+in [daily results](verification/DAILY-RESULTS.md); a complete wilderness start
+remains outstanding. The root
 NeoForge project remains unchanged.
 
 
@@ -175,3 +179,39 @@ world blocks, furnace contents and task data. No fresh supplies are injected.
 These targeted food fixtures retain the registered food goals, ordinary startup
 and shared work admission, plus native swimming safety; unrelated jobs are
 excluded. The full `Functional` fixture also runs prerequisite gathering checks.
+
+
+`Daily` and `DailyNight` keep the resident's complete registered goal and target
+selectors. They save during cooking or actual sleep and reopen the same actor
+with `-Replay`. The prepared home/trees/water/tools/surplus and chest coal/string
+are declared inputs. Natural clock advancement must produce supplies, gathered
+wood, cooked food, night deposits, sleep, dawn work and a safe food reserve.
+At dawn a declared environmental event removes one roof plank; only the NPC may
+repair it from its real materials. The observer never moves or supplies it.
+`DailyContinuous` exercises the same acceptance without a process interruption.
+`SleepRecovery` leaves every normal goal enabled, verifies bounded release of
+an unreachable bed approach, then opens the real enclosure entrance and requires
+native sleep. `CookHome` retains native door opening as well as cooking/safety;
+its furnace route must go through the actual cabin entrance. These checks use
+isolated full-stack worlds and a peaceful environment, not the player's saves.
+
+`HomeRepair` requires a funded one-plank repair without unrelated timber
+harvesting. `HomePit` requires the ordinary resident to escape an enclosed pit
+and reach its home bed. `Cabin` and its replay require the full starter cabin.
+
+`HomeStorage` verifies selection of an already in-range chest stand before
+navigation setup, followed by a real surplus deposit and sleep with every normal
+goal enabled. `StorageRecovery` reopens an obstructed chest stand and requires a
+real delayed retry. `HomeEntry` exercises the furnished cabin entrance.
+`HomeRepairChurn` changes an irrelevant paper item's name while the NPC repairs
+from its one initial plank, without harvesting extra timber. In-progress scans
+retain their cursor through inventory changes; actual placement validates and
+consumes current materials. A safe builder keeps its stand during the work delay.
+
+Optional projects and new stockpile trips yield to committed cooking or a bounded
+actionable food opportunity. Existing support/descent cleanup remains available.
+Furnished home floors use normal room routing rather than passive pillaring;
+genuine pits and explicit recovery requests retain bounded escape behaviour.
+Night storage allows one successful pass and at most three delayed approaches,
+with saved retry metadata. Every final required runtime case uses the exact
+reported artifact; earlier failures remain separate historical evidence.

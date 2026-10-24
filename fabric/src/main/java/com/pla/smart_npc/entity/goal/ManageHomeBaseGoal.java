@@ -136,6 +136,19 @@ public class ManageHomeBaseGoal extends Goal {
         return hasDepositCandidate(playerNpc, serverLevel, chest);
     }
 
+    /** One pending storage pass must precede discretionary home leisure/sleep. */
+    public static boolean hasPendingHomeNightlyDeposit(PlayerNpcEntity npc, ServerLevel level) {
+        if (npc == null || !level.isDarkOutside() || hasAttemptedDepositThisNight(npc, level)
+                || !inventoryMoreThanHalfFull(npc)) return false;
+        var home = PlayerNpcHomeUtil.getHome(npc);
+        if (home.isEmpty() || !PlayerNpcHomeUtil.isInside(home.get(), npc.blockPosition())) return false;
+        BlockPos chestPos = ChestAi.findOwnedSupplyChest(npc, level);
+        return chestPos != null && PlayerNpcHomeUtil.isInside(home.get(), chestPos)
+                && level.hasChunkAt(chestPos)
+                && level.getBlockEntity(chestPos) instanceof ChestBlockEntity chest
+                && hasDepositCandidate(npc, level, chest);
+    }
+
     @Override
     public boolean canUse() {
         if (!(this.playerNpc.level() instanceof ServerLevel serverLevel)
@@ -173,7 +186,8 @@ public class ManageHomeBaseGoal extends Goal {
         if (this.nightlyDepositOnly) {
             if (this.baseAnchor == null
                     || !this.nonBuilderBase && this.homeArea == null
-                    || !this.isNearHome()) {
+                    || !this.isNearHome()
+                    || !this.nonBuilderBase && !PlayerNpcHomeUtil.isInside(this.homeArea, this.playerNpc.blockPosition())) {
                 return false;
             }
             boolean deposit = this.shouldDepositToChest(serverLevel);
@@ -689,9 +703,8 @@ public class ManageHomeBaseGoal extends Goal {
         if (!this.shouldDepositToChest(serverLevel)) {
             return false;
         }
-        // One activation is the nightly storage pass. Mark it before path setup so an
-        // unreachable stand cannot make night camp and home management retry each other
-        // for the rest of the night.
+        // Bound failed approaches across both management instances and save/reload.
+        // One successful pass finishes the night; failure needs time and a changed stand.
         markDepositAttemptedThisNight(this.playerNpc, serverLevel);
         BlockPos chestPos = this.findHomeChest(serverLevel);
         if (chestPos == null || !(serverLevel.getBlockEntity(chestPos) instanceof ChestBlockEntity chest)) {
@@ -782,6 +795,7 @@ public class ManageHomeBaseGoal extends Goal {
         int moved = this.depositNextStack(chest);
         if (moved > 0) {
             this.depositMovedAny = true;
+            com.pla.smart_npc.fabric.PersistentData.get(this.playerNpc).putBoolean("SmartNpcHomeDepositSucceeded", true);
             this.depositDelayTicks = DEPOSIT_INTERVAL_TICKS;
             this.playerNpc.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
             serverLevel.playSound(null, this.depositChestPos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.4F, 1.0F);
@@ -1219,12 +1233,44 @@ public class ManageHomeBaseGoal extends Goal {
     }
 
     private static boolean hasAttemptedDepositThisNight(PlayerNpcEntity playerNpc, ServerLevel serverLevel) {
-        return com.pla.smart_npc.fabric.PersistentData.get(playerNpc).contains(LAST_HOME_CHEST_DEPOSIT_NIGHT)
-                && com.pla.smart_npc.fabric.PersistentData.get(playerNpc).getLongOr(LAST_HOME_CHEST_DEPOSIT_NIGHT, 0L) == currentNight(serverLevel);
+        var data = com.pla.smart_npc.fabric.PersistentData.get(playerNpc);
+        long night = currentNight(serverLevel);
+        if (!data.contains(LAST_HOME_CHEST_DEPOSIT_NIGHT)
+                || data.getLongOr(LAST_HOME_CHEST_DEPOSIT_NIGHT, 0L) != night) return false;
+        // Older saves retain their one completed/attempted pass. New failed approaches
+        // may retry only after a delay AND a changed stand/access, at most three times.
+        if (data.getLongOr("SmartNpcHomeDepositRetryNight", Long.MIN_VALUE) != night) return true;
+        return data.getBooleanOr("SmartNpcHomeDepositSucceeded", false)
+                || data.getIntOr("SmartNpcHomeDepositAttempts", 3) >= 3
+                || serverLevel.getGameTime() < data.getLongOr("SmartNpcHomeDepositRetryAt", Long.MAX_VALUE)
+                || playerNpc.blockPosition().distSqr(BlockPos.of(data.getLongOr(
+                        "SmartNpcHomeDepositAttemptFeet", playerNpc.blockPosition().asLong()))) < 1
+                    && homeChestAccessSignature(playerNpc, serverLevel) == data.getIntOr("SmartNpcHomeDepositAccess", 0);
+
     }
 
     private static void markDepositAttemptedThisNight(PlayerNpcEntity playerNpc, ServerLevel serverLevel) {
-        com.pla.smart_npc.fabric.PersistentData.get(playerNpc).putLong(LAST_HOME_CHEST_DEPOSIT_NIGHT, currentNight(serverLevel));
+        var data = com.pla.smart_npc.fabric.PersistentData.get(playerNpc);
+        long night = currentNight(serverLevel);
+        int attempts = data.getLongOr("SmartNpcHomeDepositRetryNight", Long.MIN_VALUE) == night
+                ? data.getIntOr("SmartNpcHomeDepositAttempts", 0) : 0;
+        data.putLong(LAST_HOME_CHEST_DEPOSIT_NIGHT, night);
+        data.putLong("SmartNpcHomeDepositRetryNight", night);
+        data.putInt("SmartNpcHomeDepositAttempts", attempts + 1);
+        data.putLong("SmartNpcHomeDepositRetryAt", serverLevel.getGameTime() + 200);
+        data.putLong("SmartNpcHomeDepositAttemptFeet", playerNpc.blockPosition().asLong());
+        data.putBoolean("SmartNpcHomeDepositSucceeded", false);
+        data.putInt("SmartNpcHomeDepositAccess", homeChestAccessSignature(playerNpc, serverLevel));
+    }
+
+    private static int homeChestAccessSignature(PlayerNpcEntity npc, ServerLevel level) {
+        BlockPos chest = ChestAi.findOwnedSupplyChest(npc, level);
+        if (chest == null) return 0;
+        int result = 0;
+        for (Direction direction : Direction.Plane.HORIZONTAL) {
+            if (ChestAi.canStandAt(level, chest.relative(direction))) result |= 1 << direction.ordinal();
+        }
+        return result;
     }
 
     private static long currentNight(ServerLevel serverLevel) {

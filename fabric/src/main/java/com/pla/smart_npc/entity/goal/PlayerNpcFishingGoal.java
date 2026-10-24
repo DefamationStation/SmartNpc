@@ -334,7 +334,8 @@ public class PlayerNpcFishingGoal extends Goal {
         return playerNpc != null
                 && (isFishingRod(playerNpc.getMainHandItem())
                 || isFishingRod(playerNpc.getOffhandItem())
-                || InventoryUtils.hasItem(playerNpc, PlayerNpcFishingGoal::isFishingRod));
+                || InventoryUtils.hasItem(playerNpc, PlayerNpcFishingGoal::isFishingRod)
+                || ToolAi.hasRetainedItem(playerNpc, Items.FISHING_ROD));
     }
 
     private boolean hasEquippedFishingRod() {

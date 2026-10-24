@@ -1,6 +1,16 @@
 # Smart NPC: believable survival and progression
 
-Status: approved direction, experimental resource-search milestone, 2026-10-04. Most milestones below remain planned. See `RESOURCE_TASKS.md` and `verification/SEARCH-RESULTS.md` for the implemented scope and verification limits. A complete survival day remains outstanding.
+Status: approved direction with experimental resource search and a controlled resident routine, updated 2026-10-24. Most milestones below remain planned. See `RESOURCE_TASKS.md`, `verification/SEARCH-RESULTS.md` and the resident report below for implemented scope and verification limits. Limited-start wilderness survival remains outstanding.
+
+## Snapshot 5 resident routine milestone — 24 October 2026
+
+The installed-lineage work now includes a full ordinary-selector resident-day
+fixture and explicit cooking/sleep save-and-reload checkpoints. See
+[the resident report](verification/DAILY-RESULTS.md) and the setup repository's
+installed validation for actual outcomes. The fixture starts with a usable home,
+prepared resources and declared supplies; this does not complete M1's separate
+limited-start wilderness scenarios, poor-resource terrain, hostile survival or
+multi-resident coordination. Preserve those remaining acceptance gates.
 
 ## Direction
 
@@ -22,7 +32,7 @@ The user observed a crowd of randomly spawned NPCs wandering without visible acc
 - **Purpose and visible progress:** a survivor should be pursuing a concrete need or commitment: food, tools, shelter, storage, repair, a trade or a prepared expedition. Record why, the next prerequisite, completion evidence and the last failure. Short rests and recreation are credible; decorative wandering while queued for work must not disguise stalled execution. Repeated route/material failures should change the approach or expose a blocked condition.
 - **Population and arrivals:** begin with a small configurable population. Existing config choices are preserved; fresh prototype configs now cap natural NPCs at four. Define where a newcomer came from, its initial survival priorities, home/work search and persistence. Expand population only after measuring successful useful activity and server cost, not just available spawn capacity.
 
-Acceptance before re-enabling the main game: observe a small population over several Minecraft days in a suitable fresh world. Peaceful players and neighbouring NPCs receive no unsolicited attacks or theft. Every NPC completes useful survival work, rests for a reason, or explains and recovers from a real blocker. Include poor-resource terrain, interrupted work, save/reload, owned/shared/unowned containers, damage/repair, and verified offender identity. The main instance remains disabled until the user chooses to enable a validated build.
+Acceptance before re-enabling the main game: observe a small population over several Minecraft days in a suitable fresh world. Peaceful players and neighbouring NPCs receive no unsolicited attacks or theft. Every NPC completes useful survival work, rests for a reason, or explains and recovers from a real blocker. Include poor-resource terrain, interrupted work, save/reload, owned/shared/unowned containers, damage/repair, and verified offender identity. This wider settlement acceptance remains separate from the installed, controlled resident milestone below.
 
 Implemented in this prototype: central defence evidence with expiry, removal of prank/raiding activation, peaceful cautious encounters, real chest-click theft attribution, first automatic cooking-fuel task, and attentive work pauses. The blueprint reader also had a concrete 26.4 compatibility defect: legacy `Name`/`Properties` keys silently decoded to air. Conversion now restores the bundled layouts; an original starter cabin is included. Constructed containers skip recorded inventories/loot tables to conserve earned resources. Broader survival-day behaviour and relationship responses remain milestones below.
 
@@ -246,8 +256,9 @@ hazards. Temporary refuge and basic equipped shelter have distinct statuses.
 The starter cabin now has crafting and lighting space, but assessing a fixture
 does not prove autonomous construction. See [resource task scope](RESOURCE_TASKS.md)
 for exact checks and limitations. Fresh and saved-world targeted fixtures pass;
-measurements and remaining gaps are recorded in [food results](verification/FOOD-RESULTS.md). Main-game
-installation stays disabled and the root NeoForge source/build remain unchanged.
+measurements and remaining gaps are recorded in [food results](verification/FOOD-RESULTS.md). That was a targeted prototype checkpoint; the installed resident milestone
+below supersedes its main-game installation status. The root NeoForge
+source/build remain unchanged.
 
 The equipment milestone adds rod crafting from carried string/wood and real table
 access, plus durable temporary tool transfers. Missing source acquisition remains

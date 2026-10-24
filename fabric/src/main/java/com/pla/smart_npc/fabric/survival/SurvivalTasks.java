@@ -61,6 +61,10 @@ public final class SurvivalTasks {
     public static boolean needsCookingPickaxe(PlayerNpcEntity npc) {
         return canPursueCooking(npc) && memory(npc).cookingStep.equals("NEED_PICKAXE");
     }
+    /** The committed prerequisite chain is ready to hand off to native furnace work. */
+    public static boolean cookingReady(PlayerNpcEntity npc) {
+        return canPursueCooking(npc) && memory(npc).cookingStep.equals("READY");
+    }
     public static int cookingLogTarget(PlayerNpcEntity npc) { return memory(npc).cookingLogGoal; }
     public static int cookingStoneTarget(PlayerNpcEntity npc) { return 8; }
 

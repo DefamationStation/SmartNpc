@@ -127,7 +127,7 @@ public class ReturnHomeGoal extends Goal {
         PlayerNpcHomeUtil.HomeArea homeArea = home.get();
         BlockPos feet = playerNpc.blockPosition();
         BlockPos homeCenter = homeArea.origin().offset(homeArea.width() / 2, 1, homeArea.depth() / 2);
-        if (homeCenter.getY() <= feet.getY() + 1 || isInsideHomeWorkArea(playerNpc, homeArea)) {
+        if (homeCenter.getY() <= feet.getY() || isInsideHomeWorkArea(playerNpc, homeArea)) {
             return false;
         }
         return "ai.player_npc.returning_home".equals(playerNpc.getCurrentAiState())
@@ -166,7 +166,7 @@ public class ReturnHomeGoal extends Goal {
         }
 
         this.homeArea = homeArea;
-        this.homeCenter = homeArea.origin().offset(homeArea.width() / 2, 1, homeArea.depth() / 2);
+        this.homeCenter = this.homeArrivalStand(serverLevel, homeArea);
         double distanceSqr = this.playerNpc.distanceToSqr(this.homeCenter.getX() + 0.5D, this.homeCenter.getY(), this.homeCenter.getZ() + 0.5D);
         boolean inventoryHalfFull = this.inventoryMoreThanHalfFull();
         boolean inventoryMostlyFull = this.inventoryMostlyFull();
@@ -646,6 +646,19 @@ public class ReturnHomeGoal extends Goal {
         BlockPos escapeTarget = this.findHomeSurfaceEscapeTarget(serverLevel, feet);
         int maxPillarBlocks = Math.max(1, escapeTarget.getY() - feet.getY() + HOME_SURFACE_ESCAPE_EXTRA_BLOCKS);
         this.playerNpc.requestForcedUpwardEscapeTo(escapeTarget, HOME_SURFACE_ESCAPE_TICKS, maxPillarBlocks);
+    }
+
+    private BlockPos homeArrivalStand(ServerLevel level, PlayerNpcHomeUtil.HomeArea home) {
+        BlockPos center = home.origin().offset(home.width() / 2, 1, home.depth() / 2);
+        // A geometric center occupied by furniture is not a valid arrival stand.
+        for (int radius = 0; radius <= 1; radius++) {
+            for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
+                BlockPos stand = center.offset(dx, 0, dz);
+                if (PlayerNpcHomeUtil.isInsideBuildFootprint(this.playerNpc, stand)
+                        && level.hasChunkAt(stand) && PathNavigationAi.canStandAt(level, stand)) return stand;
+            }
+        }
+        return center; // Incomplete sites keep their original behaviour until a floor exists.
     }
 
     private BlockPos findHomeSurfaceEscapeTarget(ServerLevel serverLevel, BlockPos feet) {

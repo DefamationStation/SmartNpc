@@ -387,6 +387,14 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     private BlockPos explorationClimbSafeStandTarget;
     private int explorationClimbStuckTicks = 0;
     private ToolAi.SwapState toolSwapState;
+    private com.pla.smart_npc.fabric.survival.SurvivalFishingGoal survivalFoodGoal;
+
+    /** Optional projects yield to bounded food work; emergency/supply executors keep their rules. */
+    public boolean shouldYieldRoutineForSurvival() {
+        return com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingActive(this)
+                || this.survivalFoodGoal != null && this.survivalFoodGoal.shouldPrioritizeFood();
+    }
+
 
     public ToolAi.SwapState getToolSwapState() {
         if (this.toolSwapState == null) this.toolSwapState = new ToolAi.SwapState();
@@ -2130,6 +2138,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
 
     protected void registerGoals() {
         this.workGoalRegistrationIndex = 0;
+        this.survivalFoodGoal = new com.pla.smart_npc.fabric.survival.SurvivalFishingGoal(this);
         GatherLogsGoal gatherLogsGoal = new GatherLogsGoal(this, 1.0D);
         GatherStoneGoal gatherStoneGoal = new GatherStoneGoal(this, 1.0D);
         GatherMissingBuildMaterialGoal gatherMissingBuildMaterialGoal = new GatherMissingBuildMaterialGoal(this, 1.0D);
@@ -2171,7 +2180,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.addWorkGoal(5, this.gated(new FarmCropGoal(this), PlayerNpcInterest.FARMING));
         this.addWorkGoal(5, this.gated(new CraftCropFoodGoal(this), PlayerNpcInterest.FARMING));
         this.addWorkGoal(3, new com.pla.smart_npc.fabric.survival.FishingRodCraftGoal(this));
-        this.addWorkGoal(5, new com.pla.smart_npc.fabric.survival.SurvivalFishingGoal(this));
+        this.addWorkGoal(5, this.survivalFoodGoal);
         // Characteristics are opportunistic personality behavior, not daily/routine worker jobs.
         // Keep the same priority and delegate flags, but do not make their availability depend on
         // a StartupWorkGatedGoal resource turn.

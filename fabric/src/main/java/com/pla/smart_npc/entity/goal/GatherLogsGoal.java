@@ -286,6 +286,11 @@ public class GatherLogsGoal extends Goal implements GatheringGoal {
                 || this.isStandingOnProtectedPillar())) {
             return true;
         }
+        // A new stockpile trip must not repeatedly close fishing's admission window.
+        // Paused support/descent recovery above still finishes before movement is borrowed.
+        if (!SurvivalTasks.cookingActive(this.playerNpc) && this.playerNpc.shouldYieldRoutineForSurvival()) {
+            return false;
+        }
         if (!this.canUseThrottle.canCheck(this.playerNpc)) {
             return false;
         }

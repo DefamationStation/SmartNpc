@@ -308,6 +308,8 @@ public final class PlayerNpcBuildMaterialUtil {
     }
 
     public static boolean matches(BlockState existingState, BlockState targetState) {
+        existingState = structuralState(existingState);
+        targetState = structuralState(targetState);
         if (existingState.equals(targetState)) {
             return true;
         }
@@ -322,6 +324,27 @@ public final class PlayerNpcBuildMaterialUtil {
         return family != null
                 && family == familyForState(existingState)
                 && sharedPropertiesMatch(targetState, existingState);
+    }
+
+    private static BlockState structuralState(BlockState state) {
+        // Operating a completed home must not manufacture new construction work.
+        // Keep orientation, door/bed halves, shapes and material-family checks.
+        if (state.getBlock() instanceof net.minecraft.world.level.block.AbstractFurnaceBlock
+                && state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT)) {
+            state = state.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT, false);
+        }
+        if (state.getBlock() instanceof BedBlock
+                && state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.OCCUPIED)) {
+            state = state.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.OCCUPIED, false);
+        }
+        if (state.getBlock() instanceof DoorBlock || state.getBlock() instanceof TrapDoorBlock
+                || state.getBlock() instanceof FenceGateBlock) {
+            if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN))
+                state = state.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN, false);
+            if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.POWERED))
+                state = state.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.POWERED, false);
+        }
+        return state;
     }
 
     public static boolean isBlueprintPlaceholder(BlockState state) {
@@ -538,7 +561,7 @@ public final class PlayerNpcBuildMaterialUtil {
                 home.get().width(),
                 home.get().depth(),
                 currentLayoutId,
-                inventoryHash,
+                search.inventoryHash(),
                 selectedNeed
         ));
         return selectedNeed;
@@ -1581,7 +1604,8 @@ public final class PlayerNpcBuildMaterialUtil {
             int age = currentTick - this.tick;
             return age >= 0
                     && age <= MISSING_NEED_CACHE_TICKS
-                    && this.sameContext(homeArea, currentLayoutId, currentInventoryHash);
+                    && this.sameBuildContext(homeArea, currentLayoutId)
+                    && (age == 0 || this.inventoryHash == currentInventoryHash);
         }
 
         private boolean sameContext(PlayerNpcHomeUtil.HomeArea homeArea, String currentLayoutId, int currentInventoryHash) {
@@ -1630,6 +1654,8 @@ public final class PlayerNpcBuildMaterialUtil {
             );
         }
 
+        // Inventory churn must not restart this eight-block cursor. The ledger is a
+        // snapshot, completed cache records its hash, and real actions revalidate stock.
         private boolean matches(
                 Identifier currentDimension,
                 PlayerNpcHomeUtil.HomeArea homeArea,
@@ -1640,8 +1666,7 @@ public final class PlayerNpcBuildMaterialUtil {
                     && this.homeOrigin.equals(homeArea.origin())
                     && this.homeWidth == homeArea.width()
                     && this.homeDepth == homeArea.depth()
-                    && this.layoutId.equals(currentLayoutId)
-                    && this.inventoryHash == currentInventoryHash;
+                    && this.layoutId.equals(currentLayoutId);
         }
 
         private MissingNeedSearch withNextBlockIndex(int nextBlockIndex, int lastSliceTick) {

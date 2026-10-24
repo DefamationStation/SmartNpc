@@ -252,7 +252,8 @@ public class TerraformBuildSiteGoal extends Goal {
                 || hasActiveVerticalEscape(this.playerNpc)
                 || GatherLogsGoal.isLogGatheringEpisodeActive(this.playerNpc)
                 || GatherStoneGoal.isStoneGatheringEpisodeActive(this.playerNpc)
-                || this.playerNpc.getTarget() != null) {
+                || this.playerNpc.getTarget() != null
+                || this.playerNpc.shouldYieldRoutineForSurvival()) {
             return false;
         }
         if (findBuildContext(this.playerNpc).isEmpty()) {
@@ -347,7 +348,8 @@ public class TerraformBuildSiteGoal extends Goal {
                 && !hasActiveVerticalEscape(this.playerNpc)
                 && !GatherLogsGoal.isLogGatheringEpisodeActive(this.playerNpc)
                 && !GatherStoneGoal.isStoneGatheringEpisodeActive(this.playerNpc)
-                && this.playerNpc.getTarget() == null;
+                && this.playerNpc.getTarget() == null
+                && !this.playerNpc.shouldYieldRoutineForSurvival();
     }
 
     private boolean shouldYieldToGearCrafting() {

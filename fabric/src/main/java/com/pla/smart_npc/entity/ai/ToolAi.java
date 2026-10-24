@@ -169,6 +169,12 @@ public final class ToolAi {
                 && SmartNpcItemUtil.matches(toolClass, state.previousMainHand.getItem());
     }
 
+    /** Read-only admission proof; equipItem already restores this same retained stack. */
+    public static boolean hasRetainedItem(PlayerNpcEntity npc, ItemLike item) {
+        SwapState state = npc.getToolSwapState();
+        return state.swappedMainHand && state.previousMainHand.is(item.asItem());
+    }
+
     public boolean hasTool(Object toolClass) {
         return this.playerNpc.hasCarriedTool(toolClass);
     }

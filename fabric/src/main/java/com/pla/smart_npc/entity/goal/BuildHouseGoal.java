@@ -167,7 +167,7 @@ public class BuildHouseGoal extends Goal {
                 || !playerNpc.isDailyJobActive(PlayerNpcInterest.BUILDING)
                 || !isConstructionWindow(playerNpc, serverLevel)
                 || playerNpc.getBuildHouseCooldown() > 0
-                || !playerNpc.hasMetBuildSupplyGoals() && !isBuildBatchActive(playerNpc)) {
+                || !hasFundedHomeWork(playerNpc, serverLevel)) {
             return false;
         }
 
@@ -185,7 +185,7 @@ public class BuildHouseGoal extends Goal {
                 || !playerNpc.hasInterest(PlayerNpcInterest.BUILDING)
                 || !playerNpc.isDailyJobActive(PlayerNpcInterest.BUILDING)
                 || !isConstructionWindow(playerNpc, serverLevel)
-                || !playerNpc.hasMetBuildSupplyGoals() && !isBuildBatchActive(playerNpc)) {
+                || !hasFundedHomeWork(playerNpc, serverLevel)) {
             return false;
         }
 
@@ -213,7 +213,7 @@ public class BuildHouseGoal extends Goal {
                 || !playerNpc.isDailyJobActive(PlayerNpcInterest.BUILDING)
                 || !isConstructionWindow(playerNpc, serverLevel)
                 || playerNpc.getBuildHouseCooldown() > 0
-                || !playerNpc.hasMetBuildSupplyGoals() && !isBuildBatchActive(playerNpc)) {
+                || !hasFundedHomeWork(playerNpc, serverLevel)) {
             return false;
         }
 
@@ -475,7 +475,8 @@ public class BuildHouseGoal extends Goal {
                 || this.playerNpc.getUpwardEscapeTarget() != null
                 || this.playerNpc.getHoleEscapeCooldown() > 0
                 || ReturnHomeGoal.needsHomeSurfaceRecovery(this.playerNpc, serverLevel)
-                || this.playerNpc.getTarget() != null) {
+                || this.playerNpc.getTarget() != null
+                || this.playerNpc.shouldYieldRoutineForSurvival()) {
             return false;
         }
         if (!this.canUseThrottle.canCheck(this.playerNpc)) {
@@ -545,8 +546,7 @@ public class BuildHouseGoal extends Goal {
                 || !cachedContinuableHomeBuildWork(this.playerNpc, serverLevel)) {
             return false;
         }
-        if (!isBuildBatchActive(this.playerNpc)
-                && !this.playerNpc.hasMetBuildSupplyGoals()) {
+        if (!hasFundedHomeWork(this.playerNpc, serverLevel)) {
             return false;
         }
 
@@ -568,7 +568,8 @@ public class BuildHouseGoal extends Goal {
                 && this.playerNpc.getHoleEscapeCooldown() <= 0
                 && !this.needsHomeSurfaceRecovery()
                 && this.playerNpc.getTarget() == null
-                && this.isConstructionWindow();
+                && this.isConstructionWindow()
+                && !this.playerNpc.shouldYieldRoutineForSurvival();
     }
 
     @Override
@@ -922,7 +923,17 @@ public class BuildHouseGoal extends Goal {
     }
 
     private static boolean isConstructionWindow(PlayerNpcEntity playerNpc, ServerLevel serverLevel) {
-        return shouldBuildDuringShelter(serverLevel) || playerNpc.hasMetBuildSupplyGoals();
+        return shouldBuildDuringShelter(serverLevel) || hasFundedHomeWork(playerNpc, serverLevel);
+    }
+
+    private static boolean hasFundedHomeWork(PlayerNpcEntity npc, ServerLevel level) {
+        if (npc.hasMetBuildSupplyGoals() || isBuildBatchActive(npc)) return true;
+        if (PlayerNpcHomeUtil.getHome(npc).isEmpty()) return false;
+        // An existing home's funded repair must not wait for unrelated stockpiles.
+        // Both existing searches remain cursor-sliced and resource admitted.
+        if (PlayerNpcBuildMaterialUtil.findMissingBuildMaterialNeed(level, npc).isPresent()
+                || PlayerNpcBuildMaterialUtil.isMissingBuildMaterialSearchPending(npc)) return false;
+        return cachedContinuableHomeBuildWork(npc, level);
     }
 
     private boolean isConstructionWindow() {
@@ -1923,6 +1934,9 @@ public class BuildHouseGoal extends Goal {
     }
 
     private void tickBuildMotion(ServerLevel serverLevel, BlockPos pos, BlockState state) {
+        // Keep a valid placement stand while the player-like work delay elapses.
+        // Decorative stepping/jumping can evict a repairer through its own roof gap.
+        if (this.canPlaceFromCurrentPosition(pos) && !this.hasSelfPlacementCollision(serverLevel, pos, state)) return;
         if (this.playerNpc.tickCount < this.nextBuildMotionTick) {
             return;
         }
@@ -2339,7 +2353,8 @@ public class BuildHouseGoal extends Goal {
             int age = currentTick - this.tick;
             return age >= 0
                     && age <= READY_BUILD_WORK_CACHE_TICKS
-                    && this.sameContext(currentDimension, homeArea, currentLayoutId, currentInventoryHash);
+                    && this.sameContext(currentDimension, homeArea, currentLayoutId, currentInventoryHash)
+                    && (age == 0 || this.inventoryHash == currentInventoryHash);
         }
 
         boolean sameContext(
@@ -2352,8 +2367,7 @@ public class BuildHouseGoal extends Goal {
                     && this.origin.equals(homeArea.origin())
                     && this.width == homeArea.width()
                     && this.depth == homeArea.depth()
-                    && this.layoutId.equals(currentLayoutId)
-                    && this.inventoryHash == currentInventoryHash;
+                    && this.layoutId.equals(currentLayoutId);
         }
     }
 
@@ -2389,6 +2403,8 @@ public class BuildHouseGoal extends Goal {
             );
         }
 
+        // Keep the cursor across live inventory/held-tool changes. Readiness is advisory;
+        // placement still resolves and consumes actual current materials.
         private boolean matches(
                 Identifier currentDimension,
                 PlayerNpcHomeUtil.HomeArea homeArea,
@@ -2399,8 +2415,7 @@ public class BuildHouseGoal extends Goal {
                     && this.origin.equals(homeArea.origin())
                     && this.width == homeArea.width()
                     && this.depth == homeArea.depth()
-                    && this.layoutId.equals(currentLayoutId)
-                    && this.inventoryHash == currentInventoryHash;
+                    && this.layoutId.equals(currentLayoutId);
         }
 
         private HomeBuildWorkSearch advance(

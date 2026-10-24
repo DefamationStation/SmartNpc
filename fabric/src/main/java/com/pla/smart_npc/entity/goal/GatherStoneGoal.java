@@ -311,6 +311,9 @@ public class GatherStoneGoal extends Goal implements GatheringGoal {
                 || (!continuingStoneAccess && this.playerNpc.getGatherCooldown() > 0)) {
             return false;
         }
+        if (!continuingStoneAccess
+                && !com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingActive(this.playerNpc)
+                && this.playerNpc.shouldYieldRoutineForSurvival()) return false;
         if (!this.canUseThrottle.canCheck(this.playerNpc)) {
             return false;
         }
