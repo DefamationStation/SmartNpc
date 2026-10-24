@@ -52,7 +52,10 @@ public class CookFoodGoal extends Goal {
     private static final int MAX_RECOVER_FURNACE_TICKS = 20 * 10;
     private static final int MAX_COOK_TICKS = 20 * 30;
     private static final int MOVEMENT_REPATH_TICKS = 20;
-    private static final float FURNACE_PATH_NODE_MULTIPLIER = 0.01F;
+    // The 1% budget can stop before acknowledging even a two-node down-step
+    // from a crafting-table edge. Keep a small bounded search, but allow the
+    // native pathfinder to finish that route rather than retrying it forever.
+    private static final float FURNACE_PATH_NODE_MULTIPLIER = 0.05F;
 
     private final PlayerNpcEntity playerNpc;
     private final ToolAi toolAi;

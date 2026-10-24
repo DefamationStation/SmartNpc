@@ -1,5 +1,7 @@
 # Fabric 26.4 Snapshot 5 port
 
+Cooking stall and real restart regression: [cooking results](verification/COOKING-RECOVERY-RESULTS.md).
+
 Cabin completion fix and regression: [cabin results](verification/CABIN-RESULTS.md).
 
 Snapshot 5 changes and current validation: [port results](verification/SNAPSHOT5-RESULTS.md).
@@ -75,8 +77,10 @@ refactor during the initial snapshot port.
 
 `verification/run-snapshot5.ps1` uses the maintained full-stack test runner. Pass
 `-Workspace`, an exact built `-ModJar`, a fresh `-TestName` and `-Suite`
-(`Functional`, `Population`, `Cabin`, `Inventory`, `RenderBuddy` or `Settings`). `-Replay` reopens only
-a completed functional or cabin fixture world with the same jar. Inspect completion and
+(`Functional`, `Population`, `Cabin`, `Inventory`, `RenderBuddy`, `Settings`,
+`CookingRecovery`, `Food`, `FoodCheckpoint` or `FoodBurnCheckpoint`). `-Replay`
+reopens a completed functional/cabin fixture or a saved food checkpoint with the
+same jar. Inspect completion and
 failure markers; the launcher returning alone is not a pass. Functional tests run
 at 60 ticks/second and restore 20 before saving; the population fixture runs three
 simulated days at up to 200 ticks/second. These are correctness tests, not FPS
@@ -157,3 +161,17 @@ fish chain and temporary equipment conservation checks; see
 [equipment results](verification/EQUIPMENT-RESULTS.md). A complete
 autonomous survival day remains outstanding. The root
 NeoForge project remains unchanged.
+
+
+`CookingRecovery` exercises the exact crafting-table edge/pond-bank route that
+stalled furnace placement. `Food` observes one actor craft/place a table, craft
+a rod, catch actual native fish, pick them up and cook/collect them, with recipe,
+rod wear, loot and fuel conservation assertions. `FoodCheckpoint` saves that
+same actor after pickup with its cooking task pending; `FoodBurnCheckpoint`
+saves while its furnace is burning. Reopen each using `-Replay` and require
+`replay-complete.txt` with no `failure.txt`. Only the test observation ledger is
+restored by the fixture: Minecraft saves/loads the original actor, inventory,
+world blocks, furnace contents and task data. No fresh supplies are injected.
+These targeted food fixtures retain the registered food goals, ordinary startup
+and shared work admission, plus native swimming safety; unrelated jobs are
+excluded. The full `Functional` fixture also runs prerequisite gathering checks.

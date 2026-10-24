@@ -2,7 +2,7 @@ param(
  [Parameter(Mandatory)][string]$Workspace,
  [Parameter(Mandatory)][string]$ModJar,
  [Parameter(Mandatory)][ValidatePattern('^[a-zA-Z0-9_.-]+$')][string]$TestName,
- [ValidateSet('Functional','Population','RenderBuddy','Settings','Inventory','Cabin')][string]$Suite='Functional',
+ [ValidateSet('Functional','Population','RenderBuddy','Settings','Inventory','Cabin','CookingRecovery','Food','FoodCheckpoint','FoodBurnCheckpoint')][string]$Suite='Functional',
  [switch]$Replay
 )
 # Use the maintained installation's isolated-world runner; never copy its saves.
@@ -13,13 +13,13 @@ $jar=(Resolve-Path -LiteralPath $ModJar).Path
 $out=Join-Path $workspacePath ('.verification/'+$TestName)
 if($Replay){
  if((Test-Path (Join-Path $out 'test.pid')) -and (Get-Process -Id ([int](Get-Content (Join-Path $out 'test.pid'))) -ErrorAction SilentlyContinue)){throw 'Previous fixture is still running'}
- if($Suite -notin @('Functional','Cabin')){throw 'This fixture does not support saved-world replay'}
+ if($Suite -notin @('Functional','Cabin','FoodCheckpoint','FoodBurnCheckpoint')){throw 'This fixture does not support saved-world replay'}
  if(!(Test-Path -LiteralPath (Join-Path $out 'complete.txt'))){throw 'Initial functional pass required'}
  $installedJar=Join-Path $out ('mods/'+(Split-Path $jar -Leaf))
  if((Get-FileHash -LiteralPath $installedJar).Hash -ne (Get-FileHash -LiteralPath $jar).Hash){throw 'Replay must use the same tested jar'}
  if(Test-Path -LiteralPath (Join-Path $out 'replay.args')){throw 'Use a fresh initial test for each replay'}
- $property=if($Suite -eq 'Cabin'){'"-Dsmartnpc.population.cabinReplay=true"'}else{'"-Dsmartnpcsmoke.replay=true"'}
- $world=if($Suite -eq 'Cabin'){'"SmartNpcPopulation"'}else{'"SmartNpcFunctional"'}
+ $property=if($Suite -eq 'Cabin'){'"-Dsmartnpc.population.cabinReplay=true"'}elseif($Suite -in @('FoodCheckpoint','FoodBurnCheckpoint')){'"-Dsmartnpc.food.replay=true"'}else{'"-Dsmartnpcsmoke.replay=true"'}
+ $world=if($Suite -eq 'Cabin'){'"SmartNpcPopulation"'}elseif($Suite -in @('FoodCheckpoint','FoodBurnCheckpoint')){'"SmartNpcFood"'}else{'"SmartNpcFunctional"'}
  if($Suite -eq 'Cabin' -and !(Test-Path (Join-Path $out 'cabin-complete.txt'))){throw 'A completed cabin is required before replay'}
  $arguments=@($property)+@(Get-Content -LiteralPath (Join-Path $out 'launch.args'))+@('"--quickPlaySingleplayer"',$world)
  [IO.File]::WriteAllLines((Join-Path $out 'replay.args'),$arguments)
@@ -31,6 +31,10 @@ if($Replay){
 $extra=@()
 switch($Suite){
  'Functional' {$class='SmartNpcFunctional';$source=Join-Path $PSScriptRoot ($class+'.java');$extra=@(Get-ChildItem $PSScriptRoot 'SmartNpc*.java' | Where-Object Name -ne ($class+'.java') | ForEach-Object FullName)}
+ 'FoodBurnCheckpoint' {$class='SmartNpcFoodBurnCheckpoint';$source=Join-Path $PSScriptRoot ($class+'.java');$extra=@((Join-Path $PSScriptRoot 'SmartNpcFoodSmoke.java'),(Join-Path $PSScriptRoot 'SmartNpcFoodChainChecks.java'))}
+ 'FoodCheckpoint' {$class='SmartNpcFoodCheckpoint';$source=Join-Path $PSScriptRoot ($class+'.java');$extra=@((Join-Path $PSScriptRoot 'SmartNpcFoodSmoke.java'),(Join-Path $PSScriptRoot 'SmartNpcFoodChainChecks.java'))}
+ 'Food' {$class='SmartNpcFoodSmoke';$source=Join-Path $PSScriptRoot ($class+'.java');$extra=@((Join-Path $PSScriptRoot 'SmartNpcFoodChainChecks.java'))}
+ 'CookingRecovery' {$class='SmartNpcCookingRecovery';$source=Join-Path $PSScriptRoot ($class+'.java')}
  'Cabin' {$class='SmartNpcCabinSmoke';$source=Join-Path $PSScriptRoot ($class+'.java');$extra=@((Join-Path $PSScriptRoot 'SmartNpcPopulation.java'))}
  'Inventory' {$class='SmartNpcInventorySmoke';$source=Join-Path $PSScriptRoot ($class+'.java');$extra=@((Join-Path $PSScriptRoot 'SmartNpcPopulation.java'))}
  'Population' {$class='SmartNpcPopulation';$source=Join-Path $PSScriptRoot ($class+'.java')}

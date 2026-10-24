@@ -84,6 +84,9 @@ public class SmartNpcFunctional implements ClientModInitializer {
     SurvivalTasks.memory(npc).observe(SurvivalTasks.dimension(npc),npc.blockPosition().asLong(),level.getGameTime());SurvivalTasks.request(npc,10);
     check(npc.hurtServer(level,level.damageSources().playerAttack(p),1),"saved defensive evidence comes from actual player damage");
     PersistentData.get(npc).putLong("PortAssaultAt",level.getGameTime());
+    // This stationary serialization witness is not a survival actor. Other
+    // independently running offence/combat probes must not kill it before restart.
+    npc.setPermanentlyInvulnerable(true);
     var output=TagValueOutput.createWithContext(ProblemReporter.DISCARDING,level.registryAccess());npc.saveWithoutId(output);
     var clone=SmartNpcModEntities.PLAYER_NPC.get().create(level,EntitySpawnReason.LOAD);
     clone.load(TagValueInput.create(ProblemReporter.DISCARDING,level.registryAccess(),output.buildResult()));

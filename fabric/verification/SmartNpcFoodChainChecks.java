@@ -57,7 +57,7 @@ public final class SmartNpcFoodChainChecks {
     public static volatile boolean passed;
     private SmartNpcFoodChainChecks() { }
 
-    private static void check(boolean value, String message) { SmartNpcFunctional.check(value, message); }
+    private static void check(boolean value, String message) { if (!value) throw new AssertionError(message); System.out.println("SMARTNPC_PASS " + message); }
     private static Goal unwrap(Goal goal) {
         while (true) {
             if (goal instanceof StartupWorkGatedGoal startup) goal = startup.getDelegateGoal();
@@ -280,6 +280,56 @@ public final class SmartNpcFoodChainChecks {
             }
         } else retainSince = 0;
         if (!passed && ticks >= 8000) throw new AssertionError("Same-actor native food chain timed out: " + diagnostic());
+    }
+
+
+    public static boolean readyToSave() {
+        if(npc==null || !rawPickup || !handoff || !SurvivalTasks.cookingActive(npc))return false;
+        if(Boolean.getBoolean("smartnpc.food.duringBurn"))return furnaceInput && furnaceLit && !furnaceOutput
+                && stationCount(Items.COD)+stationCount(Items.SALMON)>0;
+        return count(Items.COD) + count(Items.SALMON) > 0 && !furnaceInput;
+    }
+    public static void checkpoint(java.nio.file.Path path) throws Exception {
+        check(readyToSave(), "checkpoint contains same actor's real caught fish and pending cooking intention");
+        npc.setPersistenceRequired();
+        SurvivalTasks.save(npc);
+        var ledger = new java.util.Properties();
+        ledger.setProperty("npc", npc.getUUID().toString());
+        ledger.setProperty("base", Long.toString(base.asLong()));
+        ledger.setProperty("table", Long.toString(table.asLong()));
+        for (String name : new String[]{"ticks", "peakRodDamage", "retainSince", "tablePlaced", "crafted", "cast", "rawPickup", "handoff", "furnaceInput", "furnaceLit", "furnaceOutput"}) {
+            var f = SmartNpcFoodChainChecks.class.getDeclaredField(name);
+            ledger.setProperty(name, f.get(null).toString());
+        }
+        codDrops.forEach((id,n) -> ledger.setProperty("cod."+id, n.toString()));
+        salmonDrops.forEach((id,n) -> ledger.setProperty("salmon."+id, n.toString()));
+        try(var out=java.nio.file.Files.newOutputStream(path)){ledger.store(out,"Test observations only; actor and world are saved by Minecraft");}
+        System.out.println("SMARTNPC_FOOD_CHECKPOINT " + npc.getUUID() + " " + diagnostic());
+    }
+    public static void resume(ServerLevel savedLevel, java.nio.file.Path path) throws Exception {
+        var ledger=new java.util.Properties();
+        try(var in=java.nio.file.Files.newInputStream(path)){ledger.load(in);}
+        level=savedLevel;
+        base=BlockPos.of(Long.parseLong(ledger.getProperty("base")));
+        table=BlockPos.of(Long.parseLong(ledger.getProperty("table")));
+        bounds=new AABB(Vec3.atLowerCornerOf(base.offset(-12,-4,-12)),Vec3.atLowerCornerOf(base.offset(13,9,13)));
+        level.getChunk(base);level.getChunk(table);
+        npc=(PlayerNpcEntity)level.getEntity(UUID.fromString(ledger.getProperty("npc")));
+        check(npc!=null,"same food-chain NPC UUID survived a real process restart");
+        check(SurvivalTasks.cookingActive(npc) && count(Items.COD)+count(Items.SALMON)
+                        +stationCount(Items.COD)+stationCount(Items.SALMON)+stationCount(Items.COOKED_COD)+stationCount(Items.COOKED_SALMON)>0,
+                "saved caught fish and pending cooking task resume without replacement resources");
+        for(String name:new String[]{"ticks","peakRodDamage","retainSince","tablePlaced","crafted","cast","rawPickup","handoff","furnaceInput","furnaceLit","furnaceOutput"}){
+            var f=SmartNpcFoodChainChecks.class.getDeclaredField(name);String value=ledger.getProperty(name);
+            if(f.getType()==int.class)f.setInt(null,Integer.parseInt(value));else f.setBoolean(null,Boolean.parseBoolean(value));
+        }
+        codDrops.clear();salmonDrops.clear();
+        ledger.forEach((key,value)->{String k=key.toString();if(k.startsWith("cod."))codDrops.put(UUID.fromString(k.substring(4)),Integer.parseInt(value.toString()));if(k.startsWith("salmon."))salmonDrops.put(UUID.fromString(k.substring(7)),Integer.parseInt(value.toString()));});
+        // Reapply the fixture's selector scope only; never bypass native admission or run a delegate ourselves.
+        var f=Mob.class.getDeclaredField("goalSelector");f.setAccessible(true);
+        ((GoalSelector)f.get(npc)).removeAllGoals(g -> !RETAINED.contains(unwrap(g).getClass().getSimpleName()) && !(g instanceof net.minecraft.world.entity.ai.goal.FloatGoal));
+        f=Mob.class.getDeclaredField("targetSelector");f.setAccessible(true);((GoalSelector)f.get(npc)).removeAllGoals(g->true);
+        System.out.println("SMARTNPC_FOOD_RESUMED " + npc.getUUID()+" "+diagnostic());
     }
 
     private static void checkFailedRodConservation() {
