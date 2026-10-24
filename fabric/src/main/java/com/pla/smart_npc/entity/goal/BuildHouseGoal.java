@@ -2073,7 +2073,9 @@ public class BuildHouseGoal extends Goal {
                 x + width / 2.0D,
                 standPos.getY() + height,
                 z + width / 2.0D
-        ).inflate(0.05D);
+        ).inflate(0.05D, 0.0D, 0.05D).expandTowards(0.0D, 0.05D, 0.0D);
+        // Keep the feet on the support surface. Inflating downward intersects
+        // the solid floor and rejects every otherwise safe standing candidate.
 
         return PlayerNpcCollisionUtil.noBlockingCollision(serverLevel, this.playerNpc, standBox)
                 && placementState.getCollisionShape(serverLevel, placementPos)

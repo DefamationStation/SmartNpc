@@ -43,6 +43,7 @@ public final class SmartNpcCookingSearchChecks {
     private static final List<BlockPos> stones = new ArrayList<>();
     private static ServerLevel level;
     private static PlayerNpcEntity npc;
+    private static SmartNpcWoodEvidence woodEvidence;
     private static GoalSelector selector;
     private static BlockPos base;
     private static int phase, ticks, peakLogs, peakStone, requiredLogs, maxRequestedLogs, peakSticks;
@@ -126,6 +127,7 @@ public final class SmartNpcCookingSearchChecks {
         for (var item : level.getEntitiesOfClass(ItemEntity.class, bounds)) item.discard();
         SmartNpcFunctional.check(level.getEntitiesOfClass(ItemEntity.class, bounds).isEmpty(),
                 "cooking search starts without preexisting material drops");
+        woodEvidence = new SmartNpcWoodEvidence(level, logs);
         npc = SmartNpcModEntities.PLAYER_NPC.get().create(level, EntitySpawnReason.COMMAND);
         if (CONFIGURED_IDENTITY) npc.setUsername("Technoblade");
         else setSyntheticJoblessIdentity(npc);
@@ -337,9 +339,12 @@ public final class SmartNpcCookingSearchChecks {
             for (BlockPos pos : BlockPos.betweenClosed(npc.blockPosition().offset(-5, -2, -5), npc.blockPosition().offset(5, 2, 5)))
                 sawTable |= level.getBlockState(pos).is(Blocks.CRAFTING_TABLE);
             long removed = logs.stream().filter(pos -> !level.getBlockState(pos).is(Blocks.OAK_LOG)).count();
-            SmartNpcFunctional.check(committed && searched && moved > 64 && requiredLogs >= 2
-                            && peakLogs >= requiredLogs && removed >= peakLogs && sawTable,
+            SmartNpcFunctional.check(committed && searched && moved > 64
+                            && peakLogs >= woodEvidence.minimumLogs() && removed >= peakLogs && sawTable,
                     "cooking searches beyond local reach and crafts at a real table from harvested tree materials while ordinary job gates are closed: " + diagnostic());
+            SmartNpcFunctional.check(PlayerNpcCraftingUtil.countPlankEquivalent(npc.getInventory()) <= removed * 4 - woodEvidence.plankCost(),
+                    "harvested wood funds the actual table and pick recipes; natural leaf sticks="+woodEvidence.leafSticks);
+            woodEvidence.close();
             if (!CONFIGURED_IDENTITY) SmartNpcFunctional.check(npc.getSelectedDailyJobInterest().isEmpty(), "wood search never assigns a daily job");
             System.out.println("SMARTNPC_COOKING_SEARCH_WOOD_COMPLETE " + diagnostic());
             npc.discard(); npc = null; phase = 1; beginPhase(); return;

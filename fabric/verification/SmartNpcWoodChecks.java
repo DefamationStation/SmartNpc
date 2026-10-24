@@ -28,6 +28,7 @@ import java.util.Set;
 public final class SmartNpcWoodChecks {
     private static final Set<String> RETAINED = Set.of("SurvivalGatherGoal", "CookingCraftGoal", "PickupNearbyItemGoal");
     private static PlayerNpcEntity npc;
+    private static SmartNpcWoodEvidence woodEvidence;
     private static ServerLevel level;
     private static BlockPos base;
     private static final List<BlockPos> logs = new ArrayList<>();
@@ -72,6 +73,7 @@ public final class SmartNpcWoodChecks {
                 level.setBlockAndUpdate(pos, Blocks.OAK_LEAVES.defaultBlockState());
             }
         }
+        woodEvidence = new SmartNpcWoodEvidence(level, logs);
         npc = SmartNpcModEntities.PLAYER_NPC.get().create(level, EntitySpawnReason.COMMAND);
         var personality = SmartNpcNamesConfig.getPlayerNpcNameEntries().stream()
                 .map(SmartNpcNamesConfig::parseNameEntry).flatMap(Optional::stream)
@@ -151,13 +153,13 @@ public final class SmartNpcWoodChecks {
             throw new AssertionError("Wood prerequisite created unrelated starter gear: " + diagnostic());
         }
         if (npc.getInventory().countItem(Items.WOODEN_PICKAXE) > 0 || npc.getMainHandItem().is(Items.WOODEN_PICKAXE)) {
-            SmartNpcFunctional.check(committedWood && requiredLogs >= 2 && peakLogs >= requiredLogs,
+            SmartNpcFunctional.check(committedWood && peakLogs >= woodEvidence.minimumLogs(),
                     "native cooking intention collects its live wood target through real log pickup: " + diagnostic());
-            SmartNpcFunctional.check(removedLogs() >= requiredLogs && removedLogs() <= 4,
+            SmartNpcFunctional.check(removedLogs() >= woodEvidence.minimumLogs() && removedLogs() <= 4,
                     "picked-up wood comes from the fixture's actual four-log tree");
             SmartNpcFunctional.check(sawTable, "wood-only prerequisite places a real crafting table before pickaxe craft");
             // Natural leaf sticks can satisfy the recipe without spending two extra planks.
-            int consumedPlanks = requiredLogs >= 3 ? 9 : 7;
+            int consumedPlanks = woodEvidence.plankCost();
             SmartNpcFunctional.check(PlayerNpcCraftingUtil.countPlankEquivalent(npc.getInventory())
                             <= removedLogs() * 4 - consumedPlanks,
                     "table pickaxe and sticks consume real harvested wood");
@@ -166,7 +168,7 @@ public final class SmartNpcWoodChecks {
                             && npc.getInventory().countItem(Items.FURNACE) == 0,
                     "wood fixture manufactures no stone furnace or food without their prerequisites");
             System.out.println("SMARTNPC_WOOD_COMPLETE " + diagnostic());
-            passed = true; npc.discard(); npc = null;
+            woodEvidence.close(); passed = true; npc.discard(); npc = null;
             return;
         }
         if (ticks % 200 == 0) System.out.println("SMARTNPC_WOOD_PROGRESS " + diagnostic());

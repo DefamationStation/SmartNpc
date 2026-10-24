@@ -1,5 +1,7 @@
 # Fabric 26.4 Snapshot 5 port
 
+Cabin completion fix and regression: [cabin results](verification/CABIN-RESULTS.md).
+
 Snapshot 5 changes and current validation: [port results](verification/SNAPSHOT5-RESULTS.md).
 
 Behaviour design: [player journey and automation reuse](PLAYER_JOURNEY.md),
@@ -73,12 +75,20 @@ refactor during the initial snapshot port.
 
 `verification/run-snapshot5.ps1` uses the maintained full-stack test runner. Pass
 `-Workspace`, an exact built `-ModJar`, a fresh `-TestName` and `-Suite`
-(`Functional`, `Population`, `Inventory`, `RenderBuddy` or `Settings`). `-Replay` reopens only
-a completed functional fixture world with the same jar. Inspect completion and
+(`Functional`, `Population`, `Cabin`, `Inventory`, `RenderBuddy` or `Settings`). `-Replay` reopens only
+a completed functional or cabin fixture world with the same jar. Inspect completion and
 failure markers; the launcher returning alone is not a pass. Functional tests run
 at 60 ticks/second and restore 20 before saving; the population fixture runs three
 simulated days at up to 200 ticks/second. These are correctness tests, not FPS
 benchmarks. Prepared terrain/supplies are explicit test inputs.
+
+`Cabin` keeps one builder's ordinary selector intact, supplies a declared initial
+inventory and prepared ground, and requires every starter-cabin block to match
+for 200 consecutive ticks. The observer stays outside the plot. A saved-world
+replay checks the persisted home plan and all completed blocks again. This is
+construction acceptance, not a claim of gathering all starting supplies from
+scratch. Population and inventory fixtures move their observer away after UI
+inspection so it cannot occupy future construction cells.
 
 ## Earlier verification
 
@@ -92,7 +102,7 @@ It never copies or opens the source instance's saves. Inspect `complete.txt`,
 `replay-complete.txt`, `failure.txt`, and the `SMARTNPC_PASS` log entries.
 
 Upstream: https://github.com/PlaIsMe/SmartNpc (26.1.2 branch).
-Port: https://github.com/DefamationStation/SmartNpc/tree/feature/personal-resource-memory
+Port: https://github.com/DefamationStation/SmartNpc/tree/fabric-26.4-snapshot-5
 
 The original author is pla_is_me. GPLv3 and the upstream third-party notices apply.
 

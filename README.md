@@ -1,4 +1,12 @@
-# Player Npc
+# Player NPC — customized survival fork
+
+This fork maintains our customized autonomous-survival behaviours and the
+**Fabric port for Minecraft 26.4 Snapshot 5**. Start with
+[Fabric build and verification instructions](fabric/README.md).
+The original author is [pla_is_me](https://github.com/PlaIsMe/SmartNpc);
+the original NeoForge target remains available in the shared source tree.
+GPLv3 and the notices below apply.
+
 
 <p align="center">
   <a href="https://www.youtube.com/@pla_is_me" title="YouTube" style="text-decoration:none;">

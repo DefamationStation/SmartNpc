@@ -2,7 +2,7 @@ param(
  [Parameter(Mandatory)][string]$Workspace,
  [Parameter(Mandatory)][string]$ModJar,
  [Parameter(Mandatory)][ValidatePattern('^[a-zA-Z0-9_.-]+$')][string]$TestName,
- [ValidateSet('Functional','Population','RenderBuddy','Settings','Inventory')][string]$Suite='Functional',
+ [ValidateSet('Functional','Population','RenderBuddy','Settings','Inventory','Cabin')][string]$Suite='Functional',
  [switch]$Replay
 )
 # Use the maintained installation's isolated-world runner; never copy its saves.
@@ -13,12 +13,15 @@ $jar=(Resolve-Path -LiteralPath $ModJar).Path
 $out=Join-Path $workspacePath ('.verification/'+$TestName)
 if($Replay){
  if((Test-Path (Join-Path $out 'test.pid')) -and (Get-Process -Id ([int](Get-Content (Join-Path $out 'test.pid'))) -ErrorAction SilentlyContinue)){throw 'Previous fixture is still running'}
- if($Suite -ne 'Functional'){throw 'Only the functional fixture supports saved-world replay'}
+ if($Suite -notin @('Functional','Cabin')){throw 'This fixture does not support saved-world replay'}
  if(!(Test-Path -LiteralPath (Join-Path $out 'complete.txt'))){throw 'Initial functional pass required'}
  $installedJar=Join-Path $out ('mods/'+(Split-Path $jar -Leaf))
  if((Get-FileHash -LiteralPath $installedJar).Hash -ne (Get-FileHash -LiteralPath $jar).Hash){throw 'Replay must use the same tested jar'}
  if(Test-Path -LiteralPath (Join-Path $out 'replay.args')){throw 'Use a fresh initial test for each replay'}
- $arguments=@('"-Dsmartnpcsmoke.replay=true"')+@(Get-Content -LiteralPath (Join-Path $out 'launch.args'))+@('"--quickPlaySingleplayer"','"SmartNpcFunctional"')
+ $property=if($Suite -eq 'Cabin'){'"-Dsmartnpc.population.cabinReplay=true"'}else{'"-Dsmartnpcsmoke.replay=true"'}
+ $world=if($Suite -eq 'Cabin'){'"SmartNpcPopulation"'}else{'"SmartNpcFunctional"'}
+ if($Suite -eq 'Cabin' -and !(Test-Path (Join-Path $out 'cabin-complete.txt'))){throw 'A completed cabin is required before replay'}
+ $arguments=@($property)+@(Get-Content -LiteralPath (Join-Path $out 'launch.args'))+@('"--quickPlaySingleplayer"',$world)
  [IO.File]::WriteAllLines((Join-Path $out 'replay.args'),$arguments)
  $process=Start-Process (Join-Path $workspacePath '.tools/jdk-25.0.4.1+1/bin/javaw.exe') -ArgumentList ('"@'+(Join-Path $out 'replay.args')+'"') -WorkingDirectory $out -WindowStyle Hidden -RedirectStandardOutput (Join-Path $out 'replay-stdout.log') -RedirectStandardError (Join-Path $out 'replay-stderr.log') -PassThru
  $process.Id | Set-Content (Join-Path $out 'test.pid')
@@ -28,6 +31,7 @@ if($Replay){
 $extra=@()
 switch($Suite){
  'Functional' {$class='SmartNpcFunctional';$source=Join-Path $PSScriptRoot ($class+'.java');$extra=@(Get-ChildItem $PSScriptRoot 'SmartNpc*.java' | Where-Object Name -ne ($class+'.java') | ForEach-Object FullName)}
+ 'Cabin' {$class='SmartNpcCabinSmoke';$source=Join-Path $PSScriptRoot ($class+'.java');$extra=@((Join-Path $PSScriptRoot 'SmartNpcPopulation.java'))}
  'Inventory' {$class='SmartNpcInventorySmoke';$source=Join-Path $PSScriptRoot ($class+'.java');$extra=@((Join-Path $PSScriptRoot 'SmartNpcPopulation.java'))}
  'Population' {$class='SmartNpcPopulation';$source=Join-Path $PSScriptRoot ($class+'.java')}
  'RenderBuddy' {$class='RenderBuddySmoke';$source=Join-Path $workspacePath 'minecraft-snapshot-mods/snapshot-5-port/RenderBuddySmoke.java'}
