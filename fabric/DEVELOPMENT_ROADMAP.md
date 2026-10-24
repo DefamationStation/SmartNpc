@@ -77,6 +77,48 @@ Deliver one complete scenario using existing goals: obtain food, gather material
 
 Acceptance: across a fixed set of suitable seeds, a survivor with limited starter supplies completes the day/night cycle and resumes a sensible task after reload. In a resource-poor case it identifies the missing supply and changes approach. Protected player blocks and inventories remain intact. Quantify success rates after establishing the baseline.
 
+#### M1 requirement: travel far from home and return — 24 October 2026
+
+The user explicitly requires reliable travel across many chunks, including a
+return from distant work sites and island/mainland routes. Treat this as a
+prerequisite of independent survival, not only a later expedition feature.
+The installed resident fixtures prove local travel; they do not prove this gate.
+Existing saved home coordinates, local return recovery and budgeted moving chunk
+tickets are foundations, not a complete long-distance route planner. Home data
+also needs explicit dimension identity before cross-dimension travel is allowed.
+
+- Separate a persistent journey from its bounded local movement steps. Retain
+  destination/dimension, purpose, outbound and return anchors, last meaningful
+  progress and a saved checkpoint; a short local-goal timeout must not erase the
+  journey or restart it indefinitely. Rebuild live paths after load.
+- Use a coarse route through observed/remembered terrain and successive reachable
+  local targets. Extend exploration at the loaded frontier and record useful
+  crossings/detours; do not assume the straight line to home is traversable or
+  grant knowledge of unseen terrain. Revalidate changed or obstructed routes.
+- Keep a small moving loaded area for admitted active travellers. Bound ticket,
+  terrain generation, path search and retry costs; share the existing worker
+  budget. Never keep the entire route loaded or multiply full-time simulation
+  by the population. Persist and resume journeys when their worker is suspended.
+- Check return feasibility, food and tool/support needs before extending a trip.
+  Turning back, taking safe shelter or reporting a specific blocked condition is
+  preferable to repeating the same failed path or silently abandoning home.
+- Treat oceans, cliffs and dimension changes explicitly. An island crossing
+  requires a real supported transport/construction method with actual materials
+  and a usable return route; swimming or a waypoint coordinate is not a general
+  substitute. Until such a method exists, expose the limitation and avoid
+  committing an unsupported crossing. Persist portal endpoints and dimension
+  identity before authorizing cross-dimension journeys. No teleport fallback.
+
+Acceptance matrix, still planned: actual outward work and return at approximately
+256, 1,024 and 2,048 blocks across multiple suitable seeds; forest, hills, river
+detours, an island/mainland case, and an unavailable-route negative case. Include
+the player remaining at base, following and then leaving the NPC, unloaded
+frontiers, worker suspension, changed terrain, and real save/close/reload both
+outbound and returning. Require the same NPC to reach its original home using
+real movement with conserved inventory and honest blocked results. Measure
+server tick time, pathfinding cost, loaded/generated chunks and released tickets.
+These distances are test targets, not current supported-distance guarantees.
+
 ### M2 — Memory and individual personality
 
 Deliver:
