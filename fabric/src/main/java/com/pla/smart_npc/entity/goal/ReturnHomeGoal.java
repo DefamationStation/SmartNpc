@@ -411,7 +411,9 @@ public class ReturnHomeGoal extends Goal {
         }
         this.returnTicks = MAX_RETURN_TICKS;
         this.playerNpc.setCurrentAiState("ai.player_npc.returning_home");
-        if (this.homeSurfaceRecoveryReturn && this.homeCenter != null
+        if ((this.homeSurfaceRecoveryReturn
+                || (this.buildReturn || this.completedStoneTripReturn) && this.needsUndergroundAscent())
+                && this.homeCenter != null
                 && this.playerNpc.level() instanceof ServerLevel serverLevel) {
             this.requestHomeSurfaceEscape(serverLevel);
         }
@@ -423,6 +425,10 @@ public class ReturnHomeGoal extends Goal {
 
     @Override
     public void tick() {
+        // The exterior ascent handoff owns movement on the next selector pass.
+        // Do not let the return helper replace it with the indoor home target
+        // during the start tick of this same goal.
+        if (this.playerNpc.getUpwardEscapeTarget() != null) return;
         if (com.pla.smart_npc.fabric.survival.Journeys.active(this.playerNpc)) {
             this.returnTicks = 0;
             return;
@@ -659,6 +665,17 @@ public class ReturnHomeGoal extends Goal {
         this.playerNpc.requestForcedUpwardEscapeTo(escapeTarget, HOME_SURFACE_ESCAPE_TICKS, maxPillarBlocks);
     }
 
+    private boolean needsUndergroundAscent() {
+        if (this.homeArea == null || !(this.playerNpc.level() instanceof ServerLevel level)) return false;
+        BlockPos feet = this.playerNpc.blockPosition();
+        // This only redirects a return already admitted by the normal resource
+        // arbitration; it must never create a new reason to interrupt mining.
+        return feet.getY() <= this.homeArea.origin().getY() - 3
+                && level.hasChunkAt(feet)
+                && !level.canSeeSky(feet.above())
+                && level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, feet.getX(), feet.getZ()) > feet.getY() + 2;
+    }
+
     private BlockPos homeArrivalStand(ServerLevel level, PlayerNpcHomeUtil.HomeArea home) {
         BlockPos center = home.origin().offset(home.width() / 2, 1, home.depth() / 2);
         // A geometric center occupied by furniture is not a valid arrival stand.
@@ -687,11 +704,11 @@ public class ReturnHomeGoal extends Goal {
             int maxZ = this.homeArea.origin().getZ() + this.homeArea.depth() + HOME_WORK_AREA_MARGIN - 1;
             for (int x = minX; x <= maxX; x++) {
                 for (int z = minZ; z <= maxZ; z++) {
+                    if (!serverLevel.hasChunk(x >> 4, z >> 4)) continue;
                     int y = serverLevel.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
                     BlockPos candidate = new BlockPos(x, y, z);
                     if (candidate.getY() <= feet.getY() + 1
                             || PlayerNpcHomeUtil.isInsideBuildFootprint(this.playerNpc, candidate)
-                            || !serverLevel.canSeeSky(candidate.above())
                             || !PathNavigationAi.canStandAt(serverLevel, candidate)) {
                         continue;
                     }
