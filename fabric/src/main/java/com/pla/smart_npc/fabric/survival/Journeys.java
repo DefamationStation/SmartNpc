@@ -36,6 +36,9 @@ public final class Journeys {
         public BlockPos boatWaypoint;
         public net.minecraft.world.phys.Vec3 boatSteering;
         public BlockPos boatLanding;
+        public Map<BlockPos,Integer> shoreRoutes=Map.of();
+        public BlockPos shoreRouteGoal;
+        public long nextShoreRouteCheck;
         public long nextBoatPlan;
         public net.minecraft.world.phys.Vec3 dismountPosition;
         public final JourneyTrail trail=new JourneyTrail();
@@ -83,6 +86,25 @@ public final class Journeys {
         PersistentData.get(npc).put(KEY,d);
     }
     public static boolean active(PlayerNpcEntity n){return state(n).active();}
+    @Events.SubscribeEvent public static void unload(Events.EntityLeaveLevelEvent e){
+        if(!(e.getEntity() instanceof PlayerNpcEntity n)||!(e.getLevel() instanceof ServerLevel))return;
+        var s=STATES.get(n);if(s==null)return;
+        save(n);clearTransient(s);STATES.remove(n);
+    }
+    @Events.SubscribeEvent public static void stopped(Events.ServerStoppedEvent e){
+        var iterator=STATES.entrySet().iterator();
+        while(iterator.hasNext()){
+            var entry=iterator.next();var n=entry.getKey();
+            if(n!=null&&n.level() instanceof ServerLevel level&&level.getServer()==e.getServer()){
+                clearTransient(entry.getValue());iterator.remove();
+            }
+        }
+    }
+    private static void clearTransient(State s){
+        if(s.landingRecovery!=null)s.landingRecovery.stop();
+        s.landingRecovery=null;s.boatWaypoint=null;s.boatSteering=null;s.boatLanding=null;
+        s.shoreRoutes=Map.of();s.shoreRouteGoal=null;s.nextShoreRouteCheck=0;s.dismountPosition=null;
+    }
     public static String start(PlayerNpcEntity n,BlockPos destination){
         var s=state(n);if(s.active())return "Journey already active; return or cancel first";
         var h=PlayerNpcHomeUtil.getHome(n);if(h.isEmpty())return "No home in this dimension";
@@ -142,8 +164,6 @@ public final class Journeys {
         // prerequisite should monopolize movement while materials are missing.
         return com.pla.smart_npc.util.PlayerNpcCraftingUtil.countPlankEquivalent(n.getInventory())>=9;
     }
-    @Events.SubscribeEvent public static void stopped(Events.ServerStoppedEvent e){STATES.clear();}
-    @Events.SubscribeEvent public static void unloaded(Events.EntityLeaveLevelEvent e){if(e.getEntity() instanceof PlayerNpcEntity n){var s=STATES.remove(n);if(s!=null&&s.landingRecovery!=null)s.landingRecovery.stop();}}
     @Events.SubscribeEvent public static void commands(Events.RegisterCommandsEvent e){
         e.getDispatcher().register(Commands.literal("smart_npc").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
             .then(Commands.literal("journey").then(Commands.argument("npc",EntityArgument.entity())

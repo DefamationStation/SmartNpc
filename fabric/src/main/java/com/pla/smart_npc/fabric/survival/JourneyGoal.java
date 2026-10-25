@@ -187,12 +187,14 @@ public final class JourneyGoal extends Goal {
                 // Approach horizontally and resolve its height in the final region.
                 double horizontal=Math.hypot(goal.getX()-feet.getX(),goal.getZ()-feet.getZ());
                 BlockPos localIntention=horizontal>32?new BlockPos(goal.getX(),feet.getY(),goal.getZ()):goal;
-                try{partial=nav.createPath(localIntention,0,range);}finally{nav.resetMaxVisitedNodesMultiplier();}
+                npc.planningReversibleJourneyPath=maxSegmentDrop(s,feet,goal)==1;
+                try{partial=nav.createPath(localIntention,0,range);}
+                finally{nav.resetMaxVisitedNodesMultiplier();npc.planningReversibleJourneyPath=s.phase.equals("outbound");}
                 if(partial!=null&&partial.getNodeCount()>1&&partial.getEndNode()!=null
                     &&feet.distSqr(partial.getEndNode().asBlockPos())>=4
                     &&partial.getEndNode().asBlockPos().distSqr(goal)<feet.distSqr(goal)-4
                     &&s.visits.getOrDefault(new BlockPos(Math.floorDiv(partial.getEndNode().x,4),0,Math.floorDiv(partial.getEndNode().z,4)).asLong(),0)<2){
-                    boolean safe=true;int drop=s.phase.equals("outbound")?1:3;
+                    boolean safe=true;int drop=maxSegmentDrop(s,feet,goal);
                     for(int i=1;i<partial.getNodeCount();i++)if(partial.getNode(i-1).y-partial.getNode(i).y>drop||!dryWalkNode(l,partial.getNode(i).asBlockPos()))safe=false;
                     if(safe){nav.moveTo(partial,1);s.status="following bounded terrain-aware segment";return;}
                 }
@@ -220,14 +222,14 @@ public final class JourneyGoal extends Goal {
         }
         if(stand==null){s.status="finding dry reachable segment (no boat route yet)";return;}
         net.minecraft.world.level.pathfinder.Path path;
-        npc.planningReversibleJourneyPath=s.phase.equals("outbound");
+        npc.planningReversibleJourneyPath=maxSegmentDrop(s,feet,goal)==1;
         try{path=PathNavigationAi.createBoundedPath(npc,stand,0.2F);}
         finally{npc.planningReversibleJourneyPath=s.phase.equals("outbound");}
         boolean reversible=path!=null&&path.canReach();
         if(reversible){
             // Vanilla permits drops that walking cannot reverse. Do not earn a
             // return promise by taking a one-way cliff shortcut on the outbound leg.
-            int maxDrop=s.phase.equals("outbound")?1:3;
+            int maxDrop=maxSegmentDrop(s,feet,goal);
             for(int i=1;i<path.getNodeCount();i++)if(path.getNode(i-1).y-path.getNode(i).y>maxDrop||!dryWalkNode(l,path.getNode(i).asBlockPos())){reversible=false;break;}
         }
         if(reversible){
@@ -239,6 +241,12 @@ public final class JourneyGoal extends Goal {
                 recoveryTarget=stand;recoveryUntil=npc.tickCount+200;recovery.start(stand);s.status="bounded native uphill recovery";
             }
         }
+    }
+    private static int maxSegmentDrop(Journeys.State state,BlockPos feet,BlockPos goal){
+        // A closer horizontal endpoint below a rising forest route can be a
+        // one-way shortcut off its ledge. Preserve the climb instead of taking
+        // a drop that the next local segment cannot reverse.
+        return state.phase.equals("outbound")||goal.getY()>=feet.getY()-1?1:3;
     }
     private static boolean dryWalkNode(ServerLevel l,BlockPos p){
         if(!l.hasChunkAt(p)||!l.getFluidState(p).isEmpty()&&!l.getFluidState(p).is(net.minecraft.tags.FluidTags.WATER)

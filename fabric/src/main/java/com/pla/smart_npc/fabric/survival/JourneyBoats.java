@@ -24,10 +24,15 @@ public final class JourneyBoats {
                 if(remainder.isEmpty()){hull.discard();s.boatId=null;s.boatItem=ItemStack.EMPTY;Journeys.save(n);}
             }
             if(standing(n,l)){
-                if(s.landingRecovery!=null)s.landingRecovery.stop();s.landingRecovery=null;s.landingTarget=null;Journeys.save(n);
+                if(s.landingRecovery!=null)s.landingRecovery.stop();s.landingRecovery=null;s.landingTarget=null;
                 // A completed physical landing must get a walking opportunity
                 // before adjacent water can trigger another launch.
-                s.nextBoatCheck=l.getGameTime()+100;s.progressGoal=null;
+                s.nextBoatCheck=l.getGameTime()+100;
+                // Landing repeatedly on the same wrong bank is activity, not
+                // progress. Credit only a real net approach to the segment.
+                if(s.progressGoal!=null){double remaining=Math.sqrt(n.blockPosition().distSqr(s.progressGoal));
+                    if(remaining<s.bestDistance-.5){s.bestDistance=remaining;s.activeNoProgressTicks=0;}}
+                Journeys.save(n);
             }else{
                 if(l.getGameTime()-s.landingStarted>400){Journeys.block(n,"could not reach observed shore after dismount");return true;}
                 if(s.landingRecovery==null)s.landingRecovery=new com.pla.smart_npc.entity.ai.WaterEscapeAi(n);
@@ -78,6 +83,7 @@ public final class JourneyBoats {
             // position is dry: its fallback can be the bottom of a deep inlet.
             double half=Math.max(.3,n.getBbWidth()/2)+.03;
             boolean plannedExit=false;
+            boolean connectedLanding=s.boatLanding!=null&&s.shoreRoutes.containsKey(s.boatLanding);
             if(s.boatLanding!=null){
                 var v=net.minecraft.world.phys.Vec3.atBottomCenterOf(s.boatLanding);
                 if(dry(l,s.boatLanding)&&Math.hypot(v.x-b.getX(),v.z-b.getZ())<=1.8&&v.y-b.getY()<=1.5){
@@ -94,7 +100,8 @@ public final class JourneyBoats {
                 if(l.noCollision(n,box)){exit=v;dryExit=true;break;}
             }
             var standingExit=new net.minecraft.world.phys.AABB(exit.x-half,exit.y,exit.z-half,exit.x+half,exit.y+Math.max(1.95,n.getBbHeight()),exit.z+half);
-            if(dry(l,BlockPos.containing(exit))&&l.noCollision(n,standingExit)&&(plannedExit||dryExit||b.onGround())){
+            if(dry(l,BlockPos.containing(exit))&&l.noCollision(n,standingExit)
+                    &&(plannedExit||(!connectedLanding||b.onGround())&&(dryExit||b.onGround()))){
                 s.landingTarget=BlockPos.containing(exit);s.landingStarted=l.getGameTime();
                 stop(n);s.dismountPosition=exit;try{n.stopRiding();}finally{s.dismountPosition=null;}
                 resetWalking(n);s.status="disembarking toward observed shore";Journeys.save(n);return true;
@@ -165,6 +172,7 @@ public final class JourneyBoats {
         var first=new java.util.HashMap<BlockPos,BlockPos>();queue.add(origin);first.put(origin,origin);
         BlockPos best=origin;double score=Double.MAX_VALUE;
         boolean shoreSearch=wantsShore(l,b,goal,state);
+        if(shoreSearch)ShoreApproach.refresh(l,goal,origin,state);
         BlockPos shoreWater=null,shoreStand=null;double shoreScore=Double.MAX_VALUE;
         state.boatLanding=null;
         boolean wider=state.activeNoProgressTicks>200;
@@ -173,8 +181,8 @@ public final class JourneyBoats {
             var p=queue.remove();double cost=p.distSqr(goal);
             if(!p.equals(origin)&&cost<score){score=cost;best=p;}
             if(shoreSearch){
-                BlockPos shore=landingAt(l,b,n,p,origin,goal);
-                if(shore!=null){double value=shore.distSqr(goal)+steps.get(p)*.05;
+                BlockPos shore=landingAt(l,b,n,p,origin,goal,state);
+                if(shore!=null){double value=ShoreApproach.cost(state,shore,goal)+steps.get(p)*.05;
                     if(value<shoreScore){shoreScore=value;shoreWater=p;shoreStand=shore;}}
             }
             if(!shoreSearch&&!p.equals(origin)&&cost<=4)break;
@@ -201,13 +209,13 @@ public final class JourneyBoats {
                 &&(Math.hypot(goal.getX()-boat.getX(),goal.getZ()-boat.getZ())<32||state.activeNoProgressTicks>100);
     }
     private static BlockPos landingAt(ServerLevel level,AbstractBoat boat,PlayerNpcEntity npc,
-                                      BlockPos water,BlockPos origin,BlockPos goal){
+                                      BlockPos water,BlockPos origin,BlockPos goal,Journeys.State state){
         BlockPos best=null;double cost=Double.MAX_VALUE;
         double x=boat.getX()+water.getX()-origin.getX(),z=boat.getZ()+water.getZ()-origin.getZ();
         for(int dx=-1;dx<=1;dx++)for(int dz=-1;dz<=1;dz++)for(int y=0;y<=2;y++){
             var stand=water.offset(dx,y,dz);
             if(stand.getY()-boat.getY()>1.5||Math.hypot(stand.getX()+.5-x,stand.getZ()+.5-z)>1.8||!dry(level,stand))continue;
-            double score=stand.distSqr(goal);if(score<cost){cost=score;best=stand;}
+            double score=ShoreApproach.cost(state,stand,goal);if(score<cost){cost=score;best=stand;}
         }
         return best;
     }
