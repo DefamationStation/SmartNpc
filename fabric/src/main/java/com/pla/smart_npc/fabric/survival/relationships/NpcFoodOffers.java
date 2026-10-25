@@ -22,7 +22,7 @@ public final class NpcFoodOffers {
     private static boolean registered;
     private NpcFoodOffers(){}
     public static synchronized void register(){
-        if(registered)return;registered=true;
+        if(registered)return;registered=true;NpcRelationships.register();
         FoodOfferSettings.SPEC.load(FabricLoader.getInstance().getConfigDir().resolve("smart_npc-food-offers.toml"));
         UseEntityCallback.EVENT.register((player,level,hand,target,hit)->{
             if(!(target instanceof PlayerNpcEntity npc)||hand!=InteractionHand.MAIN_HAND||!player.isShiftKeyDown()
@@ -63,6 +63,7 @@ public final class NpcFoodOffers {
         held.shrink(1);player.getInventory().setChanged();inventory.setChanged();
         ledger.accepted(player.getUUID(),now);attachment.put(KEY,ledger.save());
         NpcMemories.helpReceived(npc,player.getUUID(),"accepted one "+BuiltInRegistries.ITEM.getKey(one.getItem()));NpcMemories.save(npc);
+        NpcRelationships.acceptedFood(npc,player.getUUID(),BuiltInRegistries.ITEM.getKey(one.getItem()).toString(),1);
         if(SmartNpcConfig.TURN_ON_NPC_CHAT.get())player.sendSystemMessage(Component.literal("<").append(npc.getDisplayName()).append("> Thanks, I can use this food."));
         return true;
     }
