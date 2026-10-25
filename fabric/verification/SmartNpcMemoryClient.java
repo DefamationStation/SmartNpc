@@ -63,6 +63,7 @@ public final class SmartNpcMemoryClient implements ClientModInitializer {
         if(stage==3&&prepared&&mc.level.getEntity(entityId)!=null){
             mc.options.keyShift.setDown(true);stage=4;ticks=0;
         }
+        if(stage>=4&&stage<=6)mc.options.keyShift.setDown(true);
         if(stage==4&&++ticks==15){
             check(mc.player.isShiftKeyDown(),"real client crouch input missing");
             var npc=mc.level.getEntity(entityId);check(npc!=null&&mc.player.distanceToSqr(npc)<36,"NPC left local interaction range");

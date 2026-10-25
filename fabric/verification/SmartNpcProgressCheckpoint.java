@@ -11,6 +11,15 @@ import net.minecraft.world.item.Items;
  * Prepared geometry and one declared material are not an autonomous build. */
 public final class SmartNpcProgressCheckpoint extends SmartNpcMemoryScenario {
     @Override void tick(MinecraftServer server)throws Exception{
+        if(replay&&stage==2&&!NpcProgression.snapshot(a).milestones().contains(PersonalProgress.Milestone.HOME_COMPLETE)){
+            // Controlled scheduler admission, like the supply-consumer fixture.
+            // This tests persisted deferred work, not autonomous worker selection.
+            if(a.tickCount%20==Math.floorMod(a.getUUID().hashCode(),20)){
+                PlayerNpcAiWorkBudget.onWorkStarted(a);
+                NpcProgression.tick(new com.pla.smart_npc.fabric.Events.EntityTickEvent.Post(a));
+            }
+            if(ticks>=199&&ticks<500){ticks++;return;}
+        }
         if(replay&&stage==2&&ticks>=199){
             check(NpcProgression.snapshot(a).milestones().contains(PersonalProgress.Milestone.HOME_COMPLETE),
                     "last-block pending completion lost across real restart");

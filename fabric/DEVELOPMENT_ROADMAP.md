@@ -2,6 +2,15 @@
 
 Status: initial M1 survival journeys and selected limited-start copied-world scenarios implemented, updated 2026-10-25. Most later milestones remain planned. See `verification/M1-RESULTS.md`, `RESOURCE_TASKS.md` and the resident report below for implemented scope and verification limits. Broad wilderness-start acceptance remains outstanding.
 
+## Continuous integration — 25 October 2026
+
+Resource and riverbank recovery, bounded memory/personality, private local
+conversation and verified individual work history are implemented in the current
+source line. See [continuous results](verification/CONTINUOUS-SURVIVAL-RESULTS.md)
+and [memory results](verification/MEMORY-RESULTS.md) for candidate evidence and
+limits. M1 wilderness acceptance, practical M3 upgrades and M4 cooperation remain
+open; subsequent development continues without waiting at milestone boundaries.
+
 ## Snapshot 5 resident routine milestone — 24 October 2026
 
 The installed-lineage work now includes a full ordinary-selector resident-day
