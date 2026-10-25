@@ -1,6 +1,7 @@
 # Fabric 26.4 Snapshot 5 port
 
 Persistent survival journeys and copied-world tests: [M1 delivery and limits](verification/M1-RESULTS.md).
+Saved-cabin approach recovery and verification: [building follow-up](verification/BUILDING-RESULTS.md).
 Faster build/test/deployment: [release workflow](verification/RELEASE-WORKFLOW.md).
 
 Ordinary daily resident routine and recovery: [daily results](verification/DAILY-RESULTS.md).

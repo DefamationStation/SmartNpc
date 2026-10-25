@@ -22,7 +22,19 @@ foreach($result in Get-ChildItem (Join-Path $stagingPath 'build/test-results/tes
  $tests+=[int]$suite.tests
 }
 if($tests -lt 43){throw 'Expected survival and journey unit suite missing'}
-$jars=@(Get-ChildItem (Join-Path $stagingPath 'build/libs') -Filter '*.jar' | Where-Object Name -NotMatch '-sources|-dev')
+$declaredVersion=((Get-Content (Join-Path $fabric 'gradle.properties') | Where-Object {$_ -match '^mod_version='}) -split '=',2)[1].Trim()
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$jars=@(Get-ChildItem (Join-Path $stagingPath 'build/libs') -Filter '*.jar' | Where-Object {
+ if($_.Name -match '-sources|-dev'){return $false}
+ $archive=[IO.Compression.ZipFile]::OpenRead($_.FullName)
+ try{
+  $entry=$archive.GetEntry('fabric.mod.json')
+  if(!$entry){return $false}
+  $reader=[IO.StreamReader]::new($entry.Open())
+  try{$metadata=$reader.ReadToEnd()|ConvertFrom-Json}finally{$reader.Dispose()}
+  return $metadata.id -eq 'smart_npc' -and $metadata.version -eq $declaredVersion
+ }finally{$archive.Dispose()}
+})
 if($jars.Count -ne 1){throw 'Expected one release jar'}
 $hash=(Get-FileHash -LiteralPath $jars[0].FullName).Hash.ToLowerInvariant()
 $frozen=Join-Path $stagingPath ('frozen/'+$hash)

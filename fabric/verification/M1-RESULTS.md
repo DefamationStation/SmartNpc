@@ -131,6 +131,10 @@ retained. This delivery therefore advances M1 but does not close its broad
 wilderness acceptance gate. The successful forest cabin also takes longer than
 one Minecraft day when its restart/rest observation is included.
 
+Follow-up: [the building approach recovery](BUILDING-RESULTS.md) fixes that
+identified saved-cabin stall in version `5.6-building`. The failed `5.5` case
+remains historical evidence; its original files are not overwritten.
+
 The lower-speed native-boat case initially failed on `9eae2e30…`: crafting was
 requested after entering water, so table placement could not proceed. It aborted
 and returned home safely. The final early-preparation change fixes that case;

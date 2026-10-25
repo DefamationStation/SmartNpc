@@ -46,6 +46,7 @@ tasks.withType(JavaCompile).configureEach {
     options.compilerArgs += ['-Xmaxerrs', '1000']
 }
 tasks.named('processResources') {
+    inputs.property('modVersion', project.version)
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     exclude 'smart_npc.mixins.json'
     exclude 'data/smart_npc/neoforge/**'

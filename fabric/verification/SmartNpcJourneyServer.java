@@ -104,7 +104,7 @@ public final class SmartNpcJourneyServer implements DedicatedServerModInitialize
             if(missing==0&&!replay){ledger.setProperty("shelterBuilt","true");try(var out=Files.newOutputStream(file("actor.properties"))){ledger.store(out,"test observations only");}finish(s,"checkpoint.txt","Limited-start resident built all 73 cabin blocks from real resources on copied terrain");return;}
             if(npc.isSleeping())slept=true;
             if(replay&&missing==0&&slept&&!npc.isSleeping()&&!l.isDarkOutside()){check(SurvivalTasks.cookedFoodCount(npc)>=4,"safe food reserve after rest");finish(s,"complete.txt","PASS limited-start real-terrain cabin, saved original actor, native sleep/wake and food reserve="+SurvivalTasks.cookedFoodCount(npc));}
-            if(ticks>96000)throw new AssertionError("Survival deadline; missing="+missing+" "+npc.getCurrentAiDetail());return;
+            if(ticks>Math.min(96000,Integer.getInteger("journey.maxTicks",96000)))throw new AssertionError("Survival deadline; missing="+missing+" "+npc.getCurrentAiDetail());return;
         }
         check(npc.isAlive(),"traveller stopped: health="+npc.getHealth()+" removed="+npc.isRemoved()+" air="+npc.getAirSupply()+" damage="+npc.getLastDamageSource());var journey=Journeys.state(npc);
         if(journey.landingTarget!=null&&ticks%20==0)System.out.println("LANDING_DIAGNOSTIC target="+journey.landingTarget+" pos="+npc.position()+" ground="+npc.onGround()+" water="+npc.isInWater()+" feet="+l.getBlockState(npc.blockPosition())+" below="+l.getBlockState(npc.blockPosition().below()));
@@ -120,7 +120,7 @@ public final class SmartNpcJourneyServer implements DedicatedServerModInitialize
         if(journey.phase.equals("blocked"))throw new AssertionError("Journey blocked: "+journey.status+" pos="+npc.position());
         if(journey.phase.equals("idle")&&!ledger.containsKey("destinationReached")&&!ledger.containsKey("returnOnly"))throw new AssertionError("Returned without reaching destination: "+journey.reason);
         if((ledger.containsKey("destinationReached")||ledger.containsKey("returnOnly"))&&!journey.active()&&npc.blockPosition().distSqr(start)<=16){int food=npc.getInventory().countItem(Items.COOKED_BEEF);check(food>=4&&food<=16,"safe reserve and no duplicated food; native healing may consume supplies");int boats=npc.getInventory().getItems().stream().filter(i->i.getItem() instanceof BoatItem).mapToInt(ItemStack::getCount).sum()+(journey.boatId!=null&&l.getEntity(journey.boatId)!=null?1:0);check(boats==1,"one boat conserved across carried/physical state");if(requireBoat)check(ledger.containsKey("boatUsed"),"physical boat crossing not observed");finish(s,"complete.txt","PASS real copied-world outward/return travel; original UUID and complete selectors preserved; distance="+distance+" reachedWorkSite="+ledger.containsKey("destinationReached")+" returnOnly="+ledger.containsKey("returnOnly")+" food="+food+" boats="+boats+" boatUsed="+ledger.containsKey("boatUsed")+" crafted="+craftBoat+" loadedChunks="+l.getChunkSource().getLoadedChunksCount()+" tickets="+PlayerNpcForceTickManager.forceTickSnapshot(s).workerTicketCount());}
-        if(ticks>12000+distance*40)throw new AssertionError("Journey deadline: "+journey.status);
+        if(ticks>Math.min(12000+distance*40,Integer.getInteger("journey.maxTicks",12000+distance*40)))throw new AssertionError("Journey deadline: "+journey.status);
     }
     BlockPos workSite(ServerLevel level,int x,int z){
         // A test waypoint is a standing work site, not the top of an arbitrary

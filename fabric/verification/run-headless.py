@@ -18,6 +18,7 @@ p.add_argument('--heading',type=int,choices=[0,90,180,270],default=0)
 p.add_argument('--start-x',type=int,default=0)
 p.add_argument('--start-z',type=int,default=0)
 p.add_argument('--tick-rate',type=int,choices=[20,100,200,1000],default=200)
+p.add_argument('--max-ticks',type=int,help='Optional shorter observation deadline for focused failures; defaults retain scenario limits')
 p.add_argument('--craft-boat',action='store_true')
 p.add_argument('--require-boat',action='store_true')
 p.add_argument('--pause',action='store_true',help='Save with AI paused, resume after 2000 world ticks without spending the work allowance')
@@ -32,6 +33,7 @@ p.add_argument('--fixture-source',type=Path,help='Optional dedicated-server diag
 p.add_argument('--replay',action='store_true')
 p.add_argument('--wait',action='store_true',help='Wait for this run and automatically replay an outbound checkpoint')
 a=p.parse_args();root=a.workspace.resolve();jar=a.jar.resolve()
+assert a.max_ticks is None or a.max_ticks>0,'Observation deadline must be positive'
 if a.resume_case:
  assert not a.replay and not a.fixture_source,'Saved-state resume uses the standard fixture in a fresh case'
  resumed=a.resume_case.resolve();assert (resumed/'actor.properties').is_file()
@@ -110,7 +112,7 @@ if not a.replay:
  run([jdk/'javac.exe','@'+str(case/'compile.args')])
  (case/'classes/fabric.mod.json').write_text(json.dumps({'schemaVersion':1,'id':'smartnpc_journey_test','version':'1','environment':'server','entrypoints':{'server':[source.stem]}}))
  run([jdk/'jar.exe','cf',case/'mods/journey-test.jar','-C',case/'classes','.'])
- (case/'candidate.json').write_text(json.dumps({'sha256':sha(jar),'artifact':jar.name,'distance':a.distance,'tickRate':a.tick_rate,'mode':a.mode,'heading':a.heading,'craftBoat':a.craft_boat,'requireBoat':a.require_boat,'seed':a.seed,'pause':a.pause,'checkpointAboard':a.checkpoint_aboard,'fixtureSha256':sha(source),'resumedCase':resumed.name if a.resume_case else None,'freshConditions':'copied' if a.keep_world_conditions else 'dawn-clear' if not a.resume_case and not a.fixture_source else None},indent=2))
+ (case/'candidate.json').write_text(json.dumps({'sha256':sha(jar),'artifact':jar.name,'distance':a.distance,'tickRate':a.tick_rate,'maxTicks':a.max_ticks,'mode':a.mode,'heading':a.heading,'craftBoat':a.craft_boat,'requireBoat':a.require_boat,'seed':a.seed,'pause':a.pause,'checkpointAboard':a.checkpoint_aboard,'fixtureSha256':sha(source),'resumedCase':resumed.name if a.resume_case else None,'freshConditions':'copied' if a.keep_world_conditions else 'dawn-clear' if not a.resume_case and not a.fixture_source else None},indent=2))
 else:
  assert (case/'checkpoint.txt').exists() or (case/'return-checkpoint.txt').exists()
  assert not (case/('return-replay.args' if (case/'return-checkpoint.txt').exists() else 'replay.args')).exists(), 'Checkpoint already replayed'
@@ -124,6 +126,7 @@ args=['-Xmx4G','-XX:+UseZGC','--enable-native-access=ALL-UNNAMED','-XX:StackShad
  '-Djourney.fixedConditions='+str(not a.keep_world_conditions).lower(),
  '-cp',cp,'net.fabricmc.loader.impl.launch.knot.KnotServer','nogui']
 return_replay=a.replay and (case/'return-checkpoint.txt').exists()
+if a.max_ticks is not None:args.insert(0,'-Djourney.maxTicks='+str(a.max_ticks))
 argfile=case/('return-replay.args' if return_replay else 'replay.args' if a.replay else 'server.args')
 argfile.write_text('\n'.join('"'+str(v).replace('\\','\\\\')+'"' for v in args))
 prefix='return-replay-' if return_replay else 'replay-' if a.replay else ''
@@ -144,6 +147,7 @@ if a.wait:
   replay_args+=['--seed',a.seed]
   if a.java_home:replay_args+=['--java-home',a.java_home.resolve()]
   if a.instance:replay_args+=['--instance',instance]
+  if a.max_ticks is not None:replay_args+=['--max-ticks',a.max_ticks]
   run(replay_args)
  else:
   assert (case/'complete.txt').exists(),f'Process exited {code} without a completion receipt'

@@ -6,6 +6,7 @@ import com.pla.smart_npc.entity.ai.BreakingBlockAi;
 import com.pla.smart_npc.entity.ai.ClearBlockAi;
 import com.pla.smart_npc.entity.ai.FarmAi;
 import com.pla.smart_npc.entity.ai.PlacingBlockAi;
+import com.pla.smart_npc.entity.ai.PathNavigationAi;
 import com.pla.smart_npc.entity.ai.ToolAi;
 import com.pla.smart_npc.entity.ai.WaterEscapeAi;
 import com.pla.smart_npc.util.InventoryUtils;
@@ -143,9 +144,11 @@ public class BuildHouseGoal extends Goal {
     private BlockPos unreachableBuildTargetPos;
     private int unreachableBuildTargetTicks;
     private BlockPos buildRouteTarget;
-    private BlockPos buildRouteLastProgressPos;
     private int buildRouteRepathTicks;
     private int buildRouteNoProgressTicks;
+    private BlockPos buildRouteStand;
+    private int buildRouteStandAttempt;
+    private double bestBuildRouteDistanceSqr = Double.MAX_VALUE;
     private BlockPos craftApproachTarget;
     private BlockPos craftRouteTablePos;
     private BlockPos craftRouteRequestedPos;
@@ -697,7 +700,7 @@ public class BuildHouseGoal extends Goal {
             }
 
             if (!this.canPlaceFromCurrentPosition(target)) {
-                this.moveTowardBuildTarget(target, block, "walking to");
+                this.moveTowardBuildTarget(target, block, "walking to", true);
                 return;
             }
             this.clearUnreachableBuildTarget();
@@ -1070,7 +1073,7 @@ public class BuildHouseGoal extends Goal {
         this.playerNpc.getLookControl().setLookAt(tablePos.getX() + 0.5D, tablePos.getY() + 0.5D, tablePos.getZ() + 0.5D, 40.0F, 40.0F);
         if (this.playerNpc.distanceToSqr(tablePos.getX() + 0.5D, tablePos.getY(), tablePos.getZ() + 0.5D) > BUILD_DISTANCE_SQR) {
             this.trackCraftRouteProgress(tablePos);
-            this.moveTowardBuildTarget(tablePos, block, "walking to craft");
+            this.moveTowardBuildTarget(tablePos, block, "walking to craft", false);
             if ((this.unreachableBuildTargetTicks >= CRAFT_ROUTE_CLEAR_TRIGGER_TICKS
                     || this.craftRouteNoProgressTicks >= CRAFT_ROUTE_NO_PROGRESS_TICKS)
                     && this.startCraftRouteClear(serverLevel, tablePos, block)) {
@@ -1818,17 +1821,20 @@ public class BuildHouseGoal extends Goal {
         return dx * dx + dz * dz <= BUILD_HORIZONTAL_DISTANCE_SQR;
     }
 
-    private void moveTowardBuildTarget(BlockPos target, PlayerNpcBuildLayout.RelativeBlock block, String stage) {
+    private void moveTowardBuildTarget(BlockPos target, PlayerNpcBuildLayout.RelativeBlock block, String stage, boolean placementRoute) {
         boolean newRouteTarget = !target.equals(this.buildRouteTarget);
         if (newRouteTarget) {
             this.buildRouteTarget = target.immutable();
-            this.buildRouteLastProgressPos = this.playerNpc.blockPosition().immutable();
             this.buildRouteRepathTicks = 0;
             this.buildRouteNoProgressTicks = 0;
+            this.buildRouteStand = null;
+            this.buildRouteStandAttempt = 0;
+            this.bestBuildRouteDistanceSqr = Double.MAX_VALUE;
         } else {
-            BlockPos currentPos = this.playerNpc.blockPosition();
-            if (!currentPos.equals(this.buildRouteLastProgressPos)) {
-                this.buildRouteLastProgressPos = currentPos.immutable();
+            BlockPos progressTarget = this.buildRouteStand == null ? target : this.buildRouteStand;
+            double distance = this.playerNpc.distanceToSqr(Vec3.atBottomCenterOf(progressTarget));
+            if (distance < this.bestBuildRouteDistanceSqr - 0.25D) {
+                this.bestBuildRouteDistanceSqr = distance;
                 this.buildRouteNoProgressTicks = 0;
                 this.clearUnreachableBuildTarget();
             } else {
@@ -1860,18 +1866,26 @@ public class BuildHouseGoal extends Goal {
             return;
         }
 
-        boolean moving = this.playerNpc.getNavigation().moveTo(
-                target.getX() + 0.5D,
-                target.getY(),
-                target.getZ() + 0.5D,
-                1.0D
-        );
+        boolean moving;
+        if (placementRoute && this.playerNpc.level() instanceof ServerLevel level) {
+            if (this.buildRouteStand == null
+                    || !this.canUsePlacementClearanceStand(level, this.buildRouteStand, target, block.state())
+                    || this.buildRouteNoProgressTicks >= BUILD_ROUTE_NO_PROGRESS_TICKS) {
+                this.buildRouteStand = this.findBuildApproachStand(level, target, block.state(), this.buildRouteStandAttempt++);
+                this.bestBuildRouteDistanceSqr = this.buildRouteStand == null ? Double.MAX_VALUE
+                        : this.playerNpc.distanceToSqr(Vec3.atBottomCenterOf(this.buildRouteStand));
+            }
+            var path = this.buildRouteStand == null ? null
+                    : PathNavigationAi.createBoundedPath(this.playerNpc, this.buildRouteStand, 0.2F);
+            moving = path != null && path.canReach() && this.playerNpc.getNavigation().moveTo(path, 1.0D);
+        } else {
+            moving = this.playerNpc.getNavigation().moveTo(target.getX() + 0.5D, target.getY(), target.getZ() + 0.5D, 1.0D);
+        }
         this.buildRouteRepathTicks = BUILD_ROUTE_REPATH_TICKS;
         if (moving
                 && !this.playerNpc.getNavigation().isDone()
                 && !this.playerNpc.getNavigation().isStuck()
                 && this.buildRouteNoProgressTicks < BUILD_ROUTE_NO_PROGRESS_TICKS) {
-            this.clearUnreachableBuildTarget();
             this.updateTaskDetail(stage, block);
             return;
         }
@@ -1907,9 +1921,24 @@ public class BuildHouseGoal extends Goal {
 
     private void resetBuildRoute() {
         this.buildRouteTarget = null;
-        this.buildRouteLastProgressPos = null;
         this.buildRouteRepathTicks = 0;
         this.buildRouteNoProgressTicks = 0;
+        this.buildRouteStand = null;
+        this.buildRouteStandAttempt = 0;
+        this.bestBuildRouteDistanceSqr = Double.MAX_VALUE;
+    }
+
+    private BlockPos findBuildApproachStand(ServerLevel level, BlockPos target, BlockState state, int attempt) {
+        List<BlockPos> candidates = new ArrayList<>();
+        for (int x = -3; x <= 3; x++) for (int z = -3; z <= 3; z++) for (int y = -2; y <= 2; y++) {
+            BlockPos stand = target.offset(x, y, z);
+            if (x * x + z * z > BUILD_HORIZONTAL_DISTANCE_SQR
+                    || !this.canUsePlacementClearanceStand(level, stand, target, state)) continue;
+            candidates.add(stand);
+        }
+        candidates.sort(Comparator.comparingDouble(p -> this.playerNpc.distanceToSqr(Vec3.atBottomCenterOf(p))
+                + 4 * Math.pow(p.getY() - this.playerNpc.getY(), 2)));
+        return candidates.isEmpty() ? null : candidates.get(Math.floorMod(attempt, candidates.size()));
     }
 
     private boolean isInsideBuildWorkArea(PlayerNpcHomeUtil.HomeArea homeArea) {
@@ -2113,7 +2142,8 @@ public class BuildHouseGoal extends Goal {
     }
 
     private boolean canUsePlacementClearanceStand(ServerLevel serverLevel, BlockPos standPos, BlockPos placementPos, BlockState placementState) {
-        if (!serverLevel.isInWorldBounds(standPos)
+        if (!serverLevel.hasChunkAt(standPos)
+                || !serverLevel.isInWorldBounds(standPos)
                 || !serverLevel.getWorldBorder().isWithinBounds(standPos)
                 || !serverLevel.getBlockState(standPos).getCollisionShape(serverLevel, standPos).isEmpty()
                 || !serverLevel.getBlockState(standPos.above()).getCollisionShape(serverLevel, standPos.above()).isEmpty()

@@ -9,11 +9,15 @@ operate on the chosen instance, artifact and receipts.
    running case's jar. `run-headless.py` copies the artifact into each case and
    binds its replays to those exact bytes. A later build can proceed independently.
    `build-candidate.ps1 -Workspace ... -JavaHome ... -StagingDirectory ...`
-   waits for successful build/checks, verifies the unit results, and returns an
+   waits for successful build/checks, verifies the unit results and embedded mod
+   ID/version, and returns an
    immutable jar path plus receipt. Unit XML and the build log are frozen into
    a unique check directory as well, so the next build cannot replace evidence.
    Pass that returned path to tests; do not race
    a still-running build by copying its previous output.
+   Older jars may remain in the compiler cache; only the declared release version
+   can be selected. Gradle tracks version changes as a resource-processing input,
+   refreshing the embedded metadata as well as the jar filename.
 2. Reproduce the failing behaviour first, using `run-headless.py --workspace ...
    --jar ... --world ... --name ... --wait`. It copies a closed world, checks the
    source did not change during copying, retains the installed common mod stack
@@ -26,6 +30,9 @@ operate on the chosen instance, artifact and receipts.
    Fresh standard scenarios start at declared dawn/clear conditions for a
    repeatable day. Use `--keep-world-conditions` for a fresh copied-condition
    trial; continuations never reset conditions. Record which was used.
+   `--max-ticks` can shorten a focused observation, with the chosen cap recorded
+   in the case metadata and inherited by replays. It cannot extend the standard
+   scenario deadline. A deadline remains a failed outcome, never a pass.
 3. Use accelerated tick rates for iteration, explicitly recorded in receipts.
    Repeat critical final cases at a lower rate. Generation and asynchronous
    loading can change observed timing; do not present accelerated throughput as

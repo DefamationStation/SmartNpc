@@ -66,6 +66,11 @@ Acceptance: the baseline scenarios either complete or report a specific blocked 
 
 ### M1 — One convincing survival day
 
+The [building approach follow-up](verification/BUILDING-RESULTS.md) recovers the
+previously blocked copied-world cabin without moving the actor or supplying
+materials. Native reachability alone no longer counts as physical progress.
+Broader resource-access, terrain and hostile-start acceptance remains open.
+
 The first implementation now includes persistent segmented journeys, real boat
 transport and observed-trail home return, plus original starter-cabin arbitration.
 See [the delivery report](verification/M1-RESULTS.md) for exact runtime evidence
