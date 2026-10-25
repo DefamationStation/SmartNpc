@@ -179,3 +179,41 @@ regression checks that a later retry matches only that departure/destination,
 not the terminal position, another destination, expired evidence or a route
 which later succeeded. The API/model follow-up passes 69 units; production
 outbound-abort integration remains central ownership.
+
+## Native integrated encounter and supply consumer
+
+Integrated artifact
+`12dc9b3ad7ee7d7ec2054beec05ca3cf36e4856fb22b65c2aeab5626b745c75d`
+contains the central canonical-record tail hook, memory supply consumer, native
+outcome producers and saved attachments. It has 80 combined unit tests.
+
+`SmartNpcMemoryEncounterScenario` first reproduced a real first-hit gap on
+pre-hook artifact `5c372fe6…`: native hurt returned true and reduced health,
+but the first committed offender was absent from personal memory. The passing
+`continuous-memory-encounter-integrated-v2` uses three real NPCs, all normal
+victim goals intact. A closer peaceful bystander produces no grievance. One
+successful native mobAttack records ASSAULT for the exact actual offender; a
+real process restart retains it and leaves the bystander unblamed. The fixture
+explicitly flushes memory before its checkpoint and does not claim an
+unflushed-save crash-recovery test. The original failed regression is retained.
+The first integrated launch also exposed an undefined frozen_asset helper;
+that helper failure case is preserved, and the corrected helper completed the
+passing launch plus process replay with its immutable shared asset store.
+
+`SmartNpcMemorySupplyScenario` passes as
+`continuous-memory-native-supply-v1` on the same integrated artifact. This is a
+controlled native consumer admission, followed by ordinary-selector travel.
+A real builder starts with food and a real visible oak log nine blocks away;
+only that physically observed log is remembered. The fixture explicitly claims
+a normal scheduler worker slot before invoking the real ShelterSupplyTravel
+observer, leaving its ordinary food, visibility, loaded-chunk and physical
+standing checks intact. The selected native stand is beside the remembered oak;
+stale arrival/blocked-position/cursor state is cleared, and admission grants no
+items and consumes no supplies. All 80 goals remain present. During the next
+400 ticks those ordinary selectors move the real NPC at least two blocks toward
+the supply, without actor teleportation. This proves the memory decision is
+consumed by a native planner, not only stored in a data class. It does not claim
+a fully autonomous wilderness start, successful end-to-end wood harvesting,
+automatic worker selection or a supply-journey replay test.
+
+These encounter/supply logs have no low-space or world-save failure warnings.
