@@ -170,3 +170,12 @@ first-hit, theft or vandalism coverage. This API follow-up compiles with 68 unit
 tests in artifact `5c372fe62db7182a9138ee52c619f4344281020ba2806ad9208d4c23ade01088`;
 production tail-hook integration and real first-hit verification remain central
 integration responsibilities.
+
+`routeFailedFrom(npc, actualObservedDeparture, originalDestination, reason)` lets
+the native journey abort producer retain its real saved departure instead of
+misidentifying the far-away terminal position as the retry origin. The ordinary
+`routeFailed` API delegates using the actor's current position. A new model
+regression checks that a later retry matches only that departure/destination,
+not the terminal position, another destination, expired evidence or a route
+which later succeeded. The API/model follow-up passes 69 units; production
+outbound-abort integration remains central ownership.

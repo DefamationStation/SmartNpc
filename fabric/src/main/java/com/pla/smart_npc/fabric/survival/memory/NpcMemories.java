@@ -141,7 +141,11 @@ public final class NpcMemories {
         return Validation.EXHAUSTED;
     }
     public static void routeFailed(PlayerNpcEntity npc,BlockPos destination,String reason){
-        if(destination!=null)remember(npc,ObservedMemory.Kind.FAILED_ROUTE,npc.blockPosition(),destination,null,bounded(reason),ObservedMemory.Source.TERMINAL_ROUTE_FAILURE,100);
+        routeFailedFrom(npc,npc.blockPosition(),destination,reason);
+    }
+    /** The caller supplies the actual observed departure, never a guessed home or nearest anchor. */
+    public static void routeFailedFrom(PlayerNpcEntity npc,BlockPos origin,BlockPos destination,String reason){
+        if(origin!=null&&destination!=null)remember(npc,ObservedMemory.Kind.FAILED_ROUTE,origin,destination,null,bounded(reason),ObservedMemory.Source.TERMINAL_ROUTE_FAILURE,100);
     }
     public static boolean failedRouteRecently(PlayerNpcEntity npc,BlockPos destination){
         return destination!=null&&MemorySettings.MEMORY_ENABLED.get()&&state(npc).loaded.observations().failedRecently(

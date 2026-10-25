@@ -53,4 +53,13 @@ class ObservedMemoryTest {
         assertThrows(IllegalArgumentException.class,()->resource(1,-1));
         assertThrows(IllegalArgumentException.class,()->new ObservedMemory.Point(Integer.MAX_VALUE,64,0));
     }
-}
+    @Test void actualSavedDepartureMatchesRetryRatherThanRemoteTerminalPosition(){
+        var m=new ObservedMemory();var departure=p(0);var terminal=p(80);var destination=p(100);
+        m.observe(new ObservedMemory.Entry(ObservedMemory.Kind.FAILED_ROUTE,dim,departure,destination,null,"observed outbound blocked",ObservedMemory.Source.TERMINAL_ROUTE_FAILURE,100,100));
+        assertTrue(m.failedRecently(dim,departure,destination,101));
+        assertFalse(m.failedRecently(dim,terminal,destination,101));
+        assertFalse(m.failedRecently(dim,departure,p(101),101));
+        assertFalse(m.failedRecently(dim,departure,destination,1300));
+        assertTrue(m.clearRouteFailure(dim,destination));
+        assertFalse(m.failedRecently(dim,departure,destination,102));
+    }}
