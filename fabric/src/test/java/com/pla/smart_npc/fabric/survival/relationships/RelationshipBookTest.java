@@ -55,4 +55,9 @@ class RelationshipBookTest {
         var loaded=RelationshipCodec.load(tag);assertEquals(1,loaded.book().eventCount());assertEquals(2,loaded.book().advice(actor,101).trust());
         contact.putString("actor","not-a-uuid");tag.put("contact0",contact);assertEquals(0,RelationshipCodec.load(tag).book().eventCount());assertEquals(0,RelationshipCodec.load(new CompoundTag()).book().eventCount());
     }
-}
+    @Test void GiftAndTradeShareOneActualActorInfluenceWindow(){
+        var book=new RelationshipBook();book.record(actor,help(100,1));
+        assertFalse(book.record(actor,new RelationshipBook.Evidence(RelationshipBook.Kind.TRADE,RelationshipBook.Source.CONSERVED_EXCHANGE,"minecraft:cooked_beef",200,64)));
+        assertTrue(book.record(actor,new RelationshipBook.Evidence(RelationshipBook.Kind.TRADE,RelationshipBook.Source.CONSERVED_EXCHANGE,"minecraft:cooked_beef",1300,64)));
+        assertEquals(3,book.advice(actor,1301).trust());assertFalse(book.record(actor,help(1400,64)));assertEquals(2,book.advice(actor,1401).currentEvidence());
+    }}

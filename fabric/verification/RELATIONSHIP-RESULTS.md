@@ -59,3 +59,15 @@ No barter gesture is added. A future exchange requires an explicit reviewed
 offer and a deliberate accept action with an expiring token bound to the exact
 actor/NPC, actual shortage/surplus and a conserved transaction. Holding a sample
 item in the offhand will not silently convert an intended gift into a purchase.
+`completedTrade(npc, actualTraderUUID, receivedRegistryItem, receivedUnits)` is
+available to a native reviewed-exchange executor only after both inventory legs
+complete and conservation is verified. The trade executor retains its receipt
+for the outgoing leg. This observer records only the useful received resource
+as TRADE / CONSERVED_EXCHANGE, with a modest unit-independent influence of one.
+It shares the same 1,200-tick actor window with assistance, so switching between
+gifts and trades cannot evade the limit. A tenth pure test verifies the shared
+window and unit-independent exchange influence. After merging the exact current
+6f19a87 source into the isolated branch, all 106 tests pass in artifact
+`af7eddf7fb0ac28b3c9a63cf54c308289bf8b0b6cfd983ebfb108d65a22c2d04`.
+The observer API is not a claim that an exchange has already been implemented;
+the reviewed quote/accept executor and its native proof are separately owned.

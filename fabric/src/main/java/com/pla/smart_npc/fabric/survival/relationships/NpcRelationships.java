@@ -36,6 +36,11 @@ public final class NpcRelationships {
         if(!(npc.level() instanceof ServerLevel)||actualUnits<1||actualUnits>64)return false;
         try{return record(npc,actualGiver,new RelationshipBook.Evidence(RelationshipBook.Kind.ASSISTANCE,RelationshipBook.Source.CONSERVED_HANDOFF,registryItem,npc.level().getGameTime(),actualUnits));}catch(IllegalArgumentException ignored){return false;}
     }
+    /** Both physical exchange legs and conservation must already be verified by the native producer. */
+    public static boolean completedTrade(PlayerNpcEntity npc,UUID actualTrader,String receivedRegistryItem,int actualReceivedUnits){
+        if(!(npc.level() instanceof ServerLevel)||actualReceivedUnits<1||actualReceivedUnits>64)return false;
+        try{return record(npc,actualTrader,new RelationshipBook.Evidence(RelationshipBook.Kind.TRADE,RelationshipBook.Source.CONSERVED_EXCHANGE,receivedRegistryItem,npc.level().getGameTime(),actualReceivedUnits));}catch(IllegalArgumentException ignored){return false;}
+    }
     /** Root calls only after exact canonical SocialSafety.record has committed successfully. */
     public static boolean canonicalEncounter(PlayerNpcEntity npc,LivingEntity actualOffender){
         if(actualOffender==null||!SocialSafety.hasCause(npc,actualOffender))return false;
