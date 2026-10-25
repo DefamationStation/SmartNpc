@@ -159,3 +159,14 @@ artifact `9d7fcdce3ae7d004ede50e31f8b009140f444e2c4952457e60fae70b802210c6`.
 The isolated interaction/persistence evidence above applies to the preceding
 artifact; this wording-only follow-up has pure policy coverage and is included
 in the central integration runtime check.
+
+Canonical hostile facts need a post-commit hook: call
+`NpcMemories.encounterConfirmed(npc, actualOffender)` at the end of successful
+`SocialSafety.record`, after its existing canonical grievance is saved. The
+helper requires the exact existing canonical cause and never grants aggression
+permission. Incoming-damage interception occurs before the native hurt method
+records its first successful assault, so that interception alone cannot claim
+first-hit, theft or vandalism coverage. This API follow-up compiles with 68 unit
+tests in artifact `5c372fe62db7182a9138ee52c619f4344281020ba2806ad9208d4c23ade01088`;
+production tail-hook integration and real first-hit verification remain central
+integration responsibilities.

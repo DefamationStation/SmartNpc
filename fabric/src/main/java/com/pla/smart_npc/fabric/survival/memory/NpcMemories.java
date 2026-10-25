@@ -162,12 +162,18 @@ public final class NpcMemories {
         remember(event.npc(),ObservedMemory.Kind.WORK_SITE,event.position(),null,null,
                 bounded(event.kind().name().toLowerCase(java.util.Locale.ROOT)+":"+event.resourceId()),ObservedMemory.Source.SELF_ACTION,100);
     }
-    @Events.SubscribeEvent public static void encounter(Events.LivingIncomingDamageEvent event){
-        if(!(event.getEntity() instanceof PlayerNpcEntity npc)||!(event.getSource().getEntity() instanceof LivingEntity actor)
-                ||!SocialSafety.hasCause(npc,actor))return;
+    /** Call only after canonical defence evidence is committed; never grants targeting permission. */
+    public static boolean encounterConfirmed(PlayerNpcEntity npc,LivingEntity actor){
+        if(actor==null||!SocialSafety.hasCause(npc,actor))return false;
         var cause=SocialSafety.memory(npc).cause(actor.getUUID(),npc.level().getGameTime());
-        if(cause.isPresent())remember(npc,ObservedMemory.Kind.HOSTILE,npc.blockPosition(),null,actor.getUUID(),
+        if(cause.isEmpty())return false;
+        remember(npc,ObservedMemory.Kind.HOSTILE,npc.blockPosition(),null,actor.getUUID(),
                 cause.get().name(),ObservedMemory.Source.CANONICAL_DEFENCE,100);
+        return true;
+    }
+    @Events.SubscribeEvent public static void encounter(Events.LivingIncomingDamageEvent event){
+        if(event.getEntity() instanceof PlayerNpcEntity npc&&event.getSource().getEntity() instanceof LivingEntity actor)
+            encounterConfirmed(npc,actor);
     }
     @Events.SubscribeEvent public static void tick(Events.EntityTickEvent.Post event){
         if(!(event.getEntity() instanceof PlayerNpcEntity npc)||!(npc.level() instanceof ServerLevel level)
