@@ -12,7 +12,7 @@ public final class HomeWorkNavigation {
 
     public static Path createPath(PlayerNpcEntity npc, BlockPos stand) {
         if (stand == null || !(npc.level() instanceof ServerLevel level)
-                || npc.blockPosition().distSqr(stand) > 16 * 16
+                || npc.blockPosition().distSqr(stand) > 24 * 24
                 || !PathNavigationAi.hasLoadedChunkCorridor(level, npc.blockPosition(), stand, 2)) return null;
         var navigation = npc.getNavigation();
         navigation.setMaxVisitedNodesMultiplier(0.2F);

@@ -1,5 +1,8 @@
 # Fabric 26.4 Snapshot 5 port
 
+Persistent survival journeys and copied-world tests: [M1 delivery and limits](verification/M1-RESULTS.md).
+Faster build/test/deployment: [release workflow](verification/RELEASE-WORKFLOW.md).
+
 Ordinary daily resident routine and recovery: [daily results](verification/DAILY-RESULTS.md).
 
 Cooking stall and real restart regression: [cooking results](verification/COOKING-RECOVERY-RESULTS.md).
@@ -30,7 +33,9 @@ target NeoForge 26.1.2 without changes to its source or build configuration.
 
 Requires Fabric API **0.165.0+26.4**. Install the jar from the fork's releases in
 the `mods` directory on both client and server. The tested deployment is an
-integrated singleplayer server; dedicated-server deployment is not yet verified.
+integrated singleplayer server; disposable dedicated-server scenarios also cover
+the common-mod stack and saved journeys. Public multiplayer and settlements are
+not covered by those single-resident tests.
 This jar is not a NeoForge build and does not target other 26.4 snapshots.
 
 Build from this directory with `./gradlew build` (Windows: `gradlew.bat build`).

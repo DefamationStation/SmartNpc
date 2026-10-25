@@ -10,7 +10,15 @@ public final class RoutineWorkGoal extends Goal {
     public RoutineWorkGoal(PlayerNpcEntity npc, Goal delegate) {
         this.npc = npc; this.delegate = delegate; setFlags(delegate.getFlags());
     }
-    @Override public boolean canUse() { return !npc.shouldYieldRoutineForSurvival() && delegate.canUse(); }
+    @Override public boolean canUse() { return !npc.shouldYieldRoutineForSurvival() && !shelterHasFirstClaim() && delegate.canUse(); }
+    private boolean shelterHasFirstClaim(){
+        if(!(delegate instanceof com.pla.smart_npc.entity.goal.CraftBasicGearGoal)
+                ||!npc.hasInterest(com.pla.smart_npc.clazz.PlayerNpcInterest.BUILDING)
+                ||!(npc.level() instanceof net.minecraft.server.level.ServerLevel level)
+                ||!npc.hasCarriedTool(net.minecraft.tags.ItemTags.PICKAXES)
+                ||!npc.hasCarriedTool(net.minecraft.tags.ItemTags.AXES))return false;
+        return !com.pla.smart_npc.entity.goal.BuildHouseGoal.isHomeLayoutFinished(npc,level);
+    }
     @Override public boolean canContinueToUse() { return !npc.shouldYieldRoutineForSurvival() && delegate.canContinueToUse(); }
     @Override public void start() { delegate.start(); }
     @Override public void tick() { delegate.tick(); }

@@ -17,7 +17,7 @@ import net.minecraft.world.phys.Vec3;
  * recipes or inventory capacity never consume the NPC's real materials on a failed attempt.
  */
 public final class CookingCraftingExecutor {
-    public enum Action { CRAFTING_TABLE, WOODEN_PICKAXE, FURNACE, FISHING_ROD }
+    public enum Action { CRAFTING_TABLE, WOODEN_PICKAXE, FURNACE, FISHING_ROD, BOAT }
     private static final double TABLE_REACH_SQUARED = 2.25D * 2.25D;
 
     private CookingCraftingExecutor() { }
@@ -46,6 +46,7 @@ public final class CookingCraftingExecutor {
             case FISHING_ROD -> prepared.countItem(Items.STRING) >= 2
                     && prepareSticks(level, prepared, 3)
                     && PlayerNpcCraftingUtil.tryCraft(level, prepared, Items.FISHING_ROD, true);
+            case BOAT -> craftBoat(level,prepared);
         };
         if (!crafted) return false;
         for (int slot = 0; slot < real.getContainerSize(); slot++) {
@@ -53,6 +54,14 @@ public final class CookingCraftingExecutor {
         }
         real.setChanged();
         return true;
+    }
+
+    private static boolean craftBoat(ServerLevel level,SimpleContainer inventory){
+        if(!preparePlanks(level,inventory,5))return false;
+        var result=PlayerNpcCraftingUtil.craftItemMatching(level,inventory,
+            s->s.getItem() instanceof net.minecraft.world.item.BoatItem
+                &&!net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(s.getItem()).getPath().contains("chest"),true);
+        return result.isPresent()&&com.pla.smart_npc.util.InventoryUtils.addItem(inventory,result.get());
     }
 
     private static boolean preparePickaxe(ServerLevel level, SimpleContainer inventory) {

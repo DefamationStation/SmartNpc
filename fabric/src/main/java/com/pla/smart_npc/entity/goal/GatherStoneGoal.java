@@ -229,6 +229,7 @@ public class GatherStoneGoal extends Goal implements GatheringGoal {
             return com.pla.smart_npc.fabric.survival.SurvivalTasks.needsCookingStone(playerNpc)
                     && playerNpc.shouldPrioritizeCobblestoneGathering();
         }
+        if(BuildHouseGoal.hasReadyStarterPhase(playerNpc,serverLevel))return false;
 
         boolean fishingSupportJob = isFishingSupportJob(playerNpc);
         boolean farmingSupportJob = isFarmingSupportJob(playerNpc);

@@ -34,13 +34,16 @@ public final class PlayerNpcHomeUtil {
     private static final String HOME_WIDTH = "PlayerNpcHomeWidth";
     private static final String HOME_DEPTH = "PlayerNpcHomeDepth";
     private static final String HOME_LAYOUT_ID = "PlayerNpcHomeLayoutId";
+    private static final String HOME_DIMENSION = "PlayerNpcHomeDimension";
 
     private PlayerNpcHomeUtil() {
     }
 
     public static Optional<HomeArea> getHome(PlayerNpcEntity playerNpc) {
         CompoundTag persistentData = com.pla.smart_npc.fabric.PersistentData.get(playerNpc);
-        if (!hasHomeTag(persistentData)) {
+        if (!hasHomeTag(persistentData)
+                || !persistentData.getStringOr(HOME_DIMENSION, playerNpc.level().dimension().identifier().toString())
+                    .equals(playerNpc.level().dimension().identifier().toString())) {
             return Optional.empty();
         }
 
@@ -70,6 +73,7 @@ public final class PlayerNpcHomeUtil {
 
     public static void setHome(PlayerNpcEntity playerNpc, HomeArea homeArea) {
         writeHome(com.pla.smart_npc.fabric.PersistentData.get(playerNpc), homeArea);
+        com.pla.smart_npc.fabric.PersistentData.get(playerNpc).putString(HOME_DIMENSION, playerNpc.level().dimension().identifier().toString());
     }
 
     public static void setHome(PlayerNpcEntity playerNpc, HomeArea homeArea, String layoutId) {
@@ -97,12 +101,15 @@ public final class PlayerNpcHomeUtil {
         }
 
         setHome(playerNpc, readHome(tag));
+        tag.getString(HOME_DIMENSION).ifPresent(d -> com.pla.smart_npc.fabric.PersistentData.get(playerNpc).putString(HOME_DIMENSION,d));
         if (tag.contains(HOME_LAYOUT_ID)) {
             setHomeLayoutId(playerNpc, tag.getStringOr(HOME_LAYOUT_ID, ""));
         }
     }
 
     public static void saveHome(PlayerNpcEntity playerNpc, ValueOutput output) {
+        var homeDimension=com.pla.smart_npc.fabric.PersistentData.get(playerNpc).getStringOr(HOME_DIMENSION,playerNpc.level().dimension().identifier().toString());
+        output.putString(HOME_DIMENSION,homeDimension);
         getHome(playerNpc).ifPresent(homeArea -> {
             output.putInt(HOME_X, homeArea.origin().getX());
             output.putInt(HOME_Y, homeArea.origin().getY());
@@ -123,6 +130,7 @@ public final class PlayerNpcHomeUtil {
                 Math.max(3, input.getIntOr(HOME_DEPTH, 0))
         );
         setHome(playerNpc, homeArea);
+        input.getString(HOME_DIMENSION).ifPresent(d -> com.pla.smart_npc.fabric.PersistentData.get(playerNpc).putString(HOME_DIMENSION,d));
         input.getString(HOME_LAYOUT_ID).ifPresent(layoutId -> setHomeLayoutId(playerNpc, layoutId));
     }
 

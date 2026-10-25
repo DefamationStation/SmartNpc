@@ -154,6 +154,10 @@ public class ReturnHomeGoal extends Goal {
         if (home.isEmpty()) {
             return false;
         }
+        var journey=com.pla.smart_npc.fabric.survival.Journeys.state(this.playerNpc);
+        if(journey.phase.equals("blocked")&&journey.blockedPosition!=null
+                &&journey.blockedPosition.distSqr(this.playerNpc.blockPosition())<16
+                &&this.playerNpc.blockPosition().distSqr(home.get().origin())>48*48)return false;
         this.constructionHandoff = false;
 
         PlayerNpcHomeUtil.HomeArea homeArea = home.get();
@@ -402,6 +406,9 @@ public class ReturnHomeGoal extends Goal {
 
     @Override
     public void start() {
+        if (this.homeCenter != null && this.playerNpc.blockPosition().distSqr(this.homeCenter) > 48 * 48) {
+            com.pla.smart_npc.fabric.survival.Journeys.returnHome(this.playerNpc, "native return-home handoff");
+        }
         this.returnTicks = MAX_RETURN_TICKS;
         this.playerNpc.setCurrentAiState("ai.player_npc.returning_home");
         if (this.homeSurfaceRecoveryReturn && this.homeCenter != null
@@ -416,6 +423,10 @@ public class ReturnHomeGoal extends Goal {
 
     @Override
     public void tick() {
+        if (com.pla.smart_npc.fabric.survival.Journeys.active(this.playerNpc)) {
+            this.returnTicks = 0;
+            return;
+        }
         if (!(this.playerNpc.level() instanceof ServerLevel serverLevel)) {
             return;
         }
@@ -778,6 +789,7 @@ public class ReturnHomeGoal extends Goal {
             boolean inventoryMostlyFull,
             PlayerNpcHomeUtil.HomeArea homeArea
     ) {
+        if(BuildHouseGoal.hasReadyStarterPhase(this.playerNpc,serverLevel))return false;
         if (this.shouldShelterAtHome(serverLevel)) {
             return false;
         }

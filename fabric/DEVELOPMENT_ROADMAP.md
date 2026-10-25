@@ -1,6 +1,6 @@
 # Smart NPC: believable survival and progression
 
-Status: approved direction with experimental resource search and a controlled resident routine, updated 2026-10-24. Most milestones below remain planned. See `RESOURCE_TASKS.md`, `verification/SEARCH-RESULTS.md` and the resident report below for implemented scope and verification limits. Limited-start wilderness survival remains outstanding.
+Status: initial M1 survival journeys and selected limited-start copied-world scenarios implemented, updated 2026-10-25. Most later milestones remain planned. See `verification/M1-RESULTS.md`, `RESOURCE_TASKS.md` and the resident report below for implemented scope and verification limits. Broad wilderness-start acceptance remains outstanding.
 
 ## Snapshot 5 resident routine milestone — 24 October 2026
 
@@ -66,6 +66,12 @@ Acceptance: the baseline scenarios either complete or report a specific blocked 
 
 ### M1 — One convincing survival day
 
+The first implementation now includes persistent segmented journeys, real boat
+transport and observed-trail home return, plus original starter-cabin arbitration.
+See [the delivery report](verification/M1-RESULTS.md) for exact runtime evidence
+and remaining poor-resource/terrain limitations. Broad acceptance below remains
+open; one controlled resident or copied-world route is not universal survival.
+
 Deliver one complete scenario using existing goals: obtain food, gather materials, craft tools, establish a camp, store supplies, rest, and resume the following day.
 
 - Begin with food reserve, fatigue and perceived danger as distinct motivations. Preserve immediate healing and hazard responses. Add more needs only when they produce useful decisions.
@@ -82,7 +88,9 @@ Acceptance: across a fixed set of suitable seeds, a survivor with limited starte
 The user explicitly requires reliable travel across many chunks, including a
 return from distant work sites and island/mainland routes. Treat this as a
 prerequisite of independent survival, not only a later expedition feature.
-The installed resident fixtures prove local travel; they do not prove this gate.
+The earlier resident fixtures proved local travel. The new journey fixtures
+exercise distant movement and actual process restarts; their scope and failures
+are recorded in the M1 report rather than treated as a guaranteed travel radius.
 Existing saved home coordinates, local return recovery and budgeted moving chunk
 tickets are foundations, not a complete long-distance route planner. Home data
 also needs explicit dimension identity before cross-dimension travel is allowed.

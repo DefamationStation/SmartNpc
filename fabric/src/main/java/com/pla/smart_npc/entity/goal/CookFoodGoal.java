@@ -43,7 +43,7 @@ public class CookFoodGoal extends Goal {
     private static final int COOLDOWN_TICKS = 20 * 20;
     private static final int FAIL_COOLDOWN_TICKS = 20 * 4;
     private static final int FURNACE_SCAN_RADIUS = 5;
-    private static final double HOME_ACTION_DISTANCE_SQR = 8.0D * 8.0D;
+    private static final double HOME_ACTION_DISTANCE_SQR = 24.0D * 24.0D;
     private static final double FURNACE_USE_DISTANCE_SQR = 2.25D * 2.25D;
     private static final double FURNACE_STAND_REACHED_SQR = 1.25D * 1.25D;
     private static final double RECOVER_FURNACE_BREAK_DISTANCE_SQR = 3.0D * 3.0D;
@@ -110,6 +110,21 @@ public class CookFoodGoal extends Goal {
 
         this.resetPlan();
         this.homeArea = PlayerNpcHomeUtil.getHome(this.playerNpc).orElse(null);
+        // Let the blueprint place an earned station before starting another
+        // disposable charcoal camp beside the same unfinished home.
+        if(InventoryUtils.hasItem(this.playerNpc,Items.FURNACE)
+                &&!com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingNeeded(this.playerNpc,serverLevel)
+                &&this.missingBlueprintFurnace(serverLevel)!=null)return false;
+
+        // A stranded old camp station must not hide a usable owned home station.
+        // Retain the old block, contents and metadata for later recovery.
+        if(this.homeArea!=null&&this.isNearHome()){
+            BlockPos home=this.findHomeFurnace(serverLevel);
+            if(home!=null&&this.isCorrectBlueprintFurnace(serverLevel,home)
+                    &&serverLevel.getBlockEntity(home) instanceof FurnaceBlockEntity furnace
+                    &&this.furnaceAi.hasFurnaceWork(serverLevel,furnace)
+                    &&this.planInteraction(serverLevel,home,false))return true;
+        }
 
         BlockPos temporary = this.getTemporaryFurnacePos();
         if (temporary != null) {
@@ -128,6 +143,7 @@ public class CookFoodGoal extends Goal {
                         || this.isInsideActiveBuildFootprint(temporary)) {
                     return this.planRecovery(serverLevel, temporary);
                 }
+                if(this.shouldRecoverIdleBuildFurnace(serverLevel,temporary))return this.planRecovery(serverLevel,temporary);
                 if (this.furnaceAi.hasFurnaceWork(serverLevel, furnace)) {
                     return this.planInteraction(serverLevel, temporary, true);
                 }
@@ -170,13 +186,30 @@ public class CookFoodGoal extends Goal {
 
     private boolean shouldDeferForPrimarySupply(ServerLevel serverLevel) {
         if (GatherLogsGoal.isLogGatheringEpisodeActive(this.playerNpc)) {
-            return true;
+            var feet=this.playerNpc.blockPosition();
+            boolean safelyHome=com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingReady(this.playerNpc)
+                    &&this.playerNpc.onGround()
+                    &&PlayerNpcHomeUtil.getHome(this.playerNpc).map(h->PlayerNpcHomeUtil.isInside(h,feet)).orElse(false)
+                    &&!this.playerNpc.isGatherLogsTemporaryPillarSupport(feet)
+                    &&!this.playerNpc.isGatherLogsTemporaryPillarSupport(feet.below())
+                    &&!this.playerNpc.isGatherLogsTemporaryPillarSupport(feet.below(2));
+            if(!safelyHome)return true;
         }
         // Cooking admission pauses unrelated stockpiles during a committed task.
         // Yielding back to those same supplies here would deadlock until timeout.
-        if (com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingReady(this.playerNpc)) {
+        if (com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingReady(this.playerNpc)
+                || com.pla.smart_npc.fabric.survival.SurvivalTasks.hasCookedOutput(this.playerNpc, serverLevel)) {
             return false;
         }
+        // Recover the already-earned station before asking stone supply for a
+        // second furnace. Otherwise stone demand pre-empts the very recovery
+        // that would fund the next blueprint placement.
+        BlockPos temporary = this.getTemporaryFurnacePos();
+        if (temporary != null && this.shouldRecoverIdleBuildFurnace(serverLevel,temporary))return false;
+        // Charcoal is the next construction input, not optional food/leisure.
+        // Waiting for generic log/stone reserves here prevents the final torch
+        // from ever being produced even with both real furnace inputs carried.
+        if (PlayerNpcBuildMaterialUtil.needsTorchCharcoalSmelting(serverLevel, this.playerNpc)) return false;
         return !serverLevel.isDarkOutside()
                 && !serverLevel.isThundering()
                 && (GatherLogsGoal.hasLogSupplyDemand(this.playerNpc, serverLevel)
@@ -185,6 +218,27 @@ public class CookFoodGoal extends Goal {
 
     private boolean shouldDeferForFishingNightCamp() {
         return this.playerNpc.isDailyJobActive(PlayerNpcInterest.FISHING);
+    }
+
+    private BlockPos missingBlueprintFurnace(ServerLevel level){
+        var home=PlayerNpcHomeUtil.getHome(this.playerNpc);
+        var layout=PlayerNpcHomeUtil.getHomeLayoutId(this.playerNpc).flatMap(PlayerNpcBuildLayoutLoader::getLayout);
+        if(home.isEmpty()||layout.isEmpty()||home.get().width()!=layout.get().width()||home.get().depth()!=layout.get().depth())return null;
+        for(var block:layout.get().blocks())if(block.state().is(Blocks.FURNACE)){
+            var pos=block.toWorld(home.get().origin());
+            if(level.hasChunkAt(pos)&&!PlayerNpcBuildMaterialUtil.matches(level.getBlockState(pos),block.state()))return pos;
+        }
+        return null;
+    }
+    private boolean shouldRecoverIdleBuildFurnace(ServerLevel level,BlockPos temporary){
+        if(!level.hasChunkAt(temporary)||!(level.getBlockEntity(temporary) instanceof FurnaceBlockEntity furnace)
+                ||!furnace.getItem(0).isEmpty()||!furnace.getItem(2).isEmpty()
+                ||!this.playerNpc.hasCarriedTool(net.minecraft.tags.ItemTags.PICKAXES)
+                ||com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingNeeded(this.playerNpc,level)
+                ||this.missingBlueprintFurnace(level)==null)return false;
+        var home=PlayerNpcHomeUtil.getHome(this.playerNpc).orElseThrow();
+        var layout=PlayerNpcHomeUtil.getHomeLayoutId(this.playerNpc).flatMap(PlayerNpcBuildLayoutLoader::getLayout).orElseThrow();
+        return layout.blocks().stream().noneMatch(b->b.state().is(Blocks.FURNACE)&&b.toWorld(home.origin()).equals(temporary));
     }
 
     @Override
@@ -379,11 +433,12 @@ public class CookFoodGoal extends Goal {
             return;
         }
 
-        if (this.isInsideOwnedFarmFurnaceExclusion(this.furnacePos)) {
+        if (this.isInsideOwnedFarmFurnaceExclusion(this.furnacePos)
+                ||this.shouldRecoverIdleBuildFurnace(serverLevel,this.furnacePos)) {
             if (!this.ensureFurnaceStand(serverLevel) || !this.isAtFurnaceStand()) {
                 this.breakingBlockAi.stop();
                 this.toolAi.restoreMainHand();
-                this.playerNpc.setCurrentAiDetail("recovering misplaced farm furnace");
+                this.playerNpc.setCurrentAiDetail("recovering owned temporary furnace");
                 if (!this.moveToFurnaceStand()) {
                     this.finished = true;
                 }

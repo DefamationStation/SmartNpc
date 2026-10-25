@@ -876,7 +876,10 @@ public final class PlayerNpcForceTickManager {
                 this.removeForceTickets(server);
             }
 
-            ChunkPos nextCenterChunk = npc.chunkPosition();
+            // Passengers tick through the vehicle. A boat launched across a chunk
+            // edge must not remain in a merely block-ticking fringe forever.
+            ChunkPos nextCenterChunk = com.pla.smart_npc.fabric.survival.Journeys.ownsBoat(npc,npc.getVehicle())
+                    ? npc.getVehicle().chunkPosition() : npc.chunkPosition();
             String nextUsername = npc.hasUsername() ? npc.getUsername().getCombinedNames() : "";
             boolean centerChanged = !Objects.equals(this.centerChunk, nextCenterChunk);
             boolean persistentStateChanged = dimensionChanged

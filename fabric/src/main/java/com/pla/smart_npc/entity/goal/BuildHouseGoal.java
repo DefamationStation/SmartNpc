@@ -95,6 +95,7 @@ public class BuildHouseGoal extends Goal {
     private static final double CRAFT_ROUTE_CLEAR_DISTANCE_SQR = 6.0D * 6.0D;
     private static final String ACTIVE_BUILD_BATCH_KEY = "SmartNpcActiveBuildBatch";
     private static final Map<PlayerNpcEntity, HomeBuildWorkCache> HOME_BUILD_WORK_CACHE = new WeakHashMap<>();
+    private static final Map<PlayerNpcBuildLayout,List<PlayerNpcBuildLayout.RelativeBlock>> STARTER_WORK_ORDER=new WeakHashMap<>();
     private static final Map<PlayerNpcEntity, HomeBuildWorkSearch> HOME_BUILD_WORK_SEARCHES = new WeakHashMap<>();
     private static final Map<PlayerNpcEntity, HomeFinishedCache> HOME_FINISHED_CACHE = new WeakHashMap<>();
     private static final Direction[] HORIZONTAL_DIRECTIONS = {
@@ -179,6 +180,10 @@ public class BuildHouseGoal extends Goal {
      * actionable before an older no-work cooldown expires. The actual blueprint/world query stays
      * cursor-sliced; a pending matching search reserves the handoff until it resolves.
      */
+    public static boolean hasReadyStarterPhase(PlayerNpcEntity npc,ServerLevel level){
+        return PlayerNpcHomeUtil.getHomeLayoutId(npc).orElse("").contains("starter_survival_cabin")&&hasReadyHomeBuildWork(npc,level);
+    }
+
     public static boolean shouldYieldSupplyWorkForBuild(PlayerNpcEntity playerNpc, ServerLevel serverLevel) {
         if (playerNpc == null
                 || serverLevel == null
@@ -379,6 +384,13 @@ public class BuildHouseGoal extends Goal {
                     && cache.continuable();
         }
         List<PlayerNpcBuildLayout.RelativeBlock> blocks = layout.get().blocks();
+        boolean starterPhase = layoutId.contains("starter_survival_cabin");
+        if(starterPhase)blocks=STARTER_WORK_ORDER.computeIfAbsent(layout.get(),l->l.blocks().stream().sorted(Comparator
+                .comparingInt(BuildHouseGoal::buildPlacementPriority)
+                .thenComparingInt(PlayerNpcBuildLayout.RelativeBlock::y)
+                .thenComparingInt(b->b.isSecondHalfOfSingleItemBlock()?1:0)
+                .thenComparingInt(PlayerNpcBuildLayout.RelativeBlock::x)
+                .thenComparingInt(PlayerNpcBuildLayout.RelativeBlock::z)).toList());
         int endIndex = Math.min(blocks.size(), search.nextBlockIndex() + MAX_READY_BUILD_BLOCKS_PER_SLICE);
         boolean hasUnfinishedRequired = search.hasUnfinishedRequired();
         boolean hasMaterialForPlacement = search.hasMaterialForPlacement();
@@ -388,6 +400,13 @@ public class BuildHouseGoal extends Goal {
                 continue;
             }
             boolean built = isBuiltMatch(serverLevel, block.toWorld(homeArea.origin()), block.state());
+            if(starterPhase&&!built&&!block.optional()){
+                // Admit the next real construction step, not a later carried bed
+                // while foundation supplies are missing. The scan remains sliced.
+                hasUnfinishedRequired=true;
+                hasMaterialForPlacement=PlayerNpcBuildMaterialUtil.hasMaterialFor(serverLevel,playerNpc,block,homeArea.origin());
+                endIndex=blocks.size();break;
+            }
             if (!built && !block.optional()) {
                 hasUnfinishedRequired = true;
             }
@@ -838,6 +857,18 @@ public class BuildHouseGoal extends Goal {
             return null;
         }
 
+        // A first shelter must be achievable before aspirational large templates.
+        // Existing saved layouts and all later construction keep their selection.
+        for (PlayerNpcBuildLayout layout : layouts) {
+            if (!layout.id().contains("starter_survival_cabin")) continue;
+            BlockPos origin = this.findBuildOrigin(serverLevel, layout);
+            if (origin != null) return new BuildSelection(layout, origin);
+            // A first survival shelter must not fall back to an aspirational
+            // template or reserve a large excavation when its simple site is unavailable.
+            this.playerNpc.setIdleTraceDetail("starter shelter needs a loaded flat dry footprint",100);
+            return null;
+        }
+
         for (int i = 0; i < Math.min(MAX_RANDOM_LAYOUT_ATTEMPTS, layouts.size() * 2); i++) {
             PlayerNpcBuildLayout layout = layouts.get(this.playerNpc.getRandom().nextInt(layouts.size()));
             BlockPos origin = this.findBuildOrigin(serverLevel, layout);
@@ -867,11 +898,25 @@ public class BuildHouseGoal extends Goal {
 
         origins.sort(Comparator.comparingDouble(center::distSqr));
         for (BlockPos originCandidate : origins) {
+            if(layout.id().contains("starter_survival_cabin")&&!flatStarterSite(serverLevel,layout,originCandidate))continue;
             if (this.canBuildAt(serverLevel, layout, originCandidate, false)) {
                 return originCandidate;
             }
         }
         return null;
+    }
+
+    private boolean flatStarterSite(ServerLevel level,PlayerNpcBuildLayout layout,BlockPos origin){
+        for(long packed:layout.footprint()){
+            var p=origin.offset((int)(packed>>32),0,(int)packed);
+            if(!level.hasChunkAt(p)||!level.getBlockState(p.below()).isFaceSturdy(level,p.below(),Direction.UP)
+                    ||!level.getFluidState(p).isEmpty())return false;
+            for(int y=0;y<layout.height();y++){
+                var q=p.above(y);var state=level.getBlockState(q);
+                if(!state.isAir()&&!state.canBeReplaced()||!level.getFluidState(q).isEmpty()||level.getBlockEntity(q)!=null)return false;
+            }
+        }
+        return true;
     }
 
     private boolean canBuildAt(ServerLevel serverLevel, PlayerNpcBuildLayout layout, BlockPos origin, boolean allowExistingHouseBlocks) {
@@ -929,6 +974,8 @@ public class BuildHouseGoal extends Goal {
     private static boolean hasFundedHomeWork(PlayerNpcEntity npc, ServerLevel level) {
         if (npc.hasMetBuildSupplyGoals() || isBuildBatchActive(npc)) return true;
         if (PlayerNpcHomeUtil.getHome(npc).isEmpty()) return false;
+        if(PlayerNpcHomeUtil.getHomeLayoutId(npc).orElse("").contains("starter_survival_cabin")
+                &&cachedContinuableHomeBuildWork(npc,level))return true;
         // An existing home's funded repair must not wait for unrelated stockpiles.
         // Both existing searches remain cursor-sliced and resource admitted.
         if (PlayerNpcBuildMaterialUtil.findMissingBuildMaterialNeed(level, npc).isPresent()
@@ -2091,6 +2138,13 @@ public class BuildHouseGoal extends Goal {
         // Keep the feet on the support surface. Inflating downward intersects
         // the solid floor and rejects every otherwise safe standing candidate.
 
+        // Moving from the foot to the head of an unplaced bed only alternates
+        // the collision and resets its retry counter. Clear both future halves.
+        if(placementState.getBlock() instanceof BedBlock){
+            Direction direction=placementState.getValue(BedBlock.FACING);
+            BlockPos other=placementPos.relative(placementState.getValue(BedBlock.PART)==BedPart.FOOT?direction:direction.getOpposite());
+            if(placementState.getCollisionShape(serverLevel,other).toAabbs().stream().anyMatch(box->box.move(other).intersects(standBox)))return false;
+        }
         return PlayerNpcCollisionUtil.noBlockingCollision(serverLevel, this.playerNpc, standBox)
                 && placementState.getCollisionShape(serverLevel, placementPos)
                 .toAabbs()

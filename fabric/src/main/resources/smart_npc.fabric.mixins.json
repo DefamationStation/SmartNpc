@@ -13,7 +13,9 @@
     "MonsterMixin",
     "BoatMixin",
     "MinecartMixin",
-    "SurvivalStoneGatherMixin"
+    "SurvivalStoneGatherMixin",
+    "LocalPathDetourMixin",
+    "SurvivalLogGatherMixin"
   ],
   "client": [
     "ClientInputAccessor",

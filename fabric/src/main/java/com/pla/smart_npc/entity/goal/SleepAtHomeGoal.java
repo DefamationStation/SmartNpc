@@ -61,7 +61,8 @@ public class SleepAtHomeGoal extends Goal {
             }
             return true;
         }
-        if (!this.canUseThrottle.canCheck(this.playerNpc)
+        if (com.pla.smart_npc.fabric.survival.Journeys.active(this.playerNpc)
+                || !this.canUseThrottle.canCheck(this.playerNpc)
                 || this.playerNpc.getRandom().nextFloat() > 0.35F) {
             return false;
         }

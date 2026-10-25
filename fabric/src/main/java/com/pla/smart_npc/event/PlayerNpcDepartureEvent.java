@@ -20,6 +20,11 @@ public final class PlayerNpcDepartureEvent {
         if (!(event.getEntity() instanceof PlayerNpcEntity npc)
                 || !(npc.level() instanceof ServerLevel) || !npc.isAlive() || npc.isRemoved()
                 || Math.floorMod(npc.tickCount, 20) != Math.floorMod(npc.getUUID().hashCode(), 20)) return;
+        // A resident/traveller must not be discarded merely because the player
+        // stayed at home. Ticket/worker budgets still decide when it is simulated.
+        if (npc.hasInterest(com.pla.smart_npc.clazz.PlayerNpcInterest.BUILDING)
+                || com.pla.smart_npc.util.PlayerNpcHomeUtil.getHome(npc).isPresent()
+                || com.pla.smart_npc.fabric.survival.Journeys.active(npc)) return;
         if (RemoteNpcDeparture.tick(npc,
                 PlayerNpcForceTickManager.isEnabled() && PlayerNpcForceTickManager.hasForceTicket(npc.getUUID()),
                 SmartNpcConfig.REMOTE_NPC_DEPARTURE_ENABLED.get(),

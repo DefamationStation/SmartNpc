@@ -512,6 +512,12 @@ public class ManageHomeBaseGoal extends Goal {
     }
 
     private boolean needsBed(ServerLevel serverLevel) {
+        // A blueprint owns its bed, just as it owns its chest. Utility placement
+        // otherwise spends the only bed in another slot and leaves construction
+        // permanently requesting a second bed despite already furnishing the room.
+        if(!this.nonBuilderBase&&PlayerNpcHomeUtil.getHomeLayoutId(this.playerNpc)
+                .flatMap(com.pla.smart_npc.util.PlayerNpcBuildLayoutLoader::getLayout)
+                .map(l->l.blocks().stream().anyMatch(b->b.state().getBlock() instanceof BedBlock)).orElse(false))return false;
         return this.findBed(serverLevel) == null
                 && (this.hasBedItem() || PlayerNpcCraftingUtil.canCraftBed(this.playerNpc.getInventory(), this.playerNpc.getRawLogReserveTarget()));
     }

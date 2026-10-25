@@ -33,6 +33,8 @@ import java.util.function.BooleanSupplier;
 public final class CookingCraftGoal extends Goal {
     private final PlayerNpcEntity npc;
     private final BooleanSupplier committedCooking;
+    private final java.util.function.Supplier<CookingCraftingExecutor.Action> requestedAction;
+    private final String purpose;
     private final PlacingBlockAi placing;
     private BlockPos table, stand;
     private Path path;
@@ -41,8 +43,13 @@ public final class CookingCraftGoal extends Goal {
     private int nextCheck, nextPath, started, actionTicks;
 
     public CookingCraftGoal(PlayerNpcEntity npc, BooleanSupplier committedCooking) {
+        this(npc,committedCooking,null,"cooking supplies");
+    }
+    public CookingCraftGoal(PlayerNpcEntity npc, BooleanSupplier committedCooking,
+            java.util.function.Supplier<CookingCraftingExecutor.Action> requestedAction,String purpose) {
         this.npc = npc;
         this.committedCooking = committedCooking;
+        this.requestedAction=requestedAction;this.purpose=purpose;
         this.placing = new PlacingBlockAi(npc);
         setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
     }
@@ -99,7 +106,7 @@ public final class CookingCraftGoal extends Goal {
         return committedCooking.getAsBoolean() && npc.isAlive() && !npc.isNoAi()
                 && !npc.isPassenger() && !npc.isHealing() && !npc.isSleeping()
                 && !npc.isOnFire() && npc.getTarget() == null && !npc.isTeamFollower()
-                && SurvivalTasks.memory(npc).cookingDimension.equals(SurvivalTasks.dimension(npc))
+                && (requestedAction!=null||SurvivalTasks.memory(npc).cookingDimension.equals(SurvivalTasks.dimension(npc)))
                 && npc.getHealth() > npc.getMaxHealth() * 0.5F;
     }
 
@@ -113,7 +120,7 @@ public final class CookingCraftGoal extends Goal {
                 || npc.isGatherLogsTemporaryPillarSupport(feet)
                 || npc.isGatherLogsTemporaryPillarSupport(feet.below())
                 || npc.isGatherLogsTemporaryPillarSupport(feet.below(2))) return false;
-        action = switch (CookingPrerequisites.choose(snapshot(npc, level))) {
+        action = requestedAction!=null?requestedAction.get():switch (CookingPrerequisites.choose(snapshot(npc, level))) {
             case NEED_PICKAXE -> CookingCraftingExecutor.Action.WOODEN_PICKAXE;
             case NEED_FURNACE -> CookingCraftingExecutor.Action.FURNACE;
             default -> null;
@@ -187,7 +194,7 @@ public final class CookingCraftGoal extends Goal {
     @Override public void start() {
         finished = false; started = npc.tickCount; nextPath = npc.tickCount + 40; actionTicks = 0;
         npc.setCurrentAiState("ai.player_npc.crafting");
-        detail("walking to a table for cooking supplies");
+        detail("walking to a table for "+purpose);
         npc.getNavigation().moveTo(path, 1.0);
     }
 
@@ -227,7 +234,7 @@ public final class CookingCraftGoal extends Goal {
                 fail("cooking table placement failed"); return;
             }
             placement = false;
-            detail("placed a crafting table for cooking supplies");
+            detail("placed a crafting table for "+purpose);
             return;
         }
         // An interruption may have fulfilled this need or consumed some materials.
@@ -239,7 +246,7 @@ public final class CookingCraftGoal extends Goal {
             fail("cooking supplies need a valid recipe, materials and inventory space"); return;
         }
         placing.playMainHandAction();
-        detail(action == CookingCraftingExecutor.Action.FURNACE ? "crafted a furnace for cooking food" : "crafted a pickaxe for cooking resources");
+        detail(action == CookingCraftingExecutor.Action.BOAT ? "crafted a boat for the crossing" : action == CookingCraftingExecutor.Action.FURNACE ? "crafted a furnace for cooking food" : "crafted a pickaxe for cooking resources");
         finished = true;
     }
 

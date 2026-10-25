@@ -13,4 +13,8 @@ public class ServerLevelMixin {
     private void smartNpc$beforeTick(Entity entity,CallbackInfo ci){if(entity instanceof PlayerNpcEntity || entity instanceof EnderDragon)Events.post(new Events.EntityTickEvent.Pre(entity));}
     @Inject(method="tickNonPassenger",at=@At("TAIL"))
     private void smartNpc$afterTick(Entity entity,CallbackInfo ci){if(entity instanceof PlayerNpcEntity || entity instanceof EnderDragon)Events.post(new Events.EntityTickEvent.Post(entity));}
+    @Inject(method="tickPassenger",at=@At("HEAD"))
+    private void smartNpc$beforePassengerTick(Entity vehicle,Entity passenger,CallbackInfo ci){if(passenger instanceof PlayerNpcEntity&&passenger.getVehicle()==vehicle&&!passenger.isRemoved())Events.post(new Events.EntityTickEvent.Pre(passenger));}
+    @Inject(method="tickPassenger",at=@At("TAIL"))
+    private void smartNpc$afterPassengerTick(Entity vehicle,Entity passenger,CallbackInfo ci){if(passenger instanceof PlayerNpcEntity npc&&passenger.getVehicle()==vehicle&&!passenger.isRemoved()){com.pla.smart_npc.util.PlayerNpcForceTickManager.track(npc);Events.post(new Events.EntityTickEvent.Post(passenger));npc.tickMountedJourney();}}
 }

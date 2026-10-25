@@ -5,3 +5,5 @@ run
 bin
 libs
 reference
+__pycache__/
+*.pyc

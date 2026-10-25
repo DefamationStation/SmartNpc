@@ -86,24 +86,14 @@ public final class SurvivalTasks {
         }
     }
     public static net.minecraft.world.level.block.entity.FurnaceBlockEntity trackedFurnace(PlayerNpcEntity npc, ServerLevel level) {
-        var data = PersistentData.get(npc);
-        if (com.pla.smart_npc.entity.ai.FurnaceAi.TEMP_FURNACE_KIND_COOKING.equals(
-                data.getStringOr(com.pla.smart_npc.entity.ai.FurnaceAi.TEMP_FURNACE_KIND, ""))
-                && dimension(npc).equals(data.getStringOr(
-                com.pla.smart_npc.entity.goal.CookFoodGoal.TEMP_FURNACE_DIMENSION, ""))) {
-            var pos = new BlockPos(data.getIntOr(com.pla.smart_npc.entity.ai.FurnaceAi.TEMP_FURNACE_X, 0),
-                data.getIntOr(com.pla.smart_npc.entity.ai.FurnaceAi.TEMP_FURNACE_Y, 0),
-                data.getIntOr(com.pla.smart_npc.entity.ai.FurnaceAi.TEMP_FURNACE_Z, 0));
-            if (npc.blockPosition().distSqr(pos) <= 8 * 8
-                    && com.pla.smart_npc.entity.ai.FurnaceAi.hasValidTrackedTemporaryFurnace(level, npc))
-                return (net.minecraft.world.level.block.entity.FurnaceBlockEntity)level.getBlockEntity(pos);
-        }
+        // Prefer the known owned station over stale camp metadata, using the
+        // same bounded local range as actual home-furnace navigation.
         var home = com.pla.smart_npc.util.PlayerNpcHomeUtil.getHome(npc);
         var layout = com.pla.smart_npc.util.PlayerNpcHomeUtil.getHomeLayoutId(npc)
             .flatMap(com.pla.smart_npc.util.PlayerNpcBuildLayoutLoader::getLayout);
         if (home.isPresent() && layout.isPresent() && home.get().width() == layout.get().width()
                 && home.get().depth() == layout.get().depth()
-                && npc.blockPosition().distSqr(home.get().origin()) <= 8 * 8) {
+                && npc.blockPosition().distSqr(home.get().origin()) <= 24 * 24) {
             for (var block : layout.get().blocks()) {
                 if (!block.state().is(Blocks.FURNACE)) continue;
                 var pos = block.toWorld(home.get().origin());
@@ -112,7 +102,28 @@ public final class SurvivalTasks {
                     return furnace;
             }
         }
+        var data = PersistentData.get(npc);
+        if (com.pla.smart_npc.entity.ai.FurnaceAi.TEMP_FURNACE_KIND_COOKING.equals(
+                data.getStringOr(com.pla.smart_npc.entity.ai.FurnaceAi.TEMP_FURNACE_KIND, ""))
+                && dimension(npc).equals(data.getStringOr(
+                com.pla.smart_npc.entity.goal.CookFoodGoal.TEMP_FURNACE_DIMENSION, ""))) {
+            var pos = new BlockPos(data.getIntOr(com.pla.smart_npc.entity.ai.FurnaceAi.TEMP_FURNACE_X, 0),
+                data.getIntOr(com.pla.smart_npc.entity.ai.FurnaceAi.TEMP_FURNACE_Y, 0),
+                data.getIntOr(com.pla.smart_npc.entity.ai.FurnaceAi.TEMP_FURNACE_Z, 0));
+            if (npc.blockPosition().distSqr(pos) <= 24 * 24
+                    && com.pla.smart_npc.entity.ai.FurnaceAi.hasValidTrackedTemporaryFurnace(level, npc)
+                    && hasPhysicalFurnaceStand(npc,level,pos))
+                return (net.minecraft.world.level.block.entity.FurnaceBlockEntity)level.getBlockEntity(pos);
+        }
         return null;
+    }
+    private static boolean hasPhysicalFurnaceStand(PlayerNpcEntity npc,ServerLevel level,BlockPos station){
+        var candidates=new java.util.ArrayList<BlockPos>();
+        if(npc.blockPosition().distSqr(station)<=2.25*2.25)candidates.add(npc.blockPosition());
+        for(var side:net.minecraft.core.Direction.Plane.HORIZONTAL)candidates.add(station.relative(side));
+        for(var stand:candidates)if(level.hasChunkAt(stand)&&level.getBlockState(stand).isAir()
+                &&level.getBlockState(stand.above()).isAir()&&level.getBlockState(stand.below()).isSolidRender())return true;
+        return false;
     }
     public static boolean cookingNeeded(PlayerNpcEntity npc, ServerLevel level) {
         if (com.pla.smart_npc.entity.ai.FurnaceAi.isCookableFood(npc.getMainHandItem())
@@ -122,6 +133,10 @@ public final class SurvivalTasks {
         var furnace = trackedFurnace(npc, level);
         return furnace != null && (com.pla.smart_npc.entity.ai.FurnaceAi.isCookableFood(furnace.getItem(0))
             || cookedFood(furnace.getItem(2)));
+    }
+    public static boolean hasCookedOutput(PlayerNpcEntity npc, ServerLevel level) {
+        var station=trackedFurnace(npc,level);
+        return station!=null&&cookedFood(station.getItem(2));
     }
 
     @Events.SubscribeEvent public static void observe(Events.EntityTickEvent.Post event) {
@@ -146,6 +161,16 @@ public final class SurvivalTasks {
                 || npc.isSleeping() || npc.isTeamFollower() || npc.getHealth() <= npc.getMaxHealth() * 0.5F) return;
         m.cookingNextDecision = now + 40;
         boolean cooking = cookingNeeded(npc, level);
+        // A non-urgent raw-food batch must not reserve the builder's work forever
+        // while its first shelter is incomplete and it already has a safe reserve.
+        var home = com.pla.smart_npc.util.PlayerNpcHomeUtil.getHome(npc);
+        var layout = com.pla.smart_npc.util.PlayerNpcHomeUtil.getHomeLayoutId(npc).flatMap(com.pla.smart_npc.util.PlayerNpcBuildLayoutLoader::getLayout);
+        if(cookedFoodCount(npc)>=8 && !m.cookingActive && trackedFurnace(npc,level)==null
+                && home.isPresent() && layout.isPresent()
+                && !com.pla.smart_npc.entity.goal.BuildHouseGoal.isHomeLayoutFinished(npc, level)) {
+            m.cookingActive=false;if(m.active&&m.automatic)m.active=false;
+            m.cookingStatus="safe food reserve; finish shelter before extra cooking";save(npc);return;
+        }
         if (!m.cookingActive) {
             if (!cooking) return;
             m.cookingActive = true; m.cookingDimension = dimension(npc); m.cookingStarted = now;

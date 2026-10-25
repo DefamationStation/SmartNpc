@@ -388,6 +388,13 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
     private int explorationClimbStuckTicks = 0;
     private ToolAi.SwapState toolSwapState;
     private com.pla.smart_npc.fabric.survival.SurvivalFishingGoal survivalFoodGoal;
+    private com.pla.smart_npc.fabric.survival.JourneyGoal journeyGoal;
+    public void tickMountedJourney() { if(this.journeyGoal!=null)this.journeyGoal.mountedTick(); }
+    public boolean planningReversibleJourneyPath;
+
+    @Override public int getMaxFallDistance() {
+        return this.planningReversibleJourneyPath ? 1 : super.getMaxFallDistance();
+    }
 
     /** Optional projects yield to bounded food work; emergency/supply executors keep their rules. */
     public boolean shouldYieldRoutineForSurvival() {
@@ -1748,6 +1755,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
 
     @Override
     protected void addAdditionalSaveData(@NotNull ValueOutput tag) {
+        if(this.level() instanceof ServerLevel)com.pla.smart_npc.fabric.survival.Journeys.save(this);
         super.addAdditionalSaveData(tag);
         tag.putBoolean(PENDING_SPAWN_INITIALIZATION_TAG, this.pendingSpawnInitialization);
         this.inventory.storeAsItemList(tag.list("Inventory", ItemStack.CODEC));
@@ -2147,6 +2155,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         // Destination-aware water recovery is ticked by the work goal instead of globally
         // redirecting the NPC to an unrelated nearby bank.
         this.goalSelector.addGoal(0, new FloatGoal(this));
+        this.goalSelector.addGoal(-1, new com.pla.smart_npc.fabric.survival.SurvivalWaterGoal(this));
         this.goalSelector.addGoal(0, new WaterFallGoal(this));
         this.goalSelector.addGoal(0, new EscapeWallGoal(this));
         this.registerVanillaCombatReplacementGoals();
@@ -2162,10 +2171,15 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.addWorkGoal(3, new PickupNearbyItemGoal(this, 1.0D));
         this.addWorkGoal(3, new com.pla.smart_npc.fabric.survival.CookingCraftGoal(this,
             () -> com.pla.smart_npc.fabric.survival.SurvivalTasks.cookingActive(this)));
+        this.addWorkGoal(3, new com.pla.smart_npc.fabric.survival.CookingCraftGoal(this,
+            () -> com.pla.smart_npc.fabric.survival.Journeys.shouldPrepareBoat(this),
+            () -> com.pla.smart_npc.fabric.survival.CookingCraftingExecutor.Action.BOAT,"journey boat"));
         // Must outrank Epic Fight's priority-1 chasing goal so a disarmed NPC can
         // break pursuit long enough to recover and equip a nearby weapon.
         this.goalSelector.addGoal(0, new RecoverWeaponInCombatGoal(this, 1.2D, 10.0D));
         this.goalSelector.addGoal(3, this.gated(new RareSneakGoal(this), PlayerNpcInterest.CAUTIOUS));
+        this.journeyGoal=new com.pla.smart_npc.fabric.survival.JourneyGoal(this);
+        this.addWorkGoal(4, this.journeyGoal);
         this.addWorkGoal(4, this.gated(new ReturnHomeGoal(this, 1.0D), PlayerNpcInterest.BUILDING));
         this.addWorkGoal(5, this.gated(terraformBuildSiteGoal, PlayerNpcInterest.BUILDING));
         this.addWorkGoal(5, new com.pla.smart_npc.fabric.survival.SurvivalGatherGoal(this, gatherLogsGoal, gatherStoneGoal));
