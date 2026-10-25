@@ -15,7 +15,9 @@
     "MinecartMixin",
     "SurvivalStoneGatherMixin",
     "LocalPathDetourMixin",
-    "SurvivalLogGatherMixin"
+    "SurvivalLogGatherMixin",
+    "PlacingWorkOutcomeMixin",
+    "PersonalStateSaveMixin"
   ],
   "client": [
     "ClientInputAccessor",

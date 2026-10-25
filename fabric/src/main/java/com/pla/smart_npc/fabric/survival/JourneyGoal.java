@@ -97,8 +97,17 @@ public final class JourneyGoal extends Goal {
         }
         boolean resourceLanding=!s.reason.startsWith("visible ")||JourneyBoats.standing(npc,l);
         if(feet.distSqr(s.destination)<=9&&resourceLanding&&(s.phase.equals("outbound")||!npc.isPassenger())){
-            if(s.phase.equals("outbound")){s.lastArrival=s.destination;s.phase="at_destination";s.status="arrived; ready for local work or return";}
-            else {s.phase="idle";s.status="home reached";s.trail.clear();npc.clearExplorationReturnHomeRequest();}
+            if(s.phase.equals("outbound")){
+                com.pla.smart_npc.fabric.survival.memory.NpcMemories.routeSucceeded(npc,s.home,s.destination);
+                s.lastArrival=s.destination;s.phase="at_destination";s.status="arrived; ready for local work or return";
+            }else {
+                if(s.lastArrival!=null){
+                    com.pla.smart_npc.fabric.survival.memory.NpcMemories.routeSucceeded(npc,s.lastArrival,s.destination);
+                    if(s.lastArrival.distSqr(s.destination)>=256*256)VerifiedWorkOutcome.emit(npc,VerifiedWorkOutcome.Kind.JOURNEY_RETURN,
+                            s.destination,"native:journey_return/"+Long.toUnsignedString(s.lastArrival.asLong()),1);
+                }
+                s.lastArrival=null;s.phase="idle";s.status="home reached";s.trail.clear();npc.clearExplorationReturnHomeRequest();
+            }
             Journeys.save(npc);npc.getNavigation().stop();return;
         }
         double waterDx=goal.getX()-feet.getX(),waterDz=goal.getZ()-feet.getZ(),waterLength=Math.max(1,Math.hypot(waterDx,waterDz));

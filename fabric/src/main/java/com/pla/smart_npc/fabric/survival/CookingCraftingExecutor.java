@@ -53,6 +53,16 @@ public final class CookingCraftingExecutor {
             real.setItem(slot, prepared.getItem(slot).copy());
         }
         real.setChanged();
+        var produced=switch(action){
+            case CRAFTING_TABLE -> Items.CRAFTING_TABLE;
+            case WOODEN_PICKAXE -> Items.WOODEN_PICKAXE;
+            case FURNACE -> Items.FURNACE;
+            case FISHING_ROD -> Items.FISHING_ROD;
+            case BOAT -> real.getItems().stream().filter(s->s.getItem() instanceof net.minecraft.world.item.BoatItem)
+                    .map(ItemStack::getItem).findFirst().orElse(Items.AIR);
+        };
+        if(produced!=Items.AIR)VerifiedWorkOutcome.emit(npc,VerifiedWorkOutcome.Kind.CRAFT,npc.blockPosition(),
+                net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(produced).toString(),1);
         return true;
     }
 

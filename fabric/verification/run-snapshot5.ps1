@@ -2,7 +2,7 @@ param(
  [Parameter(Mandatory)][string]$Workspace,
  [Parameter(Mandatory)][string]$ModJar,
  [Parameter(Mandatory)][ValidatePattern('^[a-zA-Z0-9_.-]+$')][string]$TestName,
- [ValidateSet('Functional','Population','RenderBuddy','Settings','Inventory','Cabin','CookingRecovery','Food','FoodCheckpoint','FoodBurnCheckpoint','Daily','SleepRecovery','DailyContinuous','DailyNight','CookHome','HomeRepair','HomePit','HomeStorage','HomeEntry','StorageRecovery','HomeRepairChurn')][string]$Suite='Functional',
+ [ValidateSet('Functional','Population','RenderBuddy','Settings','Inventory','Cabin','CookingRecovery','Food','FoodCheckpoint','FoodBurnCheckpoint','Daily','SleepRecovery','DailyContinuous','DailyNight','CookHome','HomeRepair','HomePit','HomeStorage','HomeEntry','StorageRecovery','HomeRepairChurn','MemoryDialogue')][string]$Suite='Functional',
  [switch]$Replay
 )
 # Use the maintained installation's isolated-world runner; never copy its saves.
@@ -30,6 +30,7 @@ if($Replay){
 }
 $extra=@()
 switch($Suite){
+ 'MemoryDialogue' {$class='SmartNpcMemoryClient';$source=Join-Path $PSScriptRoot ($class+'.java')}
  'SleepRecovery' {$class='SmartNpcSleepRecovery';$source=Join-Path $PSScriptRoot ($class+'.java')}
  'DailyContinuous' {$class='SmartNpcDailyContinuous';$source=Join-Path $PSScriptRoot ($class+'.java');$extra=@((Join-Path $PSScriptRoot 'SmartNpcDailySmoke.java'))}
  'DailyNight' {$class='SmartNpcDailyNight';$source=Join-Path $PSScriptRoot ($class+'.java');$extra=@((Join-Path $PSScriptRoot 'SmartNpcDailySmoke.java'))}

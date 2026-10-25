@@ -83,6 +83,9 @@ public final class SurvivalTasks {
     public static void cookedOutputCollected(PlayerNpcEntity npc, net.minecraft.world.item.ItemStack output, int previousCount) {
         if (cookingActive(npc) && cookedFood(output) && cookedFoodCount(npc) > previousCount) {
             memory(npc).cookingProduced = true; save(npc);
+            VerifiedWorkOutcome.emit(npc,VerifiedWorkOutcome.Kind.COOK,npc.blockPosition(),
+                    net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(output.getItem()).toString(),
+                    Math.min(output.getCount(),cookedFoodCount(npc)-previousCount));
         }
     }
     public static net.minecraft.world.level.block.entity.FurnaceBlockEntity trackedFurnace(PlayerNpcEntity npc, ServerLevel level) {

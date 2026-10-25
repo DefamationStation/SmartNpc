@@ -46,6 +46,7 @@ public final class SocialSafety {
                 || npc.isTeamAlliedWith(offender) || npc.isAlliedTo(offender) || offender.isAlliedTo(npc)) return;
         memory(npc).record(offender.getUUID(), cause, level.getGameTime());
         PersistentData.get(npc).put(KEY, memory(npc).save());
+        com.pla.smart_npc.fabric.survival.memory.NpcMemories.encounterConfirmed(npc, offender);
     }
     public static void defend(PlayerNpcEntity npc, LivingEntity offender, GrievanceMemory.Cause cause) {
         record(npc, offender, cause);

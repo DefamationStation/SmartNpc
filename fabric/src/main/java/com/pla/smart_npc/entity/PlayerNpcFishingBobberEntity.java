@@ -488,7 +488,9 @@ public class PlayerNpcFishingBobberEntity extends Projectile {
         double dy = currentAngler.getY() + 0.5D - this.getY();
         double dz = currentAngler.getZ() - this.getZ();
         itemEntity.setDeltaMovement(dx * 0.1D, dy * 0.1D + Math.sqrt(Math.sqrt(dx * dx + dy * dy + dz * dz)) * 0.08D, dz * 0.1D);
-        this.level().addFreshEntity(itemEntity);
+        if(this.level().addFreshEntity(itemEntity))com.pla.smart_npc.fabric.survival.VerifiedWorkOutcome.emit(
+                currentAngler,com.pla.smart_npc.fabric.survival.VerifiedWorkOutcome.Kind.FISH,this.blockPosition(),
+                net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(),stack.getCount());
     }
 
     @Override

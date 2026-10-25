@@ -63,6 +63,9 @@ public final class PlayerNpcBlockBreakUtil {
             }
             Block.popResource(serverLevel, pos, drop);
         }
+        if(drops.stream().anyMatch(drop->!drop.isEmpty()))com.pla.smart_npc.fabric.survival.VerifiedWorkOutcome.emit(
+                playerNpc,com.pla.smart_npc.fabric.survival.VerifiedWorkOutcome.Kind.HARVEST,pos,
+                net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString(),1);
         return true;
     }
 

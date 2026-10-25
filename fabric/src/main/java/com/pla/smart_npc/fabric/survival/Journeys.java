@@ -108,11 +108,16 @@ public final class Journeys {
     public static String start(PlayerNpcEntity n,BlockPos destination){
         var s=state(n);if(s.active())return "Journey already active; return or cancel first";
         var h=PlayerNpcHomeUtil.getHome(n);if(h.isEmpty())return "No home in this dimension";
-        if(SurvivalTasks.cookedFoodCount(n)<4)return "Need four cooked food items before departure";
+        int reserve=com.pla.smart_npc.fabric.survival.memory.NpcMemories.departureFoodReserve(n);
+        if(SurvivalTasks.cookedFoodCount(n)<reserve)return "Need "+reserve+" cooked food items before departure";
         if(n.blockPosition().distSqr(h.get().origin())>32*32)return "Start an outbound trip near home to establish a return trail";
-        s.dimension=SurvivalTasks.dimension(n);s.home=n.blockPosition().immutable();s.destination=destination.immutable();
+        if (!(n.level() instanceof ServerLevel level)) return "Server journey required";
+        boolean aboard=ownsBoat(n,n.getVehicle());
+        if (!aboard&&!JourneyBoats.standing(n,level)) return "Start from supported dry ground or your own boat";
+        BlockPos departure=aboard?n.getVehicle().blockPosition():n.blockPosition();
+        s.dimension=SurvivalTasks.dimension(n);s.home=departure.immutable();s.destination=destination.immutable();
         s.lastArrival=null;s.blockedPosition=null;s.activeNoProgressTicks=0;
-        s.phase="outbound";s.reason="requested travel";s.status="departing";s.cursor=-1;s.trail.clear();s.visits.clear();s.progressGoal=null;s.bestDistance=Double.MAX_VALUE;s.trail.observe(point(n.blockPosition()));save(n);return "Journey started";
+        s.phase="outbound";s.reason="requested travel";s.status="departing";s.cursor=-1;s.trail.clear();s.visits.clear();s.progressGoal=null;s.bestDistance=Double.MAX_VALUE;s.trail.observe(point(departure));save(n);return "Journey started";
     }
     public static void returnHome(PlayerNpcEntity n,String reason){
         var s=state(n);var h=PlayerNpcHomeUtil.getHome(n);
@@ -121,6 +126,9 @@ public final class Journeys {
         if(h.isPresent()){s.home=h.get().origin().offset(h.get().width()/2,1,h.get().depth()/2);s.dimension=SurvivalTasks.dimension(n);}
         if(s.home==null)return;
         if(!s.dimension.isEmpty()&&!s.dimension.equals(SurvivalTasks.dimension(n))){s.phase="blocked";s.status="home is in another dimension; no portal route";save(n);return;}
+        if(s.phase.equals("outbound")&&s.destination!=null&&!s.trail.points().isEmpty()
+                &&(reason.startsWith("no net route progress;")||reason.startsWith("boat shore obstructed;")||reason.startsWith("outbound blocked;")))
+            com.pla.smart_npc.fabric.survival.memory.NpcMemories.routeFailedFrom(n,block(s.trail.points().getFirst()),s.destination,reason);
         s.dimension=SurvivalTasks.dimension(n);s.phase="returning";s.destination=s.home;s.reason=reason;
         s.visits.clear();s.progressGoal=null;s.bestDistance=Double.MAX_VALUE;
         s.cursor=s.trail.points().size()-1;
@@ -136,7 +144,9 @@ public final class Journeys {
         }
         s.status="returning along observed trail";save(n);
     }
-    public static void block(PlayerNpcEntity n,String why){var s=state(n);s.phase="blocked";s.status=why;s.blockedPosition=n.blockPosition().immutable();JourneyBoats.stop(n);n.getNavigation().stop();save(n);}
+    public static void block(PlayerNpcEntity n,String why){var s=state(n);
+        if(s.destination!=null)com.pla.smart_npc.fabric.survival.memory.NpcMemories.routeFailed(n,s.progressGoal==null?s.destination:s.progressGoal,why);
+        s.phase="blocked";s.status=why;s.blockedPosition=n.blockPosition().immutable();JourneyBoats.stop(n);n.getNavigation().stop();save(n);}
     @Events.SubscribeEvent public static void observe(Events.EntityTickEvent.Post e){
         if(!(e.getEntity() instanceof PlayerNpcEntity n)||!(n.level() instanceof ServerLevel l)||n.tickCount%10!=0||n.isNoAi())return;
         var s=state(n);var home=PlayerNpcHomeUtil.getHome(n);
