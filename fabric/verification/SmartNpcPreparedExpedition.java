@@ -72,7 +72,9 @@ public final class SmartNpcPreparedExpedition implements DedicatedServerModIniti
         for(int x=-4;x<=132;x++)for(int z=-3;z<=3;z++)for(int y=279;y<=283;y++)level.setBlockAndUpdate(new BlockPos(x,y,z),y==279?Blocks.BEDROCK.defaultBlockState():Blocks.AIR.defaultBlockState());
         npc=SmartNpcModEntities.PLAYER_NPC.get().create(level,EntitySpawnReason.COMMAND);npc.setUsername("PreparedResident");npc.setUUID(ID);npc.setPersistenceRequired();npc.setPos(.5,280,.5);npc.getRandom().setSeed(0);
         npc.getInventory().clearContent();npc.getInventory().addItem(new ItemStack(Items.COOKED_BEEF,16));npc.getInventory().addItem(new ItemStack(Items.STONE_AXE));
-        PlayerNpcHomeUtil.setHome(npc,new PlayerNpcHomeUtil.HomeArea(new BlockPos(-2,279,-2),5,5));level.addFreshEntity(npc);
+        PlayerNpcHomeUtil.setHome(npc,new PlayerNpcHomeUtil.HomeArea(new BlockPos(-2,279,-2),5,5));
+        var notAdded=PreparedExpeditions.request(npc,new BlockPos(128,280,0),false);check(!notAdded.started()&&notAdded.message().contains("not available"),"unregistered actor accepted commitment");
+        level.addFreshEntity(npc);
         String original=route(npc),stock=stock(npc);
         var refusal=PreparedExpeditions.request(npc,new BlockPos(128,280,0),false);
         check(!refusal.started()&&refusal.message().contains("own native cooking")&&refusal.message().contains("safe night"),"missing earned history not explained");unchanged(original,stock);
@@ -99,5 +101,6 @@ public final class SmartNpcPreparedExpedition implements DedicatedServerModIniti
     private static void check(boolean ok,String reason){if(!ok)throw new AssertionError(reason);}
     private void finish(MinecraftServer server,String marker,String message){done=true;try{Files.writeString(Path.of(marker),message);}catch(Exception error){throw new RuntimeException(error);}server.halt(false);}
 }
+
 
 

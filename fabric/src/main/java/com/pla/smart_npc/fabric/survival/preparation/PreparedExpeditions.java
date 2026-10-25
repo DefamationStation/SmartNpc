@@ -19,7 +19,7 @@ public final class PreparedExpeditions {
     private PreparedExpeditions() { }
     public record Result(boolean started,String message){ }
     public static Result request(PlayerNpcEntity npc,BlockPos destination,boolean declaredWaterCrossing){
-        if(!(npc.level() instanceof ServerLevel)||npc.isRemoved())return new Result(false,"Declined: resident is not available in a server world");
+        if(!(npc.level() instanceof ServerLevel level)||npc.isRemoved()||level.getEntity(npc.getUUID())!=npc)return new Result(false,"Declined: resident is not available in a server world");
         var journey=Journeys.state(npc);var resource=SurvivalTasks.memory(npc);
         boolean safe=npc.isAlive()&&!npc.isNoAi()&&!npc.isSleeping()&&!npc.isHealing()&&npc.getTarget()==null
                 &&!npc.isOnFire()&&npc.getHealth()>npc.getMaxHealth()*.5F&&!npc.isTeamFollower()
@@ -41,7 +41,7 @@ public final class PreparedExpeditions {
     private static String describe(PreparedExpeditionPolicy.Decision decision){
         var needs=new ArrayList<String>();
         for(var reason:decision.reasons())needs.add(switch(reason){
-            case UNSAFE_OR_UNAVAILABLE -> "finish healing, sleeping, fighting, following or escape/return before departing";
+            case UNSAFE_OR_UNAVAILABLE -> "be alive, awake, unpaused, healthy and free of combat, following or escape/return work";
             case EXISTING_COMMITMENT -> "finish the current cooking/resource task, or return/cancel the existing journey";
             case EARN_COOKED_FOOD -> "first collect food from the resident's own native cooking task";
             case EARN_SAFE_REST -> "first complete a safe night of rest in the resident's own home";
@@ -68,3 +68,5 @@ public final class PreparedExpeditions {
         context.getSource().sendSuccess(()->Component.literal(result.message()),false);return result.started()?1:0;
     }
 }
+
+

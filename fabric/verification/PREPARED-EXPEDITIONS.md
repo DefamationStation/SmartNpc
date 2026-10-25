@@ -33,7 +33,7 @@ The leaf package and pure policy tests do not register or intercept any goals.
 
 Four pure policy tests check that earned history and current materials are both
 required, unsafe/busy actors cannot commit, and inspection cannot mutate or
-unlock state. The private `1f45c9e6...` candidate passed 94 total unit tests.
+unlock state. The private `1f45c9e6...` and in-world guard `32e6920e...` candidates passed 94 total unit tests.
 
 `SmartNpcPreparedExpedition` is explicitly a controlled integration fixture:
 its flat corridor and historical cooking/rest inputs are declared setup data,
@@ -51,3 +51,5 @@ These are private next-development candidates, not installed releases or
 natural terrain/cooking/rest proofs. Separate final-release navigation cases
 cover original terrain and real 2,048-block travel with both process restarts.
 
+
+The follow-up `smartnpc5-continuous-prepared-command-v3` also passes both restarts against the in-world guard candidate. Before entity registration, the same request is declined; registered actor identity must match the server world UUID lookup.
