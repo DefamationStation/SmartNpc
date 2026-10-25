@@ -40,6 +40,15 @@ public final class DialogueSelection {
             case SUCCESSFUL_ROUTE -> 20+p.curiosity()/10;
         };
     }
+    /** Native outcomes also include rest/travel; describing all as work would invent activity. */
+    public static String historicalActivity(ObservedMemory.Entry fact){
+        if(fact.source()==ObservedMemory.Source.LEGACY_OBSERVATION)return "I remember spotting resources near ";
+        if(fact.detail().startsWith("safe_rest:"))return "I rested near ";
+        if(fact.detail().startsWith("journey_return:"))return "I returned near ";
+        if(fact.detail().startsWith("cook:"))return "I cooked near ";
+        if(fact.detail().startsWith("fish:"))return "I fished near ";
+        return "I was working near ";
+    }
     private static Type type(ObservedMemory.Kind kind){return switch(kind){
         case HELP->Type.THANKS;case HOSTILE->Type.HOSTILE_HISTORY;case FAILED_ROUTE->Type.FAILED_ROUTE;
         case HAZARD->Type.HAZARD;case RESOURCE->Type.RESOURCE;case WORK_SITE->Type.WORK_SITE;case HOME->Type.HOME;case SUCCESSFUL_ROUTE->Type.SUCCESSFUL_ROUTE;

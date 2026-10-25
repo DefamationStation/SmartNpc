@@ -43,4 +43,9 @@ class DialoguePolicyTest {
         assertTrue(ledger.allow(listener,100,400));assertFalse(ledger.allow(listener,101,400));
         assertFalse(ledger.allow(other,-1,400));
     }
-}
+    @Test void restingAndReturningAreNotDescribedAsProductiveWork(){
+        for(var action:List.of("safe_rest","journey_return","cook","fish")){
+            var evidence=new ObservedMemory.Entry(ObservedMemory.Kind.WORK_SITE,dim,new ObservedMemory.Point(0,64,0),null,null,action+":minecraft:air",ObservedMemory.Source.SELF_ACTION,1,100);
+            assertFalse(DialogueSelection.historicalActivity(evidence).contains("working"));
+        }
+    }}

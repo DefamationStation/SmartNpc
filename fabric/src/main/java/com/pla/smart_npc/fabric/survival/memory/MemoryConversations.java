@@ -74,9 +74,7 @@ public final class MemoryConversations {
             case FAILED_ROUTE -> Component.literal("Last time, I couldn't finish my route to "+coordinates(fact.destination())+".");
             case HAZARD -> Component.literal("I ran into trouble near "+coordinates(fact.position())+".");
             case RESOURCE -> Component.literal("I last saw ").append(resourceName(fact.detail())).append(" near "+coordinates(fact.position())+".");
-            case WORK_SITE -> Component.literal(fact.source()==ObservedMemory.Source.LEGACY_OBSERVATION
-                    ?"I remember spotting resources near "+coordinates(fact.position())+"."
-                    :"I was working near "+coordinates(fact.position())+".");
+            case WORK_SITE -> Component.literal(DialogueSelection.historicalActivity(fact)+coordinates(fact.position())+".");
             case HOME -> Component.literal("My home site is near "+coordinates(fact.position())+".");
             case SUCCESSFUL_ROUTE -> Component.literal("I finished a trip to "+coordinates(fact.destination())+".");
         };

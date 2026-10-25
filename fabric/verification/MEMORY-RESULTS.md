@@ -151,3 +151,11 @@ removes it as a preferred destination. Both original actor UUIDs, personality,
 world identity, normal selectors and conserved food remain correct after reload.
 The logs contain no low-space or world-save failure warnings. These isolated
 cases preserve all original worlds.
+
+The truthful-phrasing follow-up distinguishes verified rest, return, cooking and
+fishing outcomes from work, so a resting site cannot generate a claim of work.
+Its seventh dialogue policy test brings the branch to 68 unit tests, passing in
+artifact `9d7fcdce3ae7d004ede50e31f8b009140f444e2c4952457e60fae70b802210c6`.
+The isolated interaction/persistence evidence above applies to the preceding
+artifact; this wording-only follow-up has pure policy coverage and is included
+in the central integration runtime check.
