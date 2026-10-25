@@ -157,6 +157,11 @@ public class PickupNearbyItemGoal extends Goal implements GatheringGoal {
         if (!(this.playerNpc.level() instanceof ServerLevel serverLevel)) {
             return false;
         }
+        // Dirt drops from an intentional stair dig must not steal MOVE and
+        // pillar the miner straight back out of the step it just excavated.
+        // The bounded digging goal and ordinary nearby pickup remain active;
+        // urgent animal loot can still interrupt as before.
+        if (!this.playerNpc.hasAnimalLootPriority() && this.playerNpc.isStoneDescentRunning()) return false;
         // Incidental drops from clearing the build footprint must not steal MOVE from an
         // active builder preparation episode.  They remain available for pickup once the
         // bounded terraform scan reports that the site is ready.

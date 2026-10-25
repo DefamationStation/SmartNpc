@@ -4239,7 +4239,13 @@ public class EscapeHoleWithBlockGoal extends Goal {
         if (!serverLevel.hasChunkAt(routeTarget)) {
             return "target chunk is not loaded";
         }
-        if (!serverLevel.canSeeSky(routeTarget.above())) {
+        // The idle resource search deliberately chooses a stand at the
+        // no-leaves surface when tree canopy hides the sky. That is still an
+        // exterior destination, unlike a stand below a solid cave/house roof.
+        if (!serverLevel.canSeeSky(routeTarget.above())
+                && (routeTarget.getY() < serverLevel.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                        routeTarget.getX(), routeTarget.getZ())
+                || !PathNavigationAi.canStandAt(serverLevel, routeTarget))) {
             return "target is not an exterior surface";
         }
         if (this.playerNpc.isTemporaryPillarSupport(feet.below())) {

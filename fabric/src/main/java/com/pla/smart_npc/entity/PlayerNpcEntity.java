@@ -2714,6 +2714,12 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         return goal;
     }
 
+    public boolean isStoneDescentRunning() {
+        return this.goalSelector.getAvailableGoals().stream()
+                .filter(WrappedGoal::isRunning).map(WrappedGoal::getGoal)
+                .map(PlayerNpcEntity::unwrapGoal).anyMatch(DigDownForStoneGoal.class::isInstance);
+    }
+
     public boolean isMainHandReservedForAi() {
         String state = this.getCurrentAiState();
         return this.temporaryBowToolAi.ownsSwap()

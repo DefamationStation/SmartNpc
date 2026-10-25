@@ -94,6 +94,9 @@ public class BurnNearbyItemGoal extends Goal implements GatheringGoal {
         if (mob.isPassenger()) return false;
         if (mob.getTarget() != null) return false;
         if (mob.isNoAi()) return false;
+        // This goal also collects ordinary drops. Let an admitted stair dig
+        // finish before optional cleanup can pull the miner back out for dirt.
+        if (mob instanceof PlayerNpcEntity npc && burnTicks <= 0 && npc.isStoneDescentRunning()) return false;
         if (mob instanceof PlayerNpcEntity npc && burnTicks <= 0 && npc.shouldYieldRoutineForSurvival()) return false;
         if (mob instanceof PlayerNpcEntity playerNpcEntity && playerNpcEntity.isHealing()) {
             return false;
