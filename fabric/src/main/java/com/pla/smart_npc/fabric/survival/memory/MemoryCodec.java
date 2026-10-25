@@ -8,6 +8,10 @@ public final class MemoryCodec {
     public static final int VERSION=1;
     public record Loaded(NpcPersonality personality,ObservedMemory observations,String worldScope,boolean writable) { }
     private MemoryCodec(){ }
+    public static Loaded load(CompoundTag tag,UUID id,String currentWorldScope,boolean worldSupported){
+        var decoded=load(tag,id,currentWorldScope);
+        return worldSupported?decoded:new Loaded(decoded.personality(),new ObservedMemory(),decoded.worldScope(),false);
+    }
     public static Loaded load(CompoundTag tag,UUID id,String currentWorldScope){
         int version=tag.getIntOr("version",0);var fallback=NpcPersonality.seeded(id);
         if(version>VERSION||version<0)return new Loaded(fallback,new ObservedMemory(),currentWorldScope,false);

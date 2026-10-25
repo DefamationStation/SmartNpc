@@ -72,9 +72,12 @@ biases and explicit overrides, the preparation floor/cap, per-kind/global caps,
 same-origin/destination failure expiry, decaying confidence, clock rollback,
 duplicate/older evidence, attributed encounters, NBT round-trip, missing legacy
 state, future-version preservation, invalid saved entries and world isolation.
-Three further world-identity tests cover independently initialized worlds,
+Four further world-identity tests cover independently initialized worlds,
 identity round-trip, corrupt legacy identity and future saved-data preservation.
-Together with the existing tests, 60 unit tests pass.
+An unsupported future world identity also forces current NPC attachments into a
+read-only, empty-spatial-view mode: an unreadable identity cannot erase or
+rewrite existing facts through a changing fallback UUID. Together with the
+existing tests, this core has 61 unit tests.
 
 `SmartNpcMemoryScenario` is a controlled transaction/persistence fixture using a
 disposable copied world and all normal 80 goals plus three target goals. It

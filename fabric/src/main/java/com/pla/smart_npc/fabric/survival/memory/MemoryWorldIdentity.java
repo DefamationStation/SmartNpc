@@ -27,5 +27,8 @@ public final class MemoryWorldIdentity extends SavedData {
         var result=new CompoundTag();result.putInt("version",1);result.putString("identity",identity.toString());return result;
     }
     public UUID identity(){return identity;}
-    public static UUID identity(MinecraftServer server){return server.overworld().getDataStorage().computeIfAbsent(TYPE).identity;}
+    public boolean supported(){return futureData==null;}
+    private static MemoryWorldIdentity get(MinecraftServer server){return server.overworld().getDataStorage().computeIfAbsent(TYPE);}
+    public static UUID identity(MinecraftServer server){return get(server).identity;}
+    public static boolean supported(MinecraftServer server){return get(server).supported();}
 }

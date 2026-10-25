@@ -55,7 +55,7 @@ public final class NpcMemories {
         if(!(npc.level() instanceof ServerLevel level))throw new IllegalArgumentException("Personal memory is server-only");
         return STATES.computeIfAbsent(npc,n->{
             var attachment=PersistentData.get(n);var saved=attachment.getCompoundOrEmpty(KEY);
-            var state=new State(MemoryCodec.load(saved,n.getUUID(),scope(level)));state.dirty=state.loaded.writable()&&!attachment.contains(KEY);
+            var state=new State(MemoryCodec.load(saved,n.getUUID(),scope(level),MemoryWorldIdentity.supported(level.getServer())));state.dirty=state.loaded.writable()&&!attachment.contains(KEY);
             // Old coal coordinates are historical observations, not proof that ore remains.
             if(saved.getIntOr("version",0)==0&&state.loaded.writable()){
                 var legacy=ResourceMemory.load(attachment.getCompoundOrEmpty("SurvivalResources"));
