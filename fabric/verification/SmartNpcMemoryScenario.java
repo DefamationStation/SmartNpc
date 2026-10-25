@@ -75,15 +75,17 @@ public class SmartNpcMemoryScenario implements DedicatedServerModInitializer {
                 check(totalBefore==a.getInventory().countItem(Items.COOKED_BEEF)+b.getInventory().countItem(Items.COOKED_BEEF),"handoff duplicated food");
                 NpcMemories.helpReceived(a,bId,"one cooked beef handed over");
                 ledger.setProperty("a",aId.toString());ledger.setProperty("b",bId.toString());
+                ledger.setProperty("worldIdentity",MemoryWorldIdentity.identity(server).toString());
                 ledger.setProperty("aProfile",NpcMemories.personality(a).toString());ledger.setProperty("bProfile",NpcMemories.personality(b).toString());
                 try(var out=Files.newOutputStream(Path.of("actor.properties"))){ledger.store(out,"controlled memory actor identities");}
-                System.out.println("MEMORY_SETUP a="+aId+" b="+bId+" aReserve=6 bReserve=4 goals=80 targets="+targets(a));stage=2;
+                System.out.println("MEMORY_SETUP world="+MemoryWorldIdentity.identity(server)+" a="+aId+" b="+bId+" aReserve=6 bReserve=4 goals=80 targets="+targets(a));stage=2;
             }
         }
         if(stage==1){a=(PlayerNpcEntity)level.getEntity(aId);b=(PlayerNpcEntity)level.getEntity(bId);if(a==null||b==null){if(ticks>2000)throw new AssertionError("saved actors absent");return;}
             check(ledger.getProperty("aProfile").equals(NpcMemories.personality(a).toString()),"personality changed on reload");
             check(ledger.getProperty("bProfile").equals(NpcMemories.personality(b).toString()),"other personality changed on reload");
             check(NpcMemories.departureFoodReserve(a)==6&&NpcMemories.departureFoodReserve(b)==4,"individual preparation changed on reload");stage=2;
+            check(ledger.getProperty("worldIdentity").equals(MemoryWorldIdentity.identity(server).toString()),"world identity changed on process reload");
         }
         if(stage==2&&ticks>=200){
             check(goals(a)==80&&targets(a)==3&&goals(b)==80&&targets(b)==3,"selectors changed");

@@ -46,8 +46,7 @@ public final class NpcMemories {
         Events.register(NpcMemories.class);
     }
     private static String scope(ServerLevel level){
-        String identity="smart-npc-memory:"+level.getSeed()+":"+level.getServer().getWorldData().getLevelName();
-        return UUID.nameUUIDFromBytes(identity.getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+        return MemoryWorldIdentity.identity(level.getServer()).toString();
     }
     public static String dimension(PlayerNpcEntity npc){return SurvivalTasks.dimension(npc);}
     public static ObservedMemory.Point point(BlockPos p){return new ObservedMemory.Point(p.getX(),p.getY(),p.getZ());}

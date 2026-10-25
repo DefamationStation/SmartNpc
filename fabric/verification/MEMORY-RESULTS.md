@@ -33,7 +33,10 @@ the native survival goals. Personal learning/progression is separate.
   coordinates migrate only as lower-confidence historical work sites, without
   deleting the original resource task. Unknown future versions remain read-only
   and cannot be overwritten. Spatial facts cannot cross a changed world scope;
-  personal tendencies survive it. World identity is hashed, not a stored seed.
+  personal tendencies survive it. A durable overworld SavedData UUID identifies
+  the save; seed/name collisions cannot share spatial knowledge. World copies
+  retain their identity on reload, while independently initialized worlds receive
+  different IDs. Unknown future identity data is preserved.
 - Disabling recording or personality effects preserves saved data. New settings
   live in `smart_npc-memory.toml`; `trait_overrides` values of `-1` retain seeded
   tendencies and current interests. Fixed observation caps remain in force.
@@ -69,7 +72,9 @@ biases and explicit overrides, the preparation floor/cap, per-kind/global caps,
 same-origin/destination failure expiry, decaying confidence, clock rollback,
 duplicate/older evidence, attributed encounters, NBT round-trip, missing legacy
 state, future-version preservation, invalid saved entries and world isolation.
-Together with the existing tests, 57 unit tests pass.
+Three further world-identity tests cover independently initialized worlds,
+identity round-trip, corrupt legacy identity and future saved-data preservation.
+Together with the existing tests, 60 unit tests pass.
 
 `SmartNpcMemoryScenario` is a controlled transaction/persistence fixture using a
 disposable copied world and all normal 80 goals plus three target goals. It
@@ -85,3 +90,12 @@ the same completed-transaction event as the production producer, and explicitly
 flushes before its save checkpoint. Central initialization/save/producer hooks
 and actual journey admission are tested again after integration. Early fixture
 compilation/configuration failures remain private harness failures, not mod passes.
+
+The durable-world follow-up artifact is
+`fb13873bd39f449014d1f2230813d7fb2c24a48b235678f7c1dd0e46e4cff271`.
+Both `smartnpc5-continuous-memory-world-a` and `smartnpc5-continuous-memory-world-b`
+pass the real process replay. They start from identical seed/name/source-world
+fingerprints without a pre-existing personal-memory world ID, receive different
+saved UUIDs, and each retains its own UUID after reloading. Earlier core artifact
+`20abea05…` passed the transaction/persistence case before the world UUID change;
+it is not substituted for these follow-up checks.
