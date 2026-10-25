@@ -44,6 +44,7 @@ public final class NpcMemories {
         if(registered)return;registered=true;
         MemorySettings.SPEC.load(FabricLoader.getInstance().getConfigDir().resolve("smart_npc-memory.toml"));
         Events.register(NpcMemories.class);
+        MemoryConversations.register();
     }
     private static String scope(ServerLevel level){
         return MemoryWorldIdentity.identity(level.getServer()).toString();
@@ -116,6 +117,15 @@ public final class NpcMemories {
         long now=npc.level().getGameTime();var origin=point(npc.blockPosition());
         return state(npc).loaded.observations().current(ObservedMemory.Kind.RESOURCE,dimension(npc),now,20).stream()
                 .filter(e->desired.test(e.detail())).sorted(Comparator.comparingDouble(e->e.position().distanceSquared(origin))).toList();
+    }
+    /** Caller owns its existing admitted scan slice. No path creation; at most two factual rechecks. */
+    public static java.util.Optional<BlockPos> firstConfirmedResource(PlayerNpcEntity npc,Predicate<String> desired,int maximumChecks){
+        int remaining=Math.clamp(maximumChecks,0,2);
+        for(var entry:knownResources(npc,desired)){
+            if(remaining--<=0)break;
+            if(revalidateResource(npc,entry)==Validation.CONFIRMED)return java.util.Optional.of(block(entry.position()));
+        }
+        return java.util.Optional.empty();
     }
     /** An unloaded or unseen location remains uncertain; it is never force-loaded. */
     public static Validation revalidateResource(PlayerNpcEntity npc,ObservedMemory.Entry entry){

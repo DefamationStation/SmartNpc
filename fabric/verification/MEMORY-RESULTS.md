@@ -61,9 +61,7 @@ and return checks must use the same policy, retaining their four-item minimum.
 `revalidateResource` and retain native path, protection and ownership checks.
 
 The operator-only `/smart_npc memory <npc> status` reports tendencies, preparation
-and bounded fact counts. Contextual social dialogue, additional tendency effects
-and broad multi-NPC acceptance remain later M2 work; storing five numbers alone
-does not claim those behaviours are delivered.
+and bounded fact counts. Contextual dialogue is described below. Additional tendency effects and broad multi-NPC acceptance remain later M2 work; stored traits alone do not claim those behaviours are delivered.
 
 ## Verification
 
@@ -102,3 +100,54 @@ fingerprints without a pre-existing personal-memory world ID, receive different
 saved UUIDs, and each retains its own UUID after reloading. Earlier core artifact
 `20abea05…` passed the transaction/persistence case before the world UUID change;
 it is not substituted for these follow-up checks.
+
+## Contextual local conversation and resource admission
+
+Crouch-right-click an NPC with an empty main hand to request one private reply.
+The existing NPC chat toggle, memory toggle and new contextual_dialogue toggle
+all apply. No dialogue is broadcast. Existing tasks, inventories, relationships
+and movement remain unchanged. The NPC must be awake, safe, within six blocks
+and mutually visible; combat and healing suppress conversation.
+
+Replies select actual evidence only. Help and canonical offense are attributed
+to the exact listener UUID. Resource statements require current loaded, visible
+revalidation, admitted by the existing work budget and limited to two checks.
+Historical work sites, home anchors and terminal failed trips are described as
+history rather than promises or claims of remote resources. Diligence can produce
+a short truthful busy response; curiosity and generosity bias which eligible
+fact is discussed. There are no rewards, generated adventures or progression
+claims. Cooldowns bound the NPC, player/NPC pair and player across different NPCs;
+the NPC retains at most sixteen listener cooldowns. These UI throttles are
+volatile and intentionally do not become permanent world history.
+
+Six pure policy tests cover exact actor attribution, expired/future/dimension
+filtering, truthful personality selection, cooldown limits/cap and clock rollback.
+Together with the preceding core, the branch has 67 tests.
+
+`firstConfirmedResource(npc, desiredIdPredicate, maximumChecks)` is a planner
+admission helper. Its caller owns an already-admitted scan slice; the helper
+checks at most two nearest matching memories without loading chunks or creating
+paths. It returns only CONFIRMED evidence, skips out-of-sight/remote UNKNOWN
+entries, and forgets exhausted ones. Native consumers must retain their existing
+reachability, harvest/protection and ownership checks. This is an integration API,
+not a claim that every production planner already consults memory.
+
+`SmartNpcMemoryDialogueScenario` exercises actual Fabric UseEntityCallback
+server dispatch with synthetic ServerPlayer instances whose private output is
+captured. All 80 normal NPC goals remain enabled. A conserved real one-food
+handoff is recognized only for its giver. Disabled chat/memory, normal interaction,
+held-item interaction, repeated questions and cross-NPC player throttling are
+checked. This is a server callback test, not client/network UI proof. Fixture v1
+failed compilation because of a protected gamemode helper; v2 passed after using
+the normal survival constructor. Neither case is wilderness acceptance evidence.
+
+Final follow-up artifact:
+`5388f04ab2777c40885511227c19faf9051b878f73809c9fc3b6b6242b8acb71`.
+It passes 67 unit tests, `continuous-memory-dialogue-final` (including memory
+being disabled), and `continuous-memory-helper-final` with real process replay.
+The latter additionally verifies zero admitted rechecks return no destination,
+two rechecks prefer the actual visible coal, and removing/harvesting that coal
+removes it as a preferred destination. Both original actor UUIDs, personality,
+world identity, normal selectors and conserved food remain correct after reload.
+The logs contain no low-space or world-save failure warnings. These isolated
+cases preserve all original worlds.

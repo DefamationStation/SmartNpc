@@ -62,9 +62,12 @@ public class SmartNpcMemoryScenario implements DedicatedServerModInitializer {
                 check(NpcMemories.observeResource(a,visible),"visible actual resource not observed");check(!NpcMemories.observeResource(a,hidden),"hidden ore became known");
                 var evidence=NpcMemories.knownResources(a,id->id.equals("minecraft:coal_ore"));check(evidence.size()==1,"visible coal evidence");
                 check(!NpcMemories.observeResource(a,new BlockPos(100000,64,100000)),"remote observation");
+                check(NpcMemories.firstConfirmedResource(a,id->id.equals("minecraft:coal_ore"),0).isEmpty(),"zero admitted checks leaked destination");
+                check(NpcMemories.firstConfirmedResource(a,id->id.equals("minecraft:coal_ore"),2).orElseThrow().equals(visible),"visible remembered resource not preferred");
                 var old=level.getBlockState(visible);check(PlayerNpcBlockBreakUtil.destroyBlock(level,visible,old,a),"native harvest failed");
                 // The fixture bridges the same verified successful transaction as the production producer.
                 VerifiedWorkOutcome.emit(a,VerifiedWorkOutcome.Kind.HARVEST,visible,"minecraft:coal_ore",1);
+                check(NpcMemories.firstConfirmedResource(a,id->id.equals("minecraft:coal_ore"),2).isEmpty(),"removed resource still preferred");
                 check(NpcMemories.revalidateResource(a,evidence.getFirst())==NpcMemories.Validation.EXHAUSTED,"removed resource did not invalidate");
                 check(NpcMemories.knownResources(a,id->id.equals("minecraft:coal_ore")).isEmpty(),"exhausted ore still a destination");
                 int totalBefore=a.getInventory().countItem(Items.COOKED_BEEF)+b.getInventory().countItem(Items.COOKED_BEEF);
