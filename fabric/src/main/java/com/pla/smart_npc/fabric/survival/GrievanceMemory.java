@@ -10,6 +10,9 @@ public final class GrievanceMemory {
     public enum Cause { ASSAULT, THEFT, VANDALISM, ALLY_DEFENCE }
     public record Grievance(UUID offender, Cause cause, long expires) {}
     private final List<Grievance> entries = new ArrayList<>();
+    // Unknown saved facts grant no authority. Newly witnessed events remain bounded
+    // and usable in this session, while saving preserves the opaque original data.
+    private CompoundTag unsupportedSaved;
 
     public void record(UUID offender, Cause cause, long now) {
         entries.removeIf(g -> g.offender.equals(offender) || g.expires <= now);
@@ -21,6 +24,7 @@ public final class GrievanceMemory {
             .map(Grievance::cause).findFirst();
     }
     public CompoundTag save() {
+        if (unsupportedSaved != null) return unsupportedSaved.copy();
         var tag = new CompoundTag(); tag.putInt("version", 1); tag.putInt("count", entries.size());
         for (int i = 0; i < entries.size(); i++) {
             var e = entries.get(i); var value = new CompoundTag();
@@ -31,7 +35,12 @@ public final class GrievanceMemory {
     }
     public static GrievanceMemory load(CompoundTag tag) {
         var memory = new GrievanceMemory();
-        if (tag.getIntOr("version", 0) != 1) return memory;
+        int version = tag.getIntOr("version", 0);
+        if (version < 0 || version > 1) {
+            memory.unsupportedSaved = tag.copy();
+            return memory;
+        }
+        if (version == 0) return memory;
         for (int i = 0; i < Math.clamp(tag.getIntOr("count", 0), 0, LIMIT); i++) {
             var e = tag.getCompoundOrEmpty("entry" + i);
             try {

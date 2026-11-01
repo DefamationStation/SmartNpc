@@ -7,3 +7,4 @@ libs
 reference
 __pycache__/
 *.pyc
+.worktrees/

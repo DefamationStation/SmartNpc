@@ -3,7 +3,7 @@ package com.pla.smart_npc.client.gui;
 import com.pla.smart_npc.SmartNpc;
 import com.pla.smart_npc.inventory.InventoryViewerMenu;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.renderer.pipeline.RenderPipelines;
+import net.minecraft.client.gui.GuiPipeline;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -23,7 +23,7 @@ public class InventoryViewerScreen extends AbstractContainerScreen<InventoryView
         int left = this.leftPos;
         int top = this.topPos;
 
-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, ARMOR_EDITOR_TEXTURE, left, top, 0, 0,
+        guiGraphics.blit(GuiPipeline.TEXTURED, ARMOR_EDITOR_TEXTURE, left, top, 0, 0,
                 this.imageWidth, InventoryViewerMenu.TOP_PANEL_HEIGHT, 256, 256);
         guiGraphics.fill(left, top + InventoryViewerMenu.TOP_PANEL_HEIGHT, left + this.imageWidth, top + this.imageHeight, 0xFFC6C6C6);
         guiGraphics.fill(left, top + this.imageHeight - 1, left + this.imageWidth, top + this.imageHeight, 0xFF555555);

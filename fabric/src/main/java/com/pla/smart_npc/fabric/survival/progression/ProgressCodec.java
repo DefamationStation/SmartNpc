@@ -6,7 +6,7 @@ import java.util.*;
 /** Versioned storage; an unsupported future version is deliberately read-only. */
 public final class ProgressCodec {
     private ProgressCodec() { }
-    public static boolean supported(CompoundTag tag){return tag.getIntOr("version",0)<=PersonalProgress.VERSION;}
+    public static boolean supported(CompoundTag tag){int version=tag.getIntOr("version",0);return version>=0&&version<=PersonalProgress.VERSION;}
     public static PersonalProgress load(CompoundTag tag){
         if(!supported(tag))return new PersonalProgress();
         var totals=new EnumMap<PersonalProgress.Skill,Integer>(PersonalProgress.Skill.class);

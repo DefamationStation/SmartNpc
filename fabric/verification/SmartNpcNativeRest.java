@@ -32,7 +32,7 @@ public final class SmartNpcNativeRest implements DedicatedServerModInitializer {
     private PlayerNpcEntity npc;private int ticks,brokenAt=-1;private boolean done;
     public void onInitializeServer(){
         SmartNpcConfig.MAX_NATURAL_PLAYER_NPCS.set(0);SmartNpcConfig.FORCE_TICK_MANAGE.set(1);
-        SmartNpcNamesConfig.PLAYER_NPC_NAMES.set(List.of("NativeRestResident|EXPLORING"));
+        SmartNpcNamesConfig.PLAYER_NPC_NAMES.set(List.of("RestResident|EXPLORING"));
         SmartNpcNamesConfig.onConfigLoading(new Events.ModConfigEvent.Loading(new Events.ModConfig(SmartNpcNamesConfig.SPEC)));
         ServerTickEvents.END_SERVER_TICK.register(server->{if(done)return;try{tick(server);}catch(Throwable error){error.printStackTrace();finish(server,"failure.txt",error.toString());}});
     }
@@ -76,10 +76,10 @@ public final class SmartNpcNativeRest implements DedicatedServerModInitializer {
         server.getCommands().performPrefixedCommand(server.createCommandSourceStack(),"time set 14000");
         server.getCommands().performPrefixedCommand(server.createCommandSourceStack(),"weather clear");
         for(int x=-4;x<=6;x++)for(int z=-4;z<=4;z++)for(int y=279;y<=283;y++)level.setBlockAndUpdate(new BlockPos(x,y,z),y==279?Blocks.BEDROCK.defaultBlockState():Blocks.AIR.defaultBlockState());
-        var bed=Blocks.RED_BED.defaultBlockState().setValue(BedBlock.FACING,Direction.EAST);
+        var bed=net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(net.minecraft.resources.Identifier.withDefaultNamespace("red_bed")).defaultBlockState().setValue(BedBlock.FACING,Direction.EAST);
         level.setBlockAndUpdate(FOOT,bed.setValue(BedBlock.PART,BedPart.FOOT));
         level.setBlockAndUpdate(HEAD,bed.setValue(BedBlock.PART,BedPart.HEAD));
-        npc=SmartNpcModEntities.PLAYER_NPC.get().create(level,EntitySpawnReason.COMMAND);npc.setUsername("NativeRestResident");npc.setUUID(ID);npc.setPersistenceRequired();npc.setPos(.5,280,.5);npc.getRandom().setSeed(0);
+        npc=SmartNpcModEntities.PLAYER_NPC.get().create(level,EntitySpawnReason.COMMAND);npc.setUsername("RestResident");npc.setUUID(ID);npc.setPersistenceRequired();npc.setPos(.5,280,.5);npc.getRandom().setSeed(0);
         npc.getInventory().clearContent();npc.getInventory().addItem(new ItemStack(Items.COOKED_BEEF,16));
         PlayerNpcHomeUtil.setHome(npc,new PlayerNpcHomeUtil.HomeArea(new BlockPos(-2,279,-2),7,5));
         level.addFreshEntity(npc);check(!earned(),"fresh resident inherited rest history");

@@ -32,10 +32,13 @@ p.add_argument('--target-metadata',type=Path,help='Upgrade target.json; otherwis
 p.add_argument('--java-home',type=Path,help='Target JDK; otherwise discover its major version under workspace .tools')
 p.add_argument('--fixture-source',type=Path,help='Optional dedicated-server diagnostic/scenario Java source; frozen into the private case')
 p.add_argument('--fixture-support',type=Path,action='append',default=[],help='Additional fixture Java source, frozen and compiled with the selected entry point')
+p.add_argument('--synthetic-fixture-world',action='store_true',help='Declared geometry-only fixture: copy level.dat seed metadata, regenerate terrain; never a copied-terrain or reload proof')
 p.add_argument('--replay',action='store_true')
 p.add_argument('--wait',action='store_true',help='Wait for this run and automatically replay an outbound checkpoint')
 a=p.parse_args();root=a.workspace.resolve();jar=a.jar.resolve()
 assert a.max_ticks is None or a.max_ticks>0,'Observation deadline must be positive'
+if a.synthetic_fixture_world:
+ assert a.fixture_source and not a.replay and not a.resume_case,'Synthetic fixtures cannot claim copied-world continuation'
 if a.resume_case:
  assert not a.replay,'Saved-state resume requires a fresh case'
  resumed=a.resume_case.resolve();assert (resumed/'actor.properties').is_file()
@@ -63,6 +66,15 @@ else:
  major=target['java']['majorVersion'];matches=[d for d in (root/'.tools').glob('jdk-*') if (d/'release').is_file() and f'JAVA_VERSION="{major}.' in (d/'release').read_text()]
  assert len(matches)==1,'Supply --java-home for the target JDK'
  jdk=matches[0]/'bin'
+# Shared disk reservations cover concurrent agents and survive launcher exit via test.pid.
+import importlib.util
+budget_path=root/'minecraft-snapshot-mods/maintenance/storage_budget.py'
+spec=importlib.util.spec_from_file_location('minecraft_test_storage_budget',budget_path)
+budget=importlib.util.module_from_spec(spec);spec.loader.exec_module(budget)
+os.environ.setdefault('MC_TEST_BUDGET_OWNER_PID',str(os.getpid()))
+# Geometry-only fixtures omit all explored chunks and caches. Their separate
+# 3 GiB forecast covers common mods, generated spawn chunks and save headroom.
+budget.reserve(root,case,(3 if a.synthetic_fixture_world else 6)*budget.GIB,int(os.environ['MC_TEST_BUDGET_OWNER_PID']))
 cp=os.pathsep.join(target['classpath'])
 instance=a.instance.resolve() if a.instance else root/'instances'/(target['requested']+'-fabric-carpet')
 if not a.replay:
@@ -70,17 +82,24 @@ if not a.replay:
  estimated_world=sum(f.stat().st_size for f in a.world.rglob('*') if f.is_file())
  estimated_mods=sum(f.stat().st_size for f in (instance/'mods').glob('*.jar'))
  required_free=8*1024**3+2*estimated_world+4*estimated_mods+512*1024**2
- assert shutil.disk_usage(root).free>=required_free, f'Insufficient free test storage: need {required_free//1024**2} MiB including save/cache headroom; archive closed cases before launching'
+ assert shutil.disk_usage(root).free>=required_free, f'Insufficient free test storage: need {required_free//1024**2} MiB including save/cache headroom; review closed disposable cases before launching'
  case.mkdir(parents=True)
  shutil.copy2(target_path,case/'runtime-target.json')
  (case/'mods').mkdir();(case/'classes').mkdir()
  origin=a.world.resolve();before={str(f.relative_to(origin)):sha(f) for f in origin.rglob('*') if f.is_file() and f.name!='session.lock'}
  started=time.monotonic()
- shutil.copytree(origin,case/'world',ignore=shutil.ignore_patterns('session.lock'))
+ if a.synthetic_fixture_world:
+  (case/'world').mkdir();shutil.copy2(origin/'level.dat',case/'world/level.dat')
+  # Modern snapshots store dimension/seed settings separately from level.dat.
+  generation=Path('data/minecraft/world_gen_settings.dat')
+  assert (origin/generation).is_file(),'Seed metadata is incomplete; never silently randomize the fixture world'
+  (case/'world'/generation).parent.mkdir(parents=True)
+  shutil.copy2(origin/generation,case/'world'/generation)
+ else:shutil.copytree(origin,case/'world',ignore=shutil.ignore_patterns('session.lock'))
  if a.resume_case:shutil.copy2(resumed/'actor.properties',case/'actor.properties')
  after={str(f.relative_to(origin)):sha(f) for f in origin.rglob('*') if f.is_file() and f.name!='session.lock'}
  assert before==after,'Source world changed during copy; do not test an inconsistent snapshot'
- (case/'world-source.json').write_text(json.dumps({'files':len(before),'bytes':sum(f.stat().st_size for f in origin.rglob('*') if f.is_file()),'copySeconds':time.monotonic()-started,'fingerprints':before},indent=2))
+ (case/'world-source.json').write_text(json.dumps({'files':len(before),'bytes':sum(f.stat().st_size for f in origin.rglob('*') if f.is_file()),'scope':'seed-metadata-only; generated terrain; synthetic geometry' if a.synthetic_fixture_world else 'complete-private-world-copy','copySeconds':time.monotonic()-started,'fingerprints':before},indent=2))
  assets=AssetStore(root)
  placements=[]
  def frozen_asset(source,destination):
@@ -157,7 +176,10 @@ print(json.dumps({'pid':proc.pid,'case':str(case),'candidateSha256':sha(jar)}))
 if a.wait:
  try:code=proc.wait(timeout=900)
  except subprocess.TimeoutExpired:raise RuntimeError('Test exceeded 15 minutes; process left intact for diagnosis')
+ if code:raise RuntimeError(f'Test process exited {code}; retained logs and markers cannot certify a successful save')
  if (case/'failure.txt').exists():raise RuntimeError((case/'failure.txt').read_text())
+ if a.synthetic_fixture_world:
+  assert not (case/'checkpoint.txt').exists() and not (case/'return-checkpoint.txt').exists(),'Geometry-only fixtures cannot certify copied-world replay'
  if ((case/'checkpoint.txt').exists() or (case/'return-checkpoint.txt').exists()) and not(case/'complete.txt').exists() and not return_replay:
   replay_args=[os.sys.executable,Path(__file__).resolve(),'--workspace',root,'--jar',jar,'--name',a.name,'--distance',a.distance,'--mode',a.mode,'--heading',a.heading,'--start-x',a.start_x,'--start-z',a.start_z,'--tick-rate',a.tick_rate,'--replay','--wait']
   if a.craft_boat:replay_args+=['--craft-boat']

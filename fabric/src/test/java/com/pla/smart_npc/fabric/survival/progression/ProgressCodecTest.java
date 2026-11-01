@@ -19,6 +19,12 @@ class ProgressCodecTest {
         var tag=new CompoundTag();tag.putInt("version",99);tag.putString("futureEvidence","keep");
         assertFalse(ProgressCodec.supported(tag));assertEquals("keep",tag.getStringOr("futureEvidence",""));
     }
+    @Test void negativeSchemaRemainsReadOnlyWithoutFabricatedHistory(){
+        var tag=new CompoundTag();tag.putInt("version",-1);tag.putString("unrecognized","preserve");
+        assertFalse(ProgressCodec.supported(tag));
+        assertTrue(ProgressCodec.load(tag).snapshot().milestones().isEmpty());
+        assertEquals("preserve",tag.getStringOr("unrecognized",""));
+    }
     @Test void corruptCollectionSizesStayBounded(){
         var tag=new CompoundTag();tag.putInt("version",1);tag.putInt("proofCount",Integer.MAX_VALUE);
         tag.putInt("craftCount",Integer.MAX_VALUE);tag.putInt("workWindows",-1);

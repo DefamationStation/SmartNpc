@@ -1,6 +1,21 @@
 # Smart NPC: believable survival and progression
 
-Status: initial M1 survival journeys and selected limited-start copied-world scenarios implemented, updated 2026-10-25. Most later milestones remain planned. See `verification/M1-RESULTS.md`, `RESOURCE_TASKS.md` and the resident report below for implemented scope and verification limits. Broad wilderness-start acceptance remains outstanding.
+Status: native Snapshot 6 prepared-survival integration verified for release, updated 2026-11-01. Initial M1 journeys and selected limited-start copied-world scenarios are implemented. Prepared commitments and bounded attributed relationships extend the foundation; broad wilderness-start acceptance, practical equipment progression and cooperative settlements remain outstanding.
+
+## Snapshot 6 prepared survival — 1 November 2026
+
+The native Fabric line integrates earned cooking/rest readiness, explicit prepared
+expeditions, conserved food offers and exact-actor relationship history. An explicit
+`/smart_npc expedition <npc> visit <x y z>` requests a round trip; ordinary `go`
+retains its one-way lifecycle. Arrival return runs before optional builder supply
+discovery, using physical native arrival evidence and the existing saved journey.
+These requests remain operator tools, not autonomous planning or team permissions.
+
+Successful owned-bed naps now count even when they finish before dawn. Interrupted
+rest and time spent unloaded grant no completion credit. Relationship clock rollback
+and unknown saved-defense schemas are handled conservatively. See
+[prepared Snapshot 6 results](verification/PREPARED-SNAPSHOT6-RESULTS.md) for artifact,
+native interaction/reload proof and controlled-scenario limits.
 
 ## Continuous integration — 25 October 2026
 

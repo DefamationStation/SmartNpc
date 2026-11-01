@@ -17,7 +17,27 @@ import java.util.*;
  * inventory mutation, route scan, permission unlock, or survival-goal interception. */
 public final class PreparedExpeditions {
     private PreparedExpeditions() { }
+    private static final String VISIT_REASON="prepared visit";
     public record Result(boolean started,String message){ }
+    /** Explicit round-trip mode; ordinary go/resource trips retain their own lifecycle. */
+    public static Result requestVisit(PlayerNpcEntity npc,BlockPos destination,boolean water){
+        var result=request(npc,destination,water);
+        if(result.started()){
+            Journeys.state(npc).reason=VISIT_REASON;Journeys.save(npc);
+            return new Result(true,"Prepared visit started; return home follows physical arrival");
+        }
+        return result;
+    }
+    static boolean shouldReturn(String reason,String phase,String dimension,String actualDimension,BlockPos destination,BlockPos lastArrival,BlockPos feet){
+        return VISIT_REASON.equals(reason)&&"at_destination".equals(phase)&&dimension.equals(actualDimension)
+                &&destination!=null&&destination.equals(lastArrival)&&feet!=null&&feet.distSqr(destination)<=9;
+    }
+    @Events.SubscribeEvent(priority=Events.EventPriority.HIGH) public static void finishVisit(Events.EntityTickEvent.Post event){
+        if(!(event.getEntity() instanceof PlayerNpcEntity npc)||!(npc.level() instanceof ServerLevel)||npc.isNoAi()||!npc.isAlive())return;
+        var trip=Journeys.state(npc);
+        if(shouldReturn(trip.reason,trip.phase,trip.dimension,SurvivalTasks.dimension(npc),trip.destination,trip.lastArrival,npc.blockPosition()))
+            Journeys.returnHome(npc,"completed prepared visit");
+    }
     public static Result request(PlayerNpcEntity npc,BlockPos destination,boolean declaredWaterCrossing){
         if(!(npc.level() instanceof ServerLevel level)||npc.isRemoved()||level.getEntity(npc.getUUID())!=npc)return new Result(false,"Declined: resident is not available in a server world");
         var journey=Journeys.state(npc);var resource=SurvivalTasks.memory(npc);
@@ -58,13 +78,15 @@ public final class PreparedExpeditions {
     }
     @Events.SubscribeEvent public static void commands(Events.RegisterCommandsEvent event){
         var go=Commands.literal("go").then(Commands.argument("destination",BlockPosArgument.blockPos())
-                .executes(c->run(c,false)).then(Commands.literal("water").executes(c->run(c,true))));
+                .executes(c->run(c,false,false)).then(Commands.literal("water").executes(c->run(c,true,false))));
+        var visit=Commands.literal("visit").then(Commands.argument("destination",BlockPosArgument.blockPos())
+                .executes(c->run(c,false,true)).then(Commands.literal("water").executes(c->run(c,true,true))));
         event.getDispatcher().register(Commands.literal("smart_npc").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                .then(Commands.literal("expedition").then(Commands.argument("npc",EntityArgument.entity()).then(go))));
+                .then(Commands.literal("expedition").then(Commands.argument("npc",EntityArgument.entity()).then(go).then(visit))));
     }
-    private static int run(com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> context,boolean water)throws com.mojang.brigadier.exceptions.CommandSyntaxException{
+    private static int run(com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> context,boolean water,boolean visit)throws com.mojang.brigadier.exceptions.CommandSyntaxException{
         if(!(EntityArgument.getEntity(context,"npc") instanceof PlayerNpcEntity npc))return 0;
-        var result=request(npc,BlockPosArgument.getBlockPos(context,"destination"),water);
+        var result=visit?requestVisit(npc,BlockPosArgument.getBlockPos(context,"destination"),water):request(npc,BlockPosArgument.getBlockPos(context,"destination"),water);
         context.getSource().sendSuccess(()->Component.literal(result.message()),false);return result.started()?1:0;
     }
 }

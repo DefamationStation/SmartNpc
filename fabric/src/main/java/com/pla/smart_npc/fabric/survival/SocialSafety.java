@@ -47,6 +47,7 @@ public final class SocialSafety {
         memory(npc).record(offender.getUUID(), cause, level.getGameTime());
         PersistentData.get(npc).put(KEY, memory(npc).save());
         com.pla.smart_npc.fabric.survival.memory.NpcMemories.encounterConfirmed(npc, offender);
+        com.pla.smart_npc.fabric.survival.relationships.NpcRelationships.canonicalEncounter(npc, offender);
     }
     public static void defend(PlayerNpcEntity npc, LivingEntity offender, GrievanceMemory.Cause cause) {
         record(npc, offender, cause);

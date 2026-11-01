@@ -67,7 +67,19 @@ public class SmartNpcFoodOfferClient implements ClientModInitializer {
         check(goals()==80,"normal goals changed");var ledger=new Properties();ledger.setProperty("actor",player.getUUID().toString());
         try(var out=Files.newOutputStream(Path.of("food-offer-actor.properties"))){ledger.store(out,"actual connected player source");}done=true;
     }
-    void verify(UUID actor){check(NpcMemories.observations(npc).stream().anyMatch(e->e.kind()==ObservedMemory.Kind.HELP&&actor.equals(e.subject())&&e.source()==ObservedMemory.Source.ACTUAL_HANDOFF),"native offer lacks exact connected actor memory");}
+    void verify(UUID actor){
+        check(NpcMemories.observations(npc).stream().anyMatch(e->e.kind()==ObservedMemory.Kind.HELP&&actor.equals(e.subject())&&e.source()==ObservedMemory.Source.ACTUAL_HANDOFF),"native offer lacks exact connected actor memory");
+        var state=RelationshipCodec.load(PersistentData.get(npc).getCompoundOrEmpty(NpcRelationships.KEY));
+        var contact=state.book().contacts().stream().filter(c->c.actor().equals(actor)).findFirst().orElseThrow(()->new AssertionError("native offer lacks exact relationship actor"));
+        check(contact.evidence().size()==1,"one food offer multiplied relationship evidence");
+        var fact=contact.evidence().getFirst();
+        check(fact.kind()==RelationshipBook.Kind.ASSISTANCE&&fact.source()==RelationshipBook.Source.CONSERVED_HANDOFF
+                &&fact.resource().equals("minecraft:cooked_beef")&&fact.units()==1,"native relationship handoff facts changed");
+        var advice=NpcRelationships.advice(npc,actor);check(advice.trust()==2&&advice.currentEvidence()==1,"native handoff influence changed");
+        check(NpcRelationships.advice(npc,new UUID(0x6e6f746769766572L,2)).stance()==RelationshipBook.Stance.UNKNOWN,"unrelated UUID acquired help");
+        var receipt=Path.of("relationship-food-seen.txt");
+        try{if(replay)check(Long.parseLong(Files.readString(receipt))==fact.seen(),"relationship timestamp changed after process reload");else Files.writeString(receipt,Long.toString(fact.seen()));}catch(java.io.IOException e){throw new RuntimeException(e);}
+    }
     int goals()throws Exception{var f=Mob.class.getDeclaredField("goalSelector");f.setAccessible(true);return ((net.minecraft.world.entity.ai.goal.GoalSelector)f.get(npc)).getAvailableGoals().size();}
     void check(boolean value,String message){if(!value)throw new AssertionError(message);}
     void client(Minecraft mc){try{

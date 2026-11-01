@@ -30,7 +30,7 @@ public final class SmartNpcPreparedVisitCollision implements DedicatedServerModI
     private PlayerNpcEntity control,resident;private boolean controlPassed,done;private int ticks;
     public void onInitializeServer(){
         SmartNpcConfig.MAX_NATURAL_PLAYER_NPCS.set(0);SmartNpcConfig.FORCE_TICK_MANAGE.set(1);
-        SmartNpcNamesConfig.PLAYER_NPC_NAMES.set(List.of("VisitCollisionControl|BUILDING","VisitCollisionResident|BUILDING"));
+        SmartNpcNamesConfig.PLAYER_NPC_NAMES.set(List.of("VisitControl|BUILDING","VisitResident|BUILDING"));
         SmartNpcNamesConfig.onConfigLoading(new Events.ModConfigEvent.Loading(new Events.ModConfig(SmartNpcNamesConfig.SPEC)));
         // Production initialization owns registration/order of every real handler.
         ServerTickEvents.END_SERVER_TICK.register(server->{if(done)return;try{tick(server);}catch(Throwable error){error.printStackTrace();finish(server,"failure.txt",error.toString());}});
@@ -39,7 +39,7 @@ public final class SmartNpcPreparedVisitCollision implements DedicatedServerModI
         ticks++;var level=server.overworld();server.tickRateManager().setTickRate(200);
         if(control==null){
             server.getCommands().performPrefixedCommand(server.createCommandSourceStack(),"time set 1000");
-            control=create(level,"VisitCollisionControl",0);resident=create(level,"VisitCollisionResident",32);return;
+            control=create(level,"VisitControl",0);resident=create(level,"VisitResident",32);return;
         }
         var actor=controlPassed?resident:control;actor.setNoAi(false);
         // No movement/goal execution is injected. Align only the observer's

@@ -34,6 +34,10 @@ operate on the chosen instance, artifact and receipts.
    in the case metadata and inherited by replays. It cannot extend the standard
    scenario deadline. A deadline remains a failed outcome, never a pass.
 3. Use accelerated tick rates for iteration, explicitly recorded in receipts.
+   Pure declared-geometry fixtures can use `--synthetic-fixture-world`: only seed
+   metadata is copied, explored chunks are omitted and terrain is regenerated.
+   This distinct smaller scope reserves 3 GiB and cannot resume/replay or claim
+   copied-terrain coverage. Full copied-world journey/reload tests retain 6 GiB.
    Repeat critical final cases at a lower rate. Generation and asynchronous
    loading can change observed timing; do not present accelerated throughput as
    a normal-game FPS or performance benchmark. Record simulation ticks and MSPT.

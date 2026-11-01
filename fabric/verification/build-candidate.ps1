@@ -9,6 +9,8 @@ $workspacePath=(Resolve-Path -LiteralPath $Workspace).Path
 $stagingPath=[IO.Path]::GetFullPath($StagingDirectory,$workspacePath)
 $privateRoot=Join-Path $workspacePath '.verification'
 if(!$stagingPath.StartsWith($privateRoot+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'Staging must be inside workspace .verification'}
+& python (Join-Path $workspacePath 'minecraft-snapshot-mods/maintenance/storage_budget.py') --workspace $workspacePath --case $stagingPath --reserve-gib 6 --owner-pid $PID | Out-Null
+if($LASTEXITCODE -ne 0){throw 'Storage budget refused the build; no compilation started'}
 New-Item -ItemType Directory $stagingPath -Force | Out-Null
 $env:JAVA_HOME=(Resolve-Path -LiteralPath $JavaHome).Path
 $fabric=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path

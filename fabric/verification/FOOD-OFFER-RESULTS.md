@@ -1,5 +1,10 @@
 # Explicit NPC food offers: bounded relationship evidence
 
+Snapshot 6 integration update: production registration and canonical relationship
+wiring are now present. See [native prepared-survival results](PREPARED-SNAPSHOT6-RESULTS.md)
+for current exact-artifact interaction, attribution and saved-process replay proof.
+The leaf-commit statements below describe their original historical scope.
+
 This is an initial relationship foundation: a real, attributed helpful action
 can become remembered history. It does not implement the whole relationships
 milestone, trust ranks, trade, shared storage, permission grants or reconciliation.

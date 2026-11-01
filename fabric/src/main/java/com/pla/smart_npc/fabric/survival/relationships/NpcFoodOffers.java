@@ -14,7 +14,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 
 /** Explicit server-authoritative conserved handoff. No inspector/chest action is inferred to be a gift. */
 public final class NpcFoodOffers {
@@ -33,9 +32,7 @@ public final class NpcFoodOffers {
     }
     /** Match the native cooked-food reserve policy; raw/poisonous foods and special healing items stay untouched. */
     public static boolean usefulFood(ItemStack stack){
-        return stack.is(Items.COOKED_BEEF)||stack.is(Items.COOKED_PORKCHOP)||stack.is(Items.COOKED_CHICKEN)
-                ||stack.is(Items.COOKED_MUTTON)||stack.is(Items.COOKED_RABBIT)||stack.is(Items.COOKED_COD)
-                ||stack.is(Items.COOKED_SALMON)||stack.is(Items.BAKED_POTATO);
+        return SurvivalTasks.cookedFood(stack);
     }
     public static boolean offer(PlayerNpcEntity npc,ServerPlayer player){
         if(!FoodOfferSettings.ENABLED.get()||!MemorySettings.MEMORY_ENABLED.get()||!player.isShiftKeyDown()

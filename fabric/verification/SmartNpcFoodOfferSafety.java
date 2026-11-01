@@ -61,6 +61,24 @@ public class SmartNpcFoodOfferSafety implements DedicatedServerModInitializer {
         check(click(giver)==InteractionResult.PASS&&offered.getCount()==2&&npc.getInventory().countItem(Items.COOKED_BEEF)==3,"same-pair replay duplicated gift");
         var help=NpcMemories.observations(npc).stream().filter(e->e.kind()==ObservedMemory.Kind.HELP).toList();check(help.size()==1&&help.getFirst().subject().equals(giver.getUUID())&&!help.getFirst().subject().equals(other.getUUID()),"wrong actual giver attribution");
         check(!npc.isTeamAlliedWith(giver)&&!npc.isTeamAlliedWith(other),"gift forced team membership");
+        var relationship=PersistentData.get(npc).getCompoundOrEmpty(NpcRelationships.KEY).copy();
+        check(NpcRelationships.advice(npc,giver.getUUID()).trust()==2&&NpcRelationships.advice(npc,other.getUUID()).stance()==RelationshipBook.Stance.UNKNOWN,"relationship attributed to wrong actor");
+        // Declared fixture clock advancement admits a second real transaction,
+        // while remaining inside the shared relationship influence window.
+        ((net.minecraft.world.level.storage.ServerLevelData)l.getLevelData()).setGameTime(l.getGameTime()+201);
+        check(click(giver)==InteractionResult.SUCCESS_SERVER&&offered.getCount()==1&&npc.getInventory().countItem(Items.COOKED_BEEF)==4,"second eligible transfer not conserved");
+        check(PersistentData.get(npc).getCompoundOrEmpty(NpcRelationships.KEY).equals(relationship),"second gift bypassed relationship influence window");
+        var futureRelationship=future.copy();futureRelationship.putString("preserve","future-relationships");
+        PersistentData.get(npc).put(NpcRelationships.KEY,futureRelationship.copy());((net.minecraft.world.level.storage.ServerLevelData)l.getLevelData()).setGameTime(l.getGameTime()+201);
+        check(click(giver)==InteractionResult.SUCCESS_SERVER&&offered.isEmpty()&&npc.getInventory().countItem(Items.COOKED_BEEF)==5,"future relationship schema broke conserved food transaction");
+        check(PersistentData.get(npc).getCompoundOrEmpty(NpcRelationships.KEY).equals(futureRelationship),"food overwrote future relationship data");
+        giver.getInventory().setItem(0,new ItemStack(Items.COOKED_BEEF,2));npc.getInventory().addItem(new ItemStack(Items.COOKED_BEEF,1));
+        ((net.minecraft.world.level.storage.ServerLevelData)l.getLevelData()).setGameTime(l.getGameTime()+201);check(click(giver)==InteractionResult.PASS&&giver.getMainHandItem().getCount()==2,"resident at its real reserve accepted surplus food");
+        npc.getInventory().clearContent();RelationshipSettings.ENABLED.set(false);PersistentData.get(npc).remove(NpcRelationships.KEY);
+        check(click(giver)==InteractionResult.SUCCESS_SERVER&&giver.getMainHandItem().getCount()==1&&npc.getInventory().countItem(Items.COOKED_BEEF)==1,"disabled advisory relationships blocked valid food");
+        check(!PersistentData.get(npc).contains(NpcRelationships.KEY),"disabled relationships acquired evidence");RelationshipSettings.ENABLED.set(true);
+        com.pla.smart_npc.fabric.survival.SocialSafety.record(npc,giver,com.pla.smart_npc.fabric.survival.GrievanceMemory.Cause.ASSAULT);
+        ((net.minecraft.world.level.storage.ServerLevelData)l.getLevelData()).setGameTime(l.getGameTime()+201);check(click(giver)==InteractionResult.PASS&&giver.getMainHandItem().getCount()==1,"gift forgave canonical offense or consumed its source");
     }
     void check(boolean value,String why){if(!value)throw new AssertionError(why);}
     void finish(MinecraftServer s,String name,String message){try{Files.writeString(Path.of(name),message);}catch(Exception e){throw new RuntimeException(e);}done=true;s.halt(false);}

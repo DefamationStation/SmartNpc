@@ -37,6 +37,9 @@ public final class RelationshipBook {
     public boolean record(UUID actor,Evidence actual){
         Objects.requireNonNull(actor);Objects.requireNonNull(actual);prune(actual.seen);
         var facts=contacts.get(actor);
+        // A real observation establishes the actor's current clock epoch. Reads alone
+        // retain future history, but it cannot suppress or displace this new event.
+        if(facts!=null)facts.removeIf(e->e.seen>actual.seen);
         if(facts!=null&&!negative(actual.kind)&&facts.stream().anyMatch(e->!negative(e.kind)&&e.seen<=actual.seen&&actual.seen-e.seen<POSITIVE_WINDOW))return false;
         if(facts==null){facts=new ArrayList<>();contacts.put(actor,facts);}
         if(negative(actual.kind)){

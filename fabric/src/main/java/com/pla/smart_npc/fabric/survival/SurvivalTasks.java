@@ -68,7 +68,7 @@ public final class SurvivalTasks {
     public static int cookingLogTarget(PlayerNpcEntity npc) { return memory(npc).cookingLogGoal; }
     public static int cookingStoneTarget(PlayerNpcEntity npc) { return 8; }
 
-    private static boolean cookedFood(net.minecraft.world.item.ItemStack stack) {
+    public static boolean cookedFood(net.minecraft.world.item.ItemStack stack) {
         return stack.is(Items.COOKED_BEEF) || stack.is(Items.COOKED_PORKCHOP) || stack.is(Items.COOKED_CHICKEN)
             || stack.is(Items.COOKED_MUTTON) || stack.is(Items.COOKED_RABBIT) || stack.is(Items.COOKED_COD)
             || stack.is(Items.COOKED_SALMON) || stack.is(Items.BAKED_POTATO);

@@ -1,5 +1,10 @@
 # UUID relationship evidence: initial M4 foundation
 
+Snapshot 6 integration update: the production food handoff and canonical-offence
+hooks are wired and have native interaction/save-reload evidence. See
+[prepared-survival results](PREPARED-SNAPSHOT6-RESULTS.md). The branch-specific
+pending-integration statements below record the original historical stage.
+
 This first implementation records attributed recent cooperation and canonical
 offense evidence, and exposes advisory familiarity/trust. It grants no loyalty,
 team membership, aggression permission, access, ownership, sharing or forgiveness.

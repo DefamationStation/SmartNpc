@@ -55,6 +55,27 @@ class RelationshipBookTest {
         var loaded=RelationshipCodec.load(tag);assertEquals(1,loaded.book().eventCount());assertEquals(2,loaded.book().advice(actor,101).trust());
         contact.putString("actor","not-a-uuid");tag.put("contact0",contact);assertEquals(0,RelationshipCodec.load(tag).book().eventCount());assertEquals(0,RelationshipCodec.load(new CompoundTag()).book().eventCount());
     }
+    @Test void realGiftAfterRollbackRetiresOnlyThatActorsFutureFactsAndSurvivesReload(){
+        var book=new RelationshipBook();book.record(actor,help(100,1));book.record(bystander,help(100,2));
+        assertEquals(RelationshipBook.Stance.UNKNOWN,book.advice(actor,99).stance());
+        assertFalse(book.prune(99));assertEquals(2,book.eventCount());
+        assertTrue(book.record(actor,help(99,3)));
+        var saved=RelationshipCodec.save(new RelationshipCodec.Loaded(book,true));var loaded=RelationshipCodec.load(saved);
+        assertEquals(book.contacts(),loaded.book().contacts());assertEquals(saved,RelationshipCodec.save(loaded));
+        assertEquals(2,loaded.book().advice(actor,99).trust());
+        assertEquals(RelationshipBook.Stance.UNKNOWN,loaded.book().advice(bystander,99).stance());
+        assertEquals(100,loaded.book().contacts().stream().filter(c->c.actor().equals(bystander)).findFirst().orElseThrow().evidence().getFirst().seen());
+        assertFalse(loaded.book().record(actor,help(100,1)));assertTrue(loaded.book().record(actor,help(1299,1)));
+    }
+    @Test void realOffenseAfterRollbackReplacesFutureCauseWithoutLosingCurrentHistory(){
+        var book=new RelationshipBook();book.record(actor,help(10,1));book.record(actor,offense(RelationshipBook.Kind.ASSAULT,100));
+        assertTrue(book.record(actor,offense(RelationshipBook.Kind.ASSAULT,99)));
+        var saved=RelationshipCodec.save(new RelationshipCodec.Loaded(book,true));var loaded=RelationshipCodec.load(saved);
+        assertEquals(book.contacts(),loaded.book().contacts());assertEquals(saved,RelationshipCodec.save(loaded));
+        assertEquals(RelationshipBook.Stance.CAUTIOUS,loaded.book().advice(actor,99).stance());
+        assertEquals(2,loaded.book().eventCount());
+        assertEquals(99,loaded.book().contacts().getFirst().evidence().stream().filter(e->e.kind()==RelationshipBook.Kind.ASSAULT).findFirst().orElseThrow().seen());
+    }
     @Test void GiftAndTradeShareOneActualActorInfluenceWindow(){
         var book=new RelationshipBook();book.record(actor,help(100,1));
         assertFalse(book.record(actor,new RelationshipBook.Evidence(RelationshipBook.Kind.TRADE,RelationshipBook.Source.CONSERVED_EXCHANGE,"minecraft:cooked_beef",200,64)));
