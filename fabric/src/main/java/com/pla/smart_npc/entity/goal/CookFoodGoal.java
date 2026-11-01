@@ -515,13 +515,13 @@ public class CookFoodGoal extends Goal {
             return false;
         }
 
-        int previousCooked = com.pla.smart_npc.fabric.survival.SurvivalTasks.cookedFoodCount(this.playerNpc);
+        int previousOutput = com.pla.smart_npc.fabric.survival.SurvivalTasks.furnaceOutputCount(this.playerNpc, output);
         ItemStack moved = output.copy();
         furnace.setItem(2, ItemStack.EMPTY);
         furnace.setChanged();
         ItemStack remainder = InventoryUtils.addItemAndReturnRemainder(this.playerNpc, moved);
         if (!remainder.isEmpty()) this.playerNpc.spawnAtLocation(remainder);
-        com.pla.smart_npc.fabric.survival.SurvivalTasks.cookedOutputCollected(this.playerNpc, output, previousCooked);
+        com.pla.smart_npc.fabric.survival.SurvivalTasks.furnaceOutputCollected(this.playerNpc, output, previousOutput);
         serverLevel.playSound(null, this.furnacePos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.4F, 1.0F);
         this.playerNpc.setCurrentAiDetail("taking furnace output");
         return true;

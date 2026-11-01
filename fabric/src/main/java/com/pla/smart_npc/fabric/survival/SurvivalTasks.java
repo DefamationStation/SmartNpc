@@ -88,6 +88,23 @@ public final class SurvivalTasks {
                     Math.min(output.getCount(),cookedFoodCount(npc)-previousCount));
         }
     }
+    /** Count the exact output stack before/after a native furnace transfer.
+     * Only real carried growth counts; spilled output/full inventories do not. */
+    public static int furnaceOutputCount(PlayerNpcEntity npc,net.minecraft.world.item.ItemStack output){
+        int count=0;
+        for(var stack:npc.getInventory().getItems())
+            if(net.minecraft.world.item.ItemStack.isSameItemSameComponents(stack,output))count+=stack.getCount();
+        return count;
+    }
+    public static void furnaceOutputCollected(PlayerNpcEntity npc,net.minecraft.world.item.ItemStack output,int previousCount){
+        int gained=furnaceOutputCount(npc,output)-previousCount;
+        if(!cookingActive(npc)||gained<=0)return;
+        memory(npc).cookingProduced=true;save(npc);
+        // Smelting metal is productive work, but cannot fabricate cooked-food
+        // evidence or grant FOOD_PREPARED through the progression listener.
+        if(cookedFood(output))VerifiedWorkOutcome.emit(npc,VerifiedWorkOutcome.Kind.COOK,npc.blockPosition(),
+                net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(output.getItem()).toString(),Math.min(output.getCount(),gained));
+    }
     public static net.minecraft.world.level.block.entity.FurnaceBlockEntity trackedFurnace(PlayerNpcEntity npc, ServerLevel level) {
         // Prefer the known owned station over stale camp metadata, using the
         // same bounded local range as actual home-furnace navigation.
@@ -128,14 +145,29 @@ public final class SurvivalTasks {
                 &&level.getBlockState(stand.above()).isAir()&&level.getBlockState(stand.below()).isSolidRender())return true;
         return false;
     }
+    /** Existing furnace prerequisite intent also covers native raw-ore recipes.
+     * Food input stays first; optional metal work yields while the real staple
+     * reserve is low. Known material output remains work until actually taken. */
     public static boolean cookingNeeded(PlayerNpcEntity npc, ServerLevel level) {
-        if (com.pla.smart_npc.entity.ai.FurnaceAi.isCookableFood(npc.getMainHandItem())
-            || com.pla.smart_npc.entity.ai.FurnaceAi.isCookableFood(npc.getOffhandItem())) return true;
-        for (int i = 0; i < npc.getInventory().getContainerSize(); i++)
-            if (com.pla.smart_npc.entity.ai.FurnaceAi.isCookableFood(npc.getInventory().getItem(i))) return true;
         var furnace = trackedFurnace(npc, level);
-        return furnace != null && (com.pla.smart_npc.entity.ai.FurnaceAi.isCookableFood(furnace.getItem(0))
-            || cookedFood(furnace.getItem(2)));
+        if(foodCookingNeeded(npc,furnace))return true;
+        if(SurvivalFishingGoal.foodCount(npc)<FoodSupply.RESERVE)return false;
+        if(com.pla.smart_npc.entity.ai.FurnaceAi.isSmeltableOreMaterial(npc.getMainHandItem())
+                ||com.pla.smart_npc.entity.ai.FurnaceAi.isSmeltableOreMaterial(npc.getOffhandItem()))return true;
+        for(var stack:npc.getInventory().getItems())
+            if(com.pla.smart_npc.entity.ai.FurnaceAi.isSmeltableOreMaterial(stack))return true;
+        return furnace!=null&&(com.pla.smart_npc.entity.ai.FurnaceAi.isSmeltableOreMaterial(furnace.getItem(0))
+                ||materialOutput(furnace.getItem(2)));
+    }
+    private static boolean foodCookingNeeded(PlayerNpcEntity npc,net.minecraft.world.level.block.entity.FurnaceBlockEntity furnace){
+        if(com.pla.smart_npc.entity.ai.FurnaceAi.isCookableFood(npc.getMainHandItem())
+                ||com.pla.smart_npc.entity.ai.FurnaceAi.isCookableFood(npc.getOffhandItem()))return true;
+        for(var stack:npc.getInventory().getItems())
+            if(com.pla.smart_npc.entity.ai.FurnaceAi.isCookableFood(stack))return true;
+        return furnace!=null&&(com.pla.smart_npc.entity.ai.FurnaceAi.isCookableFood(furnace.getItem(0))||cookedFood(furnace.getItem(2)));
+    }
+    private static boolean materialOutput(net.minecraft.world.item.ItemStack stack){
+        return stack.is(Items.IRON_INGOT)||stack.is(Items.COPPER_INGOT)||stack.is(Items.GOLD_INGOT);
     }
     public static boolean hasCookedOutput(PlayerNpcEntity npc, ServerLevel level) {
         var station=trackedFurnace(npc,level);
@@ -186,8 +218,8 @@ public final class SurvivalTasks {
         if (!cooking || now - m.cookingStarted >= 6000) {
             m.cookingActive = false; m.cookingNextDecision = now + 1200;
             if (m.active && m.automatic) { m.active = false; m.status = "cancelled: cooking intention ended"; }
-            m.cookingStatus = !cooking && m.cookingProduced ? "complete: cooked food collected"
-                : !cooking ? "paused: cooking inputs disappeared without collected food"
+            m.cookingStatus = !cooking && m.cookingProduced ? "complete: furnace output collected"
+                : !cooking ? "paused: furnace inputs disappeared without collected output"
                 : "paused: cooking prerequisite time limit reached";
             save(npc); return;
         }
@@ -200,9 +232,10 @@ public final class SurvivalTasks {
         }
         // Preserve the requested coal reserve/return unless another fuel source or a live
         // furnace has already fulfilled this child task's purpose. Manual tasks are never cancelled here.
-        if (m.active && m.automatic && (alternativeFuel || knownFurnace != null
+        boolean outputReady=knownFurnace!=null&&!knownFurnace.getItem(2).isEmpty();
+        if (m.active && m.automatic && (alternativeFuel || outputReady || knownFurnace != null
                 && knownFurnace.getBlockState().getValue(net.minecraft.world.level.block.AbstractFurnaceBlock.LIT))) {
-            m.active = false; m.status = "cancelled: cooking already has fuel";
+            m.active = false; m.status = outputReady?"cancelled: collect existing furnace output first":"cancelled: cooking already has fuel";
         }
         boolean known = m.coal.stream().anyMatch(o -> o.dimension().equals(dimension(npc))
             && now - o.seen() < ResourceMemory.MAX_AGE
@@ -210,8 +243,9 @@ public final class SurvivalTasks {
         var decision = CookingPrerequisites.choose(snapshot);
         // Use locally obtainable wood fuel when there is no remembered coal; no pickaxe
         // or new mining system is necessary just to cook at an existing furnace.
-        boolean woodFuel = snapshot.furnaceReady() && !snapshot.fuelReady() && !known;
+        boolean woodFuel = !outputReady && snapshot.furnaceReady() && !snapshot.fuelReady() && !known;
         if (woodFuel) decision = CookingPrerequisites.State.NEED_WOOD;
+        if (outputReady) decision = CookingPrerequisites.State.READY;
         m.cookingStep = decision.name();
         if (decision == CookingPrerequisites.State.NEED_WOOD) {
             int requiredPlanks = !snapshot.pickaxeReady() && snapshot.furnaceStone() < 8
@@ -225,13 +259,14 @@ public final class SurvivalTasks {
             case NEED_STONE -> "collect eight furnace stones with a suitable pickaxe";
             case NEED_FURNACE -> "craft a furnace at a real crafting table";
             case NEED_FUEL -> "gather fuel from a remembered coal source";
-            case READY -> "cook and collect food using the existing furnace routine";
+            case READY -> "process and collect output using the existing furnace routine";
         };
         if (decision == CookingPrerequisites.State.NEED_FUEL && !m.active && now >= m.nextDecision) {
             m.request(dimension(npc), m.cookingOrigin, npc.getInventory().countItem(Items.COAL),
                 Math.max(1, 2 - npc.getInventory().countItem(Items.COAL)));
-            m.automatic = true; m.purpose = "fuel for cooking food"; m.started = now; m.nextDecision = now + 1200;
-            m.status = "gathering fuel for cooking food";
+            m.automatic = true; m.purpose = foodCookingNeeded(npc,knownFurnace)?"fuel for cooking food":"fuel for smelting raw materials";
+            m.started = now; m.nextDecision = now + 1200;
+            m.status = "gathering "+m.purpose;
         }
         save(npc);
     }
