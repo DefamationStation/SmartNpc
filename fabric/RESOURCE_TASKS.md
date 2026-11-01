@@ -1,5 +1,12 @@
 # Personal resource memory prototype
 
+Current policy update, 1 November 2026: this document retains the historical
+operator reproduction interface. Ordinary survival must be self-playing. Food
+fuel gathering already has an automatic parent, and the .10 audit extends that
+coverage to supported raw-metal processing. See `COMMAND_AUTOMATION_AUDIT.md`
+and `AUTONOMOUS_CAMPAIGN.md`; typing the commands below is not a gameplay step
+or proof of autonomous task selection.
+
 Branch: `feature/personal-resource-memory`. Experimental Fabric-only addition; the upstream NeoForge source tree and build remain untouched.
 
 Each ticking NPC with AI enabled observes a rotating sample of nearby blocks: 24 probes per second within four blocks horizontally and two vertically. Only exposed coal ore and deepslate coal ore passing a collision ray from the NPC's eyes are recorded. This is omnidirectional perception, not a camera field-of-view simulation. A stationary scan covers the volume in about 17 seconds. Reads are restricted to loaded chunks, including the ray's intervening chunk columns.

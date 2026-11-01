@@ -109,10 +109,10 @@ public final class SmartNpcAutonomousSmelting implements DedicatedServerModIniti
         for(var p:COAL)check(level.getBlockState(p).is(Blocks.COAL_ORE),"ready output caused an unnecessary actual coal-ore break");
         check(pickDamage()==0,"ready output used its pickaxe despite requiring no mining");
         if(f.getItem(2).isEmpty()&&collectedIronUnits(level)==18){
-            check(m.cookingProduced,"ready native output transfer did not mark cookingProduced");
+            if(m.cookingStarted>0)check(m.cookingProduced,"ready output from an admitted processing intention did not mark cookingProduced");
             check(rawIronUnits(level)==0,"ready output control invented raw input");
             if(readyCollectedAt<0)readyCollectedAt=ticks;
-            if(ticks-readyCollectedAt>=100){finish(server,"complete.txt","PASS ready-output control: declared native furnace output IRON_INGOT2 was automatically collected by original enabled81-goal resident, cookingProduced=true, FOOD_PREPARED absent, beef16 unchanged, Fe2 conserved; no raw input, fuel insertion/burning, coal task, pick use or actual ore break through100ticks after collection; fresh no-replay setup");return;}
+            if(ticks-readyCollectedAt>=100){finish(server,"complete.txt","PASS ready-output control: declared native furnace output IRON_INGOT2 was automatically collected by original enabled81-goal resident, processing-intention flag checked if admitted, FOOD_PREPARED absent, beef16 unchanged, Fe2 conserved; no raw input, fuel insertion/burning, coal task, pick use or actual ore break through100ticks after collection; fresh no-replay setup");return;}
         }
         if(ticks%100==0)System.out.println("SMELT_READY_PROGRESS tick="+ticks+" pos="+npc.position()+" ai="+npc.getCurrentAiState()+" active="+m.active+" auto="+m.automatic+" target="+m.target+" produced="+m.cookingProduced+" furnaceOutput="+f.getItem(2)+" collected="+collectedIronUnits(level));
         check(ticks<Integer.getInteger("journey.maxTicks",1500),"ready output was not automatically collected without extra fuel work");

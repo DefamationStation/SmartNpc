@@ -27,6 +27,9 @@ xml=[ET.parse(f).getroot() for f in Path(r['unitResultDirectory']).glob('TEST-*.
 assert sum(int(x.get('tests')) for x in xml)>=43
 assert not sum(int(x.get('failures'))+int(x.get('errors')) for x in xml)
 assert r.get('runtimeCases'),'Runtime evidence is required'
+assert any(case.get('autonomous') is True and type(case.get('npcTaskCommands')) is int
+           and case['npcTaskCommands']==0 and case.get('markers') for case in r['runtimeCases']),\
+       'Require an explicitly identified autonomous outcome with zero NPC task commands; command-driven reproductions alone cannot qualify a release'
 for case in r['runtimeCases']:
  folder=(root/'.verification'/case['name']).resolve();folder.relative_to(root/'.verification')
  assert not(folder/'failure.txt').exists(),case['name']

@@ -1,5 +1,25 @@
 # Fast survival iteration and release
 
+## Product and acceptance contract
+
+The NPC must play survival independently from a fresh start through the Nether,
+the End and defeating the dragon. Follow `../AUTONOMOUS_CAMPAIGN.md` and the root
+`AGENTS.md`; this is required progression, not optional deferred scope.
+
+Before implementing a task, identify its automatic need/decision caller, actual
+prerequisite/execution path, conserved output and saved recovery. Review all
+related command handlers: commands are diagnostics/overrides, not the gameplay
+entry point. A command-only reproduction does not close autonomous acceptance.
+Every progression change needs an all-normal-behaviors test with no NPC task
+commands, injected work outcomes, supplied waypoints or forced worker assignment.
+Declare initial fixture supplies/terrain and distinguish them from full fresh-start
+proof. Preserve one actor/inventory through real process reloads and, when those
+capabilities are implemented, actual portal transitions. Human/world progression
+and generated spawn kits are not NPC-earned progress. Do not claim the complete
+campaign until an NPC actually completes it and defeats the dragon.
+
+## Build, verify and deliver
+
 Use a workflow, rather than maintaining a static installer inventory. Discover
 the actual installation and target metadata for each upgrade; these small helpers
 operate on the chosen instance, artifact and receipts.
@@ -53,7 +73,12 @@ operate on the chosen instance, artifact and receipts.
 5. Review and commit the source, excluding private worlds, logs, binaries and
    paths. Build a private release receipt with `sourceCommit`, `sha256`,
    `previousSha256`, `unitResultDirectory`, and `runtimeCases` entries containing
-   `name` and required `markers`. Include `originalWorld` and `worldCopyReceipt`
+   `name` and required `markers`. At least one exact-candidate useful-work case
+   must explicitly declare `autonomous: true` and `npcTaskCommands: 0`; the deploy
+   helper rejects command-only receipts. These fields are reviewed declarations,
+   not an automatic proof: inspect the frozen fixture and actual outcome to verify
+   no direct task/goal calls, fabricated work or later supplies were substituted.
+   Include `originalWorld` and `worldCopyReceipt`
    to recheck the original save is unchanged. Report negative controls separately.
 6. Close all game/test clients. `deploy-verified.py --workspace ... --jar ...
    --receipt ... --instance player=... --instance companion=...` validates exact

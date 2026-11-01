@@ -8,7 +8,7 @@ files=sorted(set(files+subprocess.check_output(['git','-C',str(repo),'ls-files',
 production=[f for f in files if '/src/main/' in f or f.endswith(('build.gradle','gradle.properties'))]
 checks=[]
 if production:
- checks+=['unit-and-access-widener','copied-world-headless-survival','copied-world-headless-journey-and-real-replay','final-client-login-smoke']
+ checks+=['command-and-automatic-caller-audit','autonomous-no-command-acceptance','unit-and-access-widener','copied-world-headless-survival','copied-world-headless-journey-and-real-replay','final-client-login-smoke']
  if any(any(k in f for k in ['SleepAtHome','ReturnHome','BuildHouse','PlayerNpcEntity','HomeUtil','CookFood','Cooking','Furnace','SurvivalTasks','LocalPath','ManageHome','Gather']) for f in production):checks+=['DailyNight-and-real-replay','HomePit','HomeRepairChurn','Cabin-and-real-replay']
  if any(any(k in f for k in ['CookFood','Furnace','SurvivalTasks']) for f in production):checks+=['blocked-old-station','idle-owned-furnace-reuse']
  if any('GatherLogs' in f or 'SurvivalLogGather' in f for f in production):checks+=['grounded-log-timeout']

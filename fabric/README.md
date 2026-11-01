@@ -1,4 +1,14 @@
-# Fabric 26.4 Snapshot 5 port
+# Customized Fabric 26.4 Snapshot 6 survival NPC
+
+Required goal: self-playing survival from a fresh start through the Nether and
+the End to defeating the dragon, without player task commands or waypoints.
+Follow [the campaign contract](AUTONOMOUS_CAMPAIGN.md), [command/autonomy audit](COMMAND_AUTOMATION_AUDIT.md)
+and [release workflow](verification/RELEASE-WORKFLOW.md). The complete campaign is
+required development scope; it is not yet implemented or proved by local tests.
+
+Current targeted evidence: [automatic supplies and repair](verification/AUTONOMOUS-SUPPLIES-RESULTS.md)
+and [automatic processing fuel](verification/AUTONOMOUS-SMELTING-RESULTS.md).
+The older port and feature reports below retain their original target/scope.
 
 Persistent survival journeys and copied-world tests: [M1 delivery and limits](verification/M1-RESULTS.md).
 Saved-cabin approach recovery and verification: [building follow-up](verification/BUILDING-RESULTS.md).
@@ -10,12 +20,12 @@ Cooking stall and real restart regression: [cooking results](verification/COOKIN
 
 Cabin completion fix and regression: [cabin results](verification/CABIN-RESULTS.md).
 
-Snapshot 5 changes and current validation: [port results](verification/SNAPSHOT5-RESULTS.md).
+Historical Snapshot 5 changes and validation: [port results](verification/SNAPSHOT5-RESULTS.md).
 
 Behaviour design: [player journey and automation reuse](PLAYER_JOURNEY.md),
 [development roadmap](DEVELOPMENT_ROADMAP.md).
-Current implementation milestone: [bounded food acquisition, cooking prerequisites and shelter diagnostic](RESOURCE_TASKS.md).
-Current checks: [cooking resource-search fallback](verification/SEARCH-RESULTS.md).
+Historical prototype milestone: [bounded food acquisition, cooking prerequisites and shelter diagnostic](RESOURCE_TASKS.md).
+Earlier checks: [cooking resource-search fallback](verification/SEARCH-RESULTS.md).
 Earlier workflow checks: [workflow handoffs and shared bow recovery](verification/WORKFLOW-RESULTS.md).
 Independent review: [workflow audit and acceptance gaps](WORKFLOW_AUDIT.md).
 Final follow-up review: [remaining workflow gaps and next steps](WORKFLOW_AUDIT_FOLLOWUP.md).

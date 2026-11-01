@@ -54,6 +54,14 @@ multi-resident coordination. Preserve those remaining acceptance gates.
 
 ## Direction
 
+The governing goal is now explicit: **self-playing survival from a fresh start,
+through the Nether and the End, to defeating the dragon**. Follow
+[the autonomous campaign workflow](AUTONOMOUS_CAMPAIGN.md), which takes precedence
+over older optional/deferred descriptions below. No player command, waypoint,
+gift or advancement may be required to initiate ordinary progression. Commands
+are optional diagnostics and overrides. Completing the campaign is required
+development scope; current local survival evidence does not establish it yet.
+
 Confirmed user direction: **independent survival players who build, learn, trade and form relationships**. NPCs establish their own homes, learn useful skills, make plans, remember encounters and form relationships. Companionship and settlements grow from that foundation.
 
 Autonomy guides feature decisions: NPCs have personal priorities, resources and commitments; player requests are considered alongside those priorities. Cooperation depends on circumstances and relationships, and NPCs can decline or negotiate. Trading and learning must support their own survival and ambitions. Settlement roles emerge from voluntary cooperation and specialisation. The first delivery remains the complete individual survival loop, followed by memory, personal progression and relationships.
@@ -90,7 +98,11 @@ Source inspection found:
 
 The Fabric port has passed targeted integration checks; long-running AI outcomes and dedicated-server operation still need validation. Reuse existing action implementations where practical, and verify their preconditions and completion reporting before adding planning above them.
 
-## Milestones, in delivery order
+## Foundation and optional domain milestones (historical identifiers)
+
+Preserve these M identifiers for existing reports. The C0–C6 dependency sequence
+in `AUTONOMOUS_CAMPAIGN.md` now governs progression priorities; social/settlement
+domains cannot displace autonomous survival and Nether/End completion.
 
 ### M0 — Establish a reliable simulation baseline
 
@@ -374,4 +386,4 @@ The first demonstrable release should let one NPC start with limited supplies, e
 
 ## Deferred until the foundation works
 
-Large cities, faction wars, unrestricted player-base modification, NPCs completing the whole game autonomously, reproduction/family simulation, and fully simulated off-screen economies. These multiply state and failure modes before the basic personal survival loop has earned confidence.
+Large cities, faction wars, unrestricted player-base modification, reproduction/family simulation, and fully simulated off-screen economies remain optional later scope. Completing the game autonomously is explicitly removed from this deferred list: it is the governing campaign goal in `AUTONOMOUS_CAMPAIGN.md`.

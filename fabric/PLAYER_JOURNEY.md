@@ -1,5 +1,11 @@
 # Independent survival players: journey and automation design
 
+Governing update, 1 November 2026: the required endpoint is a self-playing NPC
+starting fresh, progressing through the Nether and the End, and defeating the
+dragon without player task commands, waypoints or prerequisite advancements.
+Follow `AUTONOMOUS_CAMPAIGN.md`. The older research/stage discussion below
+supports that required progression; it does not defer it to optional ambitions.
+
 Research and design review: 4 October 2026. Target implementation: experimental
 Fabric 26.4 Snapshot 2 branch. Companion: [development roadmap](DEVELOPMENT_ROADMAP.md).
 

@@ -412,12 +412,14 @@ public class CheckHomeSuppliesGoal extends Goal {
             return false;
         }
 
+        int previousOutput = com.pla.smart_npc.fabric.survival.SurvivalTasks.furnaceOutputCount(this.playerNpc, output);
         ItemStack moved = output.copy();
         furnace.setItem(2, ItemStack.EMPTY);
         furnace.setChanged();
         if (!this.addToInventory(moved)) {
             this.playerNpc.spawnAtLocation(moved);
         }
+        com.pla.smart_npc.fabric.survival.SurvivalTasks.furnaceOutputCollected(this.playerNpc, output, previousOutput);
         this.playerNpc.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
         serverLevel.playSound(null, this.targetPos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.4F, 1.0F);
         return true;
