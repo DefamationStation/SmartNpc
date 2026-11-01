@@ -26,4 +26,13 @@ class AutonomousSupplyTripTest {
         trip.destination=identity.destination();trip.home=trip.home.north();assertFalse(identity.matches(trip));
         trip.home=identity.home();trip.dimension="minecraft:the_nether";assertFalse(identity.matches(trip));
     }
+    @Test void collectingKeepsIdleJourneyUntouchedAndDetectsCancelOrManualDeparture(){
+        var trip=new Journeys.State();trip.dimension="minecraft:overworld";trip.reason="";trip.status="idle";trip.home=BlockPos.ZERO;
+        var saved=new AutonomousSupplyTrip.IdleIdentity(trip.dimension,trip.reason,trip.status,trip.destination,trip.home);
+        assertTrue(saved.matches(trip));
+        trip.status="cancelled";assertFalse(saved.matches(trip));
+        trip.status="idle";trip.phase="outbound";assertFalse(saved.matches(trip));
+        trip.phase="idle";trip.reason="requested return";assertFalse(saved.matches(trip));
+        trip.reason="";trip.home=trip.home.east();assertFalse(saved.matches(trip));
+    }
 }
