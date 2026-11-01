@@ -25,21 +25,51 @@ public final class NpcProgression {
     private static final Set<String> COOKED=Set.of("minecraft:cooked_beef","minecraft:cooked_porkchop","minecraft:cooked_mutton",
             "minecraft:cooked_chicken","minecraft:cooked_rabbit","minecraft:cooked_cod","minecraft:cooked_salmon","minecraft:baked_potato");
     private static final class State {
-        PersonalProgress progress;boolean supported,dirty,sleepNight;long sleepSince=-1,homeCheckAt=-1;BlockPos sleepPos;
+        PersonalProgress progress;boolean supported,dirty,sleepNight;int sleepObservedTicks;long sleepSince=-1,homeCheckAt=-1;BlockPos sleepPos;
     }
     private NpcProgression() { }
     public static synchronized void register(){if(registered)return;registered=true;SPEC.load(FabricLoader.getInstance().getConfigDir().resolve("smart_npc-progress.toml"));Events.register(NpcProgression.class);}
     private static State state(PlayerNpcEntity npc){return STATES.computeIfAbsent(npc,n->{
         var tag=PersistentData.get(n).getCompoundOrEmpty(KEY);var s=new State();s.supported=ProgressCodec.supported(tag);s.progress=ProgressCodec.load(tag);
         s.sleepSince=tag.getLongOr("sleepSince",-1);s.sleepNight=tag.getBooleanOr("sleepNight",false);
+        s.sleepObservedTicks=Math.clamp(tag.getIntOr("sleepObservedTicks",0),0,12000);
         s.homeCheckAt=Math.max(-1,Math.min(tag.getLongOr("homeCheckAt",-1),n.level().getGameTime()+20));
         if(tag.contains("sleepPos"))s.sleepPos=BlockPos.of(tag.getLongOr("sleepPos",0));return s;
     });}
     public static PersonalProgress.Snapshot snapshot(PlayerNpcEntity npc){return state(npc).progress.snapshot();}
     public static void save(PlayerNpcEntity npc){
         var s=STATES.get(npc);if(s==null||!s.supported||!s.dirty)return;
-        var tag=ProgressCodec.save(s.progress);tag.putLong("sleepSince",s.sleepSince);tag.putBoolean("sleepNight",s.sleepNight);tag.putLong("homeCheckAt",s.homeCheckAt);
+        var tag=ProgressCodec.save(s.progress);tag.putLong("sleepSince",s.sleepSince);tag.putBoolean("sleepNight",s.sleepNight);tag.putLong("homeCheckAt",s.homeCheckAt);tag.putInt("sleepObservedTicks",s.sleepObservedTicks);
         if(s.sleepPos!=null)tag.putLong("sleepPos",s.sleepPos.asLong());PersistentData.get(npc).put(KEY,tag);s.dirty=false;
+    }
+    /** Called only when the native goal actually enters its owned bed. */
+    public static void beginNativeRest(PlayerNpcEntity npc,BlockPos bed){
+        if(!ENABLED.get()||!(npc.level() instanceof ServerLevel level))return;
+        var s=state(npc);if(!s.supported)return;
+        s.sleepSince=level.getGameTime();s.sleepPos=bed.immutable();s.sleepNight=level.isDarkOutside();s.sleepObservedTicks=0;s.dirty=true;
+    }
+    /** Count simulated sleeping ticks, never elapsed unloaded/offline time.
+     * The native goal revalidates both bed halves before each call. */
+    public static void observeNativeRest(PlayerNpcEntity npc,BlockPos bed){
+        if(!ENABLED.get())return;
+        var s=state(npc);if(!s.supported)return;
+        if(s.sleepPos==null||!s.sleepPos.equals(bed))beginNativeRest(npc,bed);
+        if(!safeNativeRest(npc,bed)){s.sleepNight=false;s.dirty=true;return;}
+        s.sleepObservedTicks=Math.min(12000,s.sleepObservedTicks+1);s.dirty=true;
+    }
+    private static boolean safeNativeRest(PlayerNpcEntity npc,BlockPos bed){
+        return npc.isSleeping()&&npc.getSleepingPos().filter(bed::equals).isPresent()
+                &&npc.isAlive()&&!npc.isNoAi()&&!npc.isHealing()&&npc.getTarget()==null&&!npc.isOnFire()
+                &&PlayerNpcHomeUtil.getHome(npc).map(h->PlayerNpcHomeUtil.isInside(h,bed)).orElse(false);
+    }
+    /** Only a native timer completion or natural dawn wake is successful.
+     * All stops consume the observation, so interrupted/repeated stops cannot earn it. */
+    public static void finishNativeRest(PlayerNpcEntity npc,BlockPos bed,boolean completed){
+        var s=state(npc);if(!s.supported)return;
+        boolean earned=ENABLED.get()&&bed!=null&&bed.equals(s.sleepPos)&&safeNativeRest(npc,bed)
+                &&NativeRestCompletion.earned(completed,s.sleepNight,s.sleepObservedTicks);
+        s.sleepSince=-1;s.sleepPos=null;s.sleepNight=false;s.sleepObservedTicks=0;s.dirty=true;
+        if(earned)VerifiedWorkOutcome.emit(npc,VerifiedWorkOutcome.Kind.SAFE_REST,bed,"native:owned_bed",1);
     }
     private static boolean ownBlueprintPosition(PlayerNpcEntity npc,ServerLevel level,BlockPos pos){
         var home=PlayerNpcHomeUtil.getHome(npc);var layout=PlayerNpcHomeUtil.getHomeLayoutId(npc).flatMap(PlayerNpcBuildLayoutLoader::getLayout);
@@ -77,18 +107,8 @@ public final class NpcProgression {
         if(!ENABLED.get()||!(event.getEntity() instanceof PlayerNpcEntity npc)||npc.tickCount%20!=Math.floorMod(npc.getUUID().hashCode(),20)
                 ||npc.isNoAi()||!(npc.level() instanceof ServerLevel level))return;
         var s=state(npc);if(!s.supported)return;long now=level.getGameTime();
-        if(npc.isSleeping()&&npc.getSleepingPos().isPresent()){
-            var bed=npc.getSleepingPos().get();
-            if(s.sleepSince<0||!bed.equals(s.sleepPos)){
-                s.sleepSince=now;s.sleepPos=bed.immutable();s.sleepNight=level.isDarkOutside();s.dirty=true;
-            }
-        }else if(s.sleepSince>=0){
-            boolean rested=s.sleepNight&&now-s.sleepSince>=100&&!level.isDarkOutside()&&s.sleepPos!=null
-                    &&PlayerNpcHomeUtil.getHome(npc).map(h->PlayerNpcHomeUtil.isInside(h,s.sleepPos)).orElse(false)
-                    &&npc.isAlive()&&npc.getTarget()==null&&!npc.isOnFire();
-            if(rested)VerifiedWorkOutcome.emit(npc,VerifiedWorkOutcome.Kind.SAFE_REST,s.sleepPos,"native:owned_bed",1);
-            s.sleepSince=-1;s.sleepPos=null;s.sleepNight=false;s.dirty=true;
-        }
+        // Completion is owned by SleepAtHomeGoal. Merely observing an awake
+        // entity cannot distinguish a successful rest from an interruption.
         if(s.homeCheckAt>=0&&now>=s.homeCheckAt&&PlayerNpcAiWorkBudget.hasActiveWorkerSlot(npc)){
             s.homeCheckAt=-1;s.dirty=true;
             if(BuildHouseGoal.isHomeLayoutFinished(npc,level))PlayerNpcHomeUtil.getHome(npc).ifPresent(h->

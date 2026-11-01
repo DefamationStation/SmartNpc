@@ -39,6 +39,9 @@ public class SleepAtHomeGoal extends Goal {
     }
 
     @Override
+    public boolean requiresUpdateEveryTick() { return true; }
+
+    @Override
     public boolean canUse() {
         if (!(this.playerNpc.level() instanceof ServerLevel serverLevel)
                 || (!serverLevel.isDarkOutside() && !this.playerNpc.isSleeping())
@@ -80,6 +83,9 @@ public class SleepAtHomeGoal extends Goal {
     public boolean canContinueToUse() {
         return this.sleepTicks > 0
                 && this.playerNpc.isAlive()
+                && !this.playerNpc.isNoAi()
+                && !this.playerNpc.isHealing()
+                && !this.playerNpc.isOnFire()
                 && this.playerNpc.getTarget() == null
                 && this.playerNpc.level() instanceof ServerLevel serverLevel
                 && serverLevel.isDarkOutside()
@@ -138,13 +144,20 @@ public class SleepAtHomeGoal extends Goal {
             this.startSleepingInBed(serverLevel);
         }
         if (this.playerNpc.isSleeping()) {
-            // Epic Fight compatibility is disabled.
+            com.pla.smart_npc.fabric.survival.progression.NpcProgression.observeNativeRest(
+                    this.playerNpc, this.playerNpc.getSleepingPos().orElseThrow());
+            this.sleepTicks--;
         }
-        this.sleepTicks--;
     }
 
     @Override
     public void stop() {
+        boolean completed = !this.approachFailed && this.bedPos != null
+                && this.playerNpc.level() instanceof ServerLevel level
+                && this.isValidBed(level, this.bedPos)
+                && (this.sleepTicks <= 0 || !level.isDarkOutside());
+        com.pla.smart_npc.fabric.survival.progression.NpcProgression.finishNativeRest(
+                this.playerNpc, this.playerNpc.getSleepingPos().orElse(null), completed);
         this.stopSleeping();
         if (!this.playerNpc.level().isClientSide()) {
             this.playerNpc.setSleepCooldown(this.approachFailed
@@ -169,6 +182,7 @@ public class SleepAtHomeGoal extends Goal {
     }
 
     private void wakeFromInvalidBed() {
+        com.pla.smart_npc.fabric.survival.progression.NpcProgression.finishNativeRest(this.playerNpc, null, false);
         this.stopSleeping();
         this.playerNpc.setCurrentAiDetail("bed missing");
         this.bedPos = null;
@@ -194,7 +208,7 @@ public class SleepAtHomeGoal extends Goal {
         this.playerNpc.yHeadRot = facing.toYRot();
         this.playerNpc.startSleeping(headPos);
         if (this.playerNpc.isSleeping()) {
-            // Epic Fight compatibility is disabled.
+            com.pla.smart_npc.fabric.survival.progression.NpcProgression.beginNativeRest(this.playerNpc, headPos);
         }
     }
 
