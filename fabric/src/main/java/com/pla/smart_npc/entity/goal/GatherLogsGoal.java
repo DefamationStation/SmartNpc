@@ -429,6 +429,7 @@ public class GatherLogsGoal extends Goal implements GatheringGoal {
         this.workerSlotPaused = false;
         this.playerNpc.beginLogSupplyGatheringEpisode();
         setLogGatheringEpisodeActive(this.playerNpc, true);
+        com.pla.smart_npc.fabric.survival.AutonomousSupplyTrip.beginCollecting(this.playerNpc, this.targetPos, false);
         this.gatherTicks = 0;
         this.repathTicks = 0;
         this.nextContinueEligibilityCheckTick = this.playerNpc.tickCount

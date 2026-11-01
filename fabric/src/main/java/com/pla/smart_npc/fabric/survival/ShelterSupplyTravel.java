@@ -25,7 +25,7 @@ public final class ShelterSupplyTravel {
                 ||!n.hasInterest(com.pla.smart_npc.clazz.PlayerNpcInterest.BUILDING)
                 ||n.isNoAi()||!n.isAlive()||n.isPassenger()||n.isHealing()||n.isSleeping()
                 ||n.getTarget()!=null||n.getUpwardEscapeTarget()!=null||n.getHoleEscapeCooldown()>0
-                ||SurvivalTasks.cookingActive(n)||Journeys.active(n)||SurvivalTasks.cookedFoodCount(n)<com.pla.smart_npc.fabric.survival.memory.NpcMemories.departureFoodReserve(n)
+                ||SurvivalTasks.cookingActive(n)||Journeys.active(n)||AutonomousSupplyTrip.active(n)||SurvivalTasks.cookedFoodCount(n)<com.pla.smart_npc.fabric.survival.memory.NpcMemories.departureFoodReserve(n)
                 ||GatherLogsGoal.isLogGatheringEpisodeActive(n)||!PlayerNpcAiWorkBudget.hasActiveWorkerSlot(n))return;
         if(com.pla.smart_npc.entity.goal.BuildHouseGoal.isHomeLayoutFinished(n,l)
                 ||com.pla.smart_npc.entity.goal.BuildHouseGoal.hasReadyStarterPhase(n,l))return;
@@ -72,7 +72,9 @@ public final class ShelterSupplyTravel {
         s.destination=stand;s.dimension=SurvivalTasks.dimension(n);s.phase="outbound";s.reason="visible "+(stone?"stone":"wood")+" for shelter supplies";s.needsBoat=false;
         s.status="travelling to observed supply; native collector will validate it";s.progressGoal=null;s.bestDistance=Double.MAX_VALUE;s.activeNoProgressTicks=0;
         s.lastArrival=null;s.blockedPosition=null;s.cursor=-1;
-        s.trail.clear();s.trail.observe(Journeys.point(n.blockPosition()));s.visits.clear();Journeys.save(n);scan.retry=now+2400;return true;
+        s.trail.clear();s.trail.observe(Journeys.point(n.blockPosition()));s.visits.clear();Journeys.save(n);
+        AutonomousSupplyTrip.begin(n,resource,stone);
+        scan.retry=now+2400;return true;
     }
     @Events.SubscribeEvent public static void stopped(Events.ServerStoppedEvent event){SCANS.clear();}
 }

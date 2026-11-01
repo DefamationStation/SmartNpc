@@ -403,6 +403,7 @@ public class GatherStoneGoal extends Goal implements GatheringGoal {
     public void start() {
         this.playerNpc.beginStoneSupplyGatheringEpisode();
         setStoneGatheringEpisodeActive(this.playerNpc, true);
+        com.pla.smart_npc.fabric.survival.AutonomousSupplyTrip.beginCollecting(this.playerNpc, this.targetPos, true);
         this.gatherTicks = 0;
         this.repathTicks = 0;
         this.standRouteAttempts = 0;

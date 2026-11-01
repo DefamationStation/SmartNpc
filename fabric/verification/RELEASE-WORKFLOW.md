@@ -13,6 +13,9 @@ operate on the chosen instance, artifact and receipts.
    ID/version, and returns an
    immutable jar path plus receipt. Unit XML and the build log are frozen into
    a unique check directory as well, so the next build cannot replace evidence.
+   `-OfflineIncremental` requires an existing verified warm stage and disables
+   dependency downloads. Its 1 GiB growth forecast covers incremental classes,
+   checks and another frozen jar; cold/dependency-bootstrap builds retain 6 GiB.
    Pass that returned path to tests; do not race
    a still-running build by copying its previous output.
    Older jars may remain in the compiler cache; only the declared release version
@@ -36,8 +39,9 @@ operate on the chosen instance, artifact and receipts.
 3. Use accelerated tick rates for iteration, explicitly recorded in receipts.
    Pure declared-geometry fixtures can use `--synthetic-fixture-world`: only seed
    metadata is copied, explored chunks are omitted and terrain is regenerated.
-   This distinct smaller scope reserves 3 GiB and cannot resume/replay or claim
-   copied-terrain coverage. Full copied-world journey/reload tests retain 6 GiB.
+   This distinct smaller scope reserves 3 GiB. It can save and replay its actual
+   generated world while retaining its scope marker, but cannot claim copied-terrain
+   coverage or resume a different case. Full copied-world tests retain 6 GiB.
    Repeat critical final cases at a lower rate. Generation and asynchronous
    loading can change observed timing; do not present accelerated throughput as
    a normal-game FPS or performance benchmark. Record simulation ticks and MSPT.

@@ -45,7 +45,7 @@ public final class SmartNpcPreparedExpedition implements DedicatedServerModIniti
             check(state.home.equals(new BlockPos(0,280,0))&&!state.trail.points().isEmpty(),"home or observed trail lost on restart");
             System.out.println("PREPARED_RESUMED uuid="+ID+" phase="+state.phase+" pos="+npc.position());
         }
-        check(npc.isAlive()&&goalCount(npc)==80,"actor or full normal selector changed");checkStock();
+        check(npc.isAlive()&&goalCount(npc)==81,"actor or full normal selector changed");checkStock();
         var state=Journeys.state(npc);check(!state.phase.equals("blocked"),"accepted native expedition stalled: "+state.status);
         if(!returning){
             if(!outboundCheckpoint&&npc.getX()>24){

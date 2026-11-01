@@ -79,7 +79,7 @@ public class SmartNpcMemoryDialogueScenario implements DedicatedServerModInitial
             check(click(other)==InteractionResult.SUCCESS_SERVER&&other.replies.size()==1,"another listener after NPC cooldown was blocked");
             check(!other.replies.getFirst().contains("Thanks for the help earlier"),"help assigned to wrong listener");
             var original=npc;npc=spawn(level,5);follow(other);check(click(other)==InteractionResult.PASS&&other.replies.size()==1,"player global throttle ignored");npc=original;
-            check(goals(npc)==80&&npc.getInventory().countItem(Items.COOKED_BEEF)==17,"conversation altered goals or food");
+            check(goals(npc)==81&&npc.getInventory().countItem(Items.COOKED_BEEF)==17,"conversation altered goals or food");
             finish(server,"complete.txt","PASS explicit local Fabric callback; chat mute, normal/held-item interaction, true-giver attribution, pair/NPC/player throttles and ordinary goals/inventory preserved; captured server-player output only, not a client-network test");
         }
         if(ticks>2000)throw new AssertionError("dialogue fixture deadline");

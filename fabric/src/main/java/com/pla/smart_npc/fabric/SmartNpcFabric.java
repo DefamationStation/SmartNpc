@@ -35,6 +35,7 @@ public final class SmartNpcFabric implements ModInitializer {
         Events.register(com.pla.smart_npc.fabric.survival.SurvivalTasks.class);
         Events.register(com.pla.smart_npc.fabric.survival.Journeys.class);
         Events.register(com.pla.smart_npc.fabric.survival.ShelterSupplyTravel.class);
+        Events.register(com.pla.smart_npc.fabric.survival.AutonomousSupplyTrip.class);
         Events.register(com.pla.smart_npc.fabric.survival.SocialSafety.class);
         Events.register(com.pla.smart_npc.fabric.survival.preparation.PreparedExpeditions.class);
         com.pla.smart_npc.fabric.survival.memory.NpcMemories.register();

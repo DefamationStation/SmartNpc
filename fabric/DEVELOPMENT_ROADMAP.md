@@ -1,6 +1,22 @@
 # Smart NPC: believable survival and progression
 
-Status: native Snapshot 6 prepared-survival integration verified for release, updated 2026-11-01. Initial M1 journeys and selected limited-start copied-world scenarios are implemented. Prepared commitments and bounded attributed relationships extend the foundation; broad wilderness-start acceptance, practical equipment progression and cooperative settlements remain outstanding.
+Status: autonomous supply integration verified on native Snapshot 6, updated 2026-11-01. NPCs must initiate their own survival work; player commands are diagnostic overrides, never a gameplay prerequisite. Initial M1 journeys and selected limited-start copied-world scenarios are implemented. Broad wilderness-start acceptance, practical equipment progression and cooperative settlements remain outstanding.
+
+## Autonomous supplies — 1 November 2026
+
+The primary development path is need → autonomous resource selection → native
+collection → return → useful work at home. Observe the existing native wood/stone
+collectors and autonomous supply journeys; preserve their actual movement, recipes,
+pickup and safe descent. Persist the intent through reload and require both native
+harvest evidence and actual inventory gain before a successful home return.
+
+An unfunded builder can take a bounded supply-planning turn through the ordinary
+worker scheduler. Existing intents cannot be overwritten by optional supply search.
+Local bootstrap gathering does not require a previous cooking/rest milestone.
+Keep the full normal behavior set enabled during acceptance; do not issue an NPC
+command or inject work evidence to make the survival loop pass. The earlier
+prepared-expedition command work below is diagnostic infrastructure, not delivery
+of autonomous planning. See `verification/AUTONOMOUS-SUPPLIES-RESULTS.md`.
 
 ## Snapshot 6 prepared survival — 1 November 2026
 

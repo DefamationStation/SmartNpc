@@ -2185,6 +2185,7 @@ public class PlayerNpcEntity extends FakePlayer implements RangedAttackMob {
         this.addWorkGoal(5, new com.pla.smart_npc.fabric.survival.SurvivalGatherGoal(this, gatherLogsGoal, gatherStoneGoal));
         this.addWorkGoal(5, new com.pla.smart_npc.fabric.survival.GatherCoalGoal(this));
         this.goalSelector.addGoal(6, new PlayerNpcMeleeAttackGoal(this));
+        this.addWorkGoal(5, new com.pla.smart_npc.fabric.survival.ShelterSupplySearchGoal(this));
         this.addWorkGoal(5, this.gated(new BuildHouseGoal(this), PlayerNpcInterest.BUILDING));
         this.addWorkGoal(4, new ManageHomeBaseGoal(this, true));
         this.addWorkGoal(4, new MiningNightCampGoal(this, 1.0D));

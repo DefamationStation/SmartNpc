@@ -51,14 +51,14 @@ public class SmartNpcMemorySupplyScenario implements DedicatedServerModInitializ
             check(state.destination.distSqr(resource)<=2&&state.reason.contains("wood"),"selected something other than actual remembered wood");
             check(state.lastArrival==null&&state.blockedPosition==null&&state.cursor==-1,"fresh supply trip retained stale lifecycle state");
             check(npc.getInventory().countItem(Items.COOKED_BEEF)==16&&npc.getInventory().countItem(Items.OAK_LOG)==0,"admission granted or consumed supplies");
-            check(goals()==80,"native goals removed");admitted=level.getGameTime();startX=npc.getX();maxX=startX;setup=true;
+            check(goals()==81,"native goals removed");admitted=level.getGameTime();startX=npc.getX();maxX=startX;setup=true;
             Files.writeString(Path.of("admission.txt"),"Native ShelterSupplyTravel selected real revalidated remembered oak at "+resource+" through ordinary budget and physical admission; original80goals retained");
         }
         if(setup)maxX=Math.max(maxX,npc.getX());
         if(setup&&level.getGameTime()-admitted>=400){
-            check(goals()==80,"ordinary goals changed during travel");
+            check(goals()==81,"ordinary goals changed during travel");
             check(maxX>startX+2,"native trip did not physically leave toward remembered supply");
-            finish(server,"complete.txt","PASS controlled native supply-memory choice and lifecycle reset; all80normal goals then make real physical progress toward observed wood, without teleporting actor or granting items");
+            finish(server,"complete.txt","PASS controlled native supply-memory choice and lifecycle reset; all81normal goals then make real physical progress toward observed wood, without teleporting actor or granting items");
         }
         if(ticks>1000)throw new AssertionError("supply deadline");
     }

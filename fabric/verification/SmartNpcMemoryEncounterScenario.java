@@ -53,7 +53,7 @@ public class SmartNpcMemoryEncounterScenario implements DedicatedServerModInitia
     }
     void verify()throws Exception{
         var selector=Mob.class.getDeclaredField("goalSelector");selector.setAccessible(true);
-        check(((net.minecraft.world.entity.ai.goal.GoalSelector)selector.get(victim)).getAvailableGoals().size()==80,"normal victim goals changed");
+        check(((net.minecraft.world.entity.ai.goal.GoalSelector)selector.get(victim)).getAvailableGoals().size()==81,"normal victim goals changed");
         var hostile=NpcMemories.observations(victim).stream().filter(e->e.kind()==ObservedMemory.Kind.HOSTILE).toList();
         check(hostile.stream().anyMatch(e->offenderId.equals(e.subject())&&e.detail().equals("ASSAULT")&&e.source()==ObservedMemory.Source.CANONICAL_DEFENCE),"first successful native assault lacks exact committed memory");
         check(hostile.stream().noneMatch(e->bystanderId.equals(e.subject())),"nearest peaceful NPC blamed");

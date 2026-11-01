@@ -181,7 +181,7 @@ public final class Journeys {
                     if(!(EntityArgument.getEntity(c,"npc") instanceof PlayerNpcEntity n))return 0;
                     String message=start(n,BlockPosArgument.getBlockPos(c,"destination"));c.getSource().sendSuccess(()->Component.literal(message),true);return active(n)?1:0;})))
                 .then(Commands.literal("home").executes(c->{if(!(EntityArgument.getEntity(c,"npc") instanceof PlayerNpcEntity n))return 0;returnHome(n,"requested return");return 1;}))
-                .then(Commands.literal("cancel").executes(c->{if(!(EntityArgument.getEntity(c,"npc") instanceof PlayerNpcEntity n))return 0;var s=state(n);s.phase="idle";s.status="cancelled";save(n);return 1;}))
+                .then(Commands.literal("cancel").executes(c->{if(!(EntityArgument.getEntity(c,"npc") instanceof PlayerNpcEntity n))return 0;AutonomousSupplyTrip.cancel(n,"operator canceled supply intent");var s=state(n);s.phase="idle";s.status="cancelled";save(n);return 1;}))
                 .then(Commands.literal("status").executes(c->{if(!(EntityArgument.getEntity(c,"npc") instanceof PlayerNpcEntity n))return 0;var s=state(n);c.getSource().sendSuccess(()->Component.literal(s.phase+": "+s.status+"; "+s.reason+"; trail="+s.trail.points().size()+"; destination="+s.destination),false);return 1;})))));
     }
 }

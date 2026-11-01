@@ -57,7 +57,7 @@ public class SmartNpcMemoryScenario implements DedicatedServerModInitializer {
                 }
                 level.setBlockAndUpdate(visible,Blocks.COAL_ORE.defaultBlockState());level.setBlockAndUpdate(hidden,Blocks.IRON_ORE.defaultBlockState());
                 aId=identity(true);bId=identity(false);a=spawn(server,"MemoryA",aId,0);b=spawn(server,"MemoryB",bId,-5);
-                check(goals(a)==80&&goals(b)==80,"normal goals removed");check(NpcMemories.departureFoodReserve(a)==6,"cautious real reserve");
+                check(goals(a)==81&&goals(b)==81,"normal goals removed");check(NpcMemories.departureFoodReserve(a)==6,"cautious real reserve");
                 check(NpcMemories.departureFoodReserve(b)==4,"less cautious real reserve");
                 check(NpcMemories.observeResource(a,visible),"visible actual resource not observed");check(!NpcMemories.observeResource(a,hidden),"hidden ore became known");
                 var evidence=NpcMemories.knownResources(a,id->id.equals("minecraft:coal_ore"));check(evidence.size()==1,"visible coal evidence");
@@ -91,7 +91,7 @@ public class SmartNpcMemoryScenario implements DedicatedServerModInitializer {
             check(ledger.getProperty("worldIdentity").equals(MemoryWorldIdentity.identity(server).toString()),"world identity changed on process reload");
         }
         if(stage==2&&ticks>=200){
-            check(goals(a)==80&&targets(a)==3&&goals(b)==80&&targets(b)==3,"selectors changed");
+            check(goals(a)==81&&targets(a)==3&&goals(b)==81&&targets(b)==3,"selectors changed");
             var facts=NpcMemories.observations(a);check(facts.size()<=ObservedMemory.LIMIT,"unbounded memory");
             check(facts.stream().anyMatch(e->e.kind()==ObservedMemory.Kind.WORK_SITE&&e.position().equals(NpcMemories.point(visible))&&e.detail().equals("harvest:minecraft:coal_ore")),"actual work site missing");
             check(facts.stream().anyMatch(e->e.kind()==ObservedMemory.Kind.HELP&&bId.equals(e.subject())&&e.source()==ObservedMemory.Source.ACTUAL_HANDOFF),"attributed real handoff missing");

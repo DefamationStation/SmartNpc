@@ -60,11 +60,11 @@ public class SmartNpcFoodOfferClient implements ClientModInitializer {
             check(player.getUUID().toString().equals(ledger.getProperty("actor")),"real saved player identity changed");
             check(player.getInventory().countItem(Items.COOKED_BEEF)==2&&npc.getInventory().countItem(Items.COOKED_BEEF)==3,"real player/NPC inventories did not persist");
             verify(player.getUUID());check(!FoodOfferLedger.load(PersistentData.get(npc).getCompoundOrEmpty(NpcFoodOffers.KEY)).ready(player.getUUID(),level.getGameTime(),200,20),"accepted pair cooldown lost on reload");
-            check(goals()==80,"reloaded ordinary goals changed");done=true;return;
+            check(goals()==81,"reloaded ordinary goals changed");done=true;return;
         }
         var help=NpcMemories.observations(npc).stream().filter(e->e.kind()==ObservedMemory.Kind.HELP).toList();if(help.isEmpty())return;
         verify(player.getUUID());check(player.getInventory().countItem(Items.COOKED_BEEF)==2&&npc.getInventory().countItem(Items.COOKED_BEEF)==3,"native packet transfer did not conserve exactly one food");
-        check(goals()==80,"normal goals changed");var ledger=new Properties();ledger.setProperty("actor",player.getUUID().toString());
+        check(goals()==81,"normal goals changed");var ledger=new Properties();ledger.setProperty("actor",player.getUUID().toString());
         try(var out=Files.newOutputStream(Path.of("food-offer-actor.properties"))){ledger.store(out,"actual connected player source");}done=true;
     }
     void verify(UUID actor){
@@ -94,6 +94,6 @@ public class SmartNpcFoodOfferClient implements ClientModInitializer {
                 if(++inputTicks>=5&&!clicked){clicked=true;mc.gameMode.interact(mc.player,entity,new net.minecraft.world.phys.EntityHitResult(entity),InteractionHand.MAIN_HAND);}
             }
         }
-        if(done){stage=4;mc.options.keyShift.setDown(false);Files.writeString(mc.gameDirectory.toPath().resolve(replay?"replay-complete.txt":"complete.txt"),replay?"PASS saved real connected player and NPC inventories, exact help actor and accepted cooldown after native client process restart":"PASS actual client interact packet conserves one real held food and attributes help only to connected sender; all80ordinary goals retained");mc.stop();}
+        if(done){stage=4;mc.options.keyShift.setDown(false);Files.writeString(mc.gameDirectory.toPath().resolve(replay?"replay-complete.txt":"complete.txt"),replay?"PASS saved real connected player and NPC inventories, exact help actor and accepted cooldown after native client process restart":"PASS actual client interact packet conserves one real held food and attributes help only to connected sender; all81ordinary goals retained");mc.stop();}
     }catch(Throwable t){t.printStackTrace();try{Files.writeString(mc.gameDirectory.toPath().resolve("failure.txt"),t.toString());}catch(Exception ignored){}stage=4;mc.stop();}}
 }

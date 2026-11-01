@@ -1,7 +1,8 @@
 param(
  [Parameter(Mandatory)][string]$Workspace,
  [Parameter(Mandatory)][string]$JavaHome,
- [Parameter(Mandatory)][string]$StagingDirectory
+ [Parameter(Mandatory)][string]$StagingDirectory,
+ [switch]$OfflineIncremental
 )
 # Warm compilation is reusable; runtime cases always receive immutable artifacts.
 $ErrorActionPreference='Stop'
@@ -9,13 +10,22 @@ $workspacePath=(Resolve-Path -LiteralPath $Workspace).Path
 $stagingPath=[IO.Path]::GetFullPath($StagingDirectory,$workspacePath)
 $privateRoot=Join-Path $workspacePath '.verification'
 if(!$stagingPath.StartsWith($privateRoot+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'Staging must be inside workspace .verification'}
-& python (Join-Path $workspacePath 'minecraft-snapshot-mods/maintenance/storage_budget.py') --workspace $workspacePath --case $stagingPath --reserve-gib 6 --owner-pid $PID | Out-Null
+$reserveGiB=6
+$offlineArgs=@()
+if($OfflineIncremental){
+ if(!(Test-Path (Join-Path $stagingPath 'build/classes/java/main')) -or !(Test-Path (Join-Path $stagingPath 'cache')) -or !(Get-ChildItem (Join-Path $stagingPath 'frozen') -Filter build-receipt.json -Recurse -ErrorAction SilentlyContinue)){throw 'Offline incremental mode requires a previously verified warm staging directory'}
+ # No dependency downloads or cold environment bootstrap: reserve growth for
+ # incremental classes, unit reports and another frozen jar, not another cache.
+ $reserveGiB=1
+ $offlineArgs=@('--offline')
+}
+& python (Join-Path $workspacePath 'minecraft-snapshot-mods/maintenance/storage_budget.py') --workspace $workspacePath --case $stagingPath --reserve-gib $reserveGiB --owner-pid $PID | Out-Null
 if($LASTEXITCODE -ne 0){throw 'Storage budget refused the build; no compilation started'}
 New-Item -ItemType Directory $stagingPath -Force | Out-Null
 $env:JAVA_HOME=(Resolve-Path -LiteralPath $JavaHome).Path
 $fabric=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $timer=[Diagnostics.Stopwatch]::StartNew()
-& (Join-Path $fabric 'gradlew.bat') -p $fabric --project-cache-dir (Join-Path $stagingPath 'cache') ('-PportBuildDirectory='+(Join-Path $stagingPath 'build')) '-Dorg.gradle.daemon=true' build --console=plain *> (Join-Path $stagingPath 'build.log')
+& (Join-Path $fabric 'gradlew.bat') -p $fabric --project-cache-dir (Join-Path $stagingPath 'cache') ('-PportBuildDirectory='+(Join-Path $stagingPath 'build')) '-Dorg.gradle.daemon=true' @offlineArgs build --console=plain *> (Join-Path $stagingPath 'build.log')
 if($LASTEXITCODE -ne 0){Get-Content (Join-Path $stagingPath 'build.log') -Tail 40;throw 'Candidate build/checks failed; no artifact frozen'}
 $tests=0
 foreach($result in Get-ChildItem (Join-Path $stagingPath 'build/test-results/test') -Filter 'TEST-*.xml'){

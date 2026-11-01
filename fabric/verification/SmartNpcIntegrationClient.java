@@ -27,9 +27,9 @@ public final class SmartNpcIntegrationClient extends SmartNpcFoodOfferClient {
             integrationStage=3;integrationTicks=0;
         }else if(integrationStage==3&&++integrationTicks==120){
             check(BuddyRelay.assistantStatus().get("joined").getAsBoolean(),"Buddy registry/login unstable");
-            check(npc.isAlive()&&goals()==80,"Native actor or original selectors lost during integration");
+            check(npc.isAlive()&&goals()==81,"Native actor or original selectors lost during integration");
             verify(mc.player.getUUID());BuddyRelay.intercept("@Buddy quit");
-            Files.writeString(mc.gameDirectory.toPath().resolve("complete.txt"),"PASS full28-mod host and17-mod real Buddy using identical native NPC candidate; real food packet attribution/conservation; native inventory GUI rendered40frames; second-client login stable120ticks; original NPC/all80goals and exact relationship facts retained. Vanilla diagnostic assets; production graphics unchanged.");
+            Files.writeString(mc.gameDirectory.toPath().resolve("complete.txt"),"PASS full28-mod host and17-mod real Buddy using identical native NPC candidate; real food packet attribution/conservation; native inventory GUI rendered40frames; second-client login stable120ticks; original NPC/all81goals and exact relationship facts retained. Vanilla diagnostic assets; production graphics unchanged.");
             integrationStage=4;mc.stop();
         }
     }catch(Throwable t){t.printStackTrace();try{Files.writeString(mc.gameDirectory.toPath().resolve("failure.txt"),t.toString());}catch(Exception ignored){}BuddyRelay.intercept("@Buddy quit");integrationStage=4;mc.stop();}}

@@ -56,7 +56,7 @@ public final class SmartNpcMemoryClient implements ClientModInitializer {
                 npc.setCustomName(Component.literal("MemoryWitness"));npc.setPos(.5,260,.5);npc.setPersistenceRequired();
                 npc.getInventory().addItem(new ItemStack(Items.COOKED_BEEF,16));level.addFreshEntity(npc);entityId=npc.getId();
                 var field=net.minecraft.world.entity.Mob.class.getDeclaredField("goalSelector");field.setAccessible(true);
-                check(((net.minecraft.world.entity.ai.goal.GoalSelector)field.get(npc)).getAvailableGoals().size()==80,"normal goals missing");
+                check(((net.minecraft.world.entity.ai.goal.GoalSelector)field.get(npc)).getAvailableGoals().size()==81,"normal goals missing");
                 prepared=true;
             }catch(Throwable error){failure=error;}});
         }

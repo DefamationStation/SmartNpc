@@ -46,7 +46,7 @@ public final class SmartNpcNativeRest implements DedicatedServerModInitializer {
             check(!earned(),"sleep checkpoint already granted completion");
             System.out.println("NATIVE_REST_RESUMED uuid="+ID+" observed="+observed());
         }
-        check(npc.isAlive()&&goalCount()==80,"actor or full normal selector changed");
+        check(npc.isAlive()&&goalCount()==81,"actor or full normal selector changed");
         check(level.isDarkOutside(),"before-dawn fixture advanced into daylight");
         check(npc.getInventory().countItem(Items.COOKED_BEEF)==16,"declared food changed unexpectedly");
         if(interrupt){
@@ -57,7 +57,7 @@ public final class SmartNpcNativeRest implements DedicatedServerModInitializer {
             }
             if(brokenAt>=0){
                 check(!earned(),"interrupted owned-bed sleep granted rest");
-                if(ticks-brokenAt>100){check(!npc.isSleeping(),"broken bed retained sleeping actor");finish(server,"complete.txt","PASS ordinary native occupied-bed interruption earned no rest; all80goals enabled");return;}
+                if(ticks-brokenAt>100){check(!npc.isSleeping(),"broken bed retained sleeping actor");finish(server,"complete.txt","PASS ordinary native occupied-bed interruption earned no rest; all81goals enabled");return;}
             }
         }else{
             if(!replay&&observed()>=120){
@@ -66,7 +66,7 @@ public final class SmartNpcNativeRest implements DedicatedServerModInitializer {
             }
             if(earned()){
                 check(!npc.isSleeping(),"completion emitted before native stop woke resident");
-                finish(server,"complete.txt","PASS original resident completed ordinary safe owned-bed nap BEFORE DAWN after real process restart; observed ticks persisted; all80goals and food16 retained; no synthetic completion");return;
+                finish(server,"complete.txt","PASS original resident completed ordinary safe owned-bed nap BEFORE DAWN after real process restart; observed ticks persisted; all81goals and food16 retained; no synthetic completion");return;
             }
         }
         if(ticks%200==0)System.out.println("NATIVE_REST_PROGRESS ticks="+ticks+" sleeping="+npc.isSleeping()+" observed="+observed());

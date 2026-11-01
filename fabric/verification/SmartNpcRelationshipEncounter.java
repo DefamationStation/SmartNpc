@@ -52,7 +52,7 @@ public final class SmartNpcRelationshipEncounter extends SmartNpcMemoryEncounter
         check(NpcRelationships.advice(futureVictim,bystanderId).stance()==RelationshipBook.Stance.UNKNOWN,
                 "future-schema peaceful bystander relationship changed");
         var selector=net.minecraft.world.entity.Mob.class.getDeclaredField("goalSelector");selector.setAccessible(true);
-        check(((net.minecraft.world.entity.ai.goal.GoalSelector)selector.get(futureVictim)).getAvailableGoals().size()==80,
+        check(((net.minecraft.world.entity.ai.goal.GoalSelector)selector.get(futureVictim)).getAvailableGoals().size()==81,
                 "future-schema victim ordinary goals changed");
     }
 }

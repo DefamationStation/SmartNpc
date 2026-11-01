@@ -60,7 +60,7 @@ public final class SmartNpcUnavailableHomeRegression implements DedicatedServerM
                 System.out.println("UNAVAILABLE_RESUMED uuid="+npc.getUUID()+" phase="+Journeys.state(npc).phase);
             }else{setup(server,level);return;}
         }
-        check(npc.isAlive(),"resident died");check(goalCount(npc)==80,"ordinary selector changed");
+        check(npc.isAlive(),"resident died");check(goalCount(npc)==81,"ordinary selector changed");
         var state=Journeys.state(npc);boatUsed|=state.boatId!=null;
         if(!reopened)check(npc.blockPosition().distSqr(state.home)>9,"unreachable home reached without real supported route");
         if(reopened){

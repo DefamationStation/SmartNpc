@@ -13,7 +13,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import java.util.*;
 
-/** Opt-in prepared commitments reuse native saved Journeys; no second controller,
+/** Operator diagnostics for prepared commitments reuse native saved Journeys;
+ * autonomous supply selection and collection do not depend on these commands.
+ * No second controller,
  * inventory mutation, route scan, permission unlock, or survival-goal interception. */
 public final class PreparedExpeditions {
     private PreparedExpeditions() { }

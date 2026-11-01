@@ -1,4 +1,5 @@
 {
+  "ai.player_npc.shelter_supply_search": "Finding shelter supplies",
   "item.smart_npc.player_npc_inspector": "Player NPC Inspector",
   "item.smart_npc.player_npc_spawn_egg": "Player NPC Spawn Egg",
   "creativetab.player_npc_tab": "Smart NPC",

@@ -32,13 +32,13 @@ p.add_argument('--target-metadata',type=Path,help='Upgrade target.json; otherwis
 p.add_argument('--java-home',type=Path,help='Target JDK; otherwise discover its major version under workspace .tools')
 p.add_argument('--fixture-source',type=Path,help='Optional dedicated-server diagnostic/scenario Java source; frozen into the private case')
 p.add_argument('--fixture-support',type=Path,action='append',default=[],help='Additional fixture Java source, frozen and compiled with the selected entry point')
-p.add_argument('--synthetic-fixture-world',action='store_true',help='Declared geometry-only fixture: copy level.dat seed metadata, regenerate terrain; never a copied-terrain or reload proof')
+p.add_argument('--synthetic-fixture-world',action='store_true',help='Declared geometry-only fixture: copy seed metadata and regenerate terrain. Replays reopen its actual saved world; never claim copied-terrain coverage')
 p.add_argument('--replay',action='store_true')
 p.add_argument('--wait',action='store_true',help='Wait for this run and automatically replay an outbound checkpoint')
 a=p.parse_args();root=a.workspace.resolve();jar=a.jar.resolve()
 assert a.max_ticks is None or a.max_ticks>0,'Observation deadline must be positive'
 if a.synthetic_fixture_world:
- assert a.fixture_source and not a.replay and not a.resume_case,'Synthetic fixtures cannot claim copied-world continuation'
+ assert (a.fixture_source or a.replay) and not a.resume_case,'Synthetic fixtures cannot claim copied-world continuation'
 if a.resume_case:
  assert not a.replay,'Saved-state resume requires a fresh case'
  resumed=a.resume_case.resolve();assert (resumed/'actor.properties').is_file()
@@ -155,6 +155,7 @@ if not a.replay:
  (case/'candidate.json').write_text(json.dumps({'sha256':sha(jar),'artifact':jar.name,'distance':a.distance,'tickRate':a.tick_rate,'maxTicks':a.max_ticks,'mode':a.mode,'heading':a.heading,'craftBoat':a.craft_boat,'requireBoat':a.require_boat,'seed':a.seed,'pause':a.pause,'checkpointAboard':a.checkpoint_aboard,'fixtureSha256':sha(source),'supportSourceHashes':support_hashes,'resumedCase':resumed.name if a.resume_case else None,'freshConditions':'copied' if a.keep_world_conditions else 'dawn-clear' if not a.resume_case and not a.fixture_source else None},indent=2))
 else:
  assert (case/'checkpoint.txt').exists() or (case/'return-checkpoint.txt').exists()
+ assert a.synthetic_fixture_world == json.loads((case/'world-source.json').read_text()).get('scope','').startswith('seed-metadata-only'),'Replay must retain the original declared world scope'
  assert not (case/('return-replay.args' if (case/'return-checkpoint.txt').exists() else 'replay.args')).exists(), 'Checkpoint already replayed'
  assert json.loads((case/'candidate.json').read_text())['sha256']==sha(jar)
  assert json.loads((case/'candidate.json').read_text())['distance']==a.distance
@@ -178,8 +179,6 @@ if a.wait:
  except subprocess.TimeoutExpired:raise RuntimeError('Test exceeded 15 minutes; process left intact for diagnosis')
  if code:raise RuntimeError(f'Test process exited {code}; retained logs and markers cannot certify a successful save')
  if (case/'failure.txt').exists():raise RuntimeError((case/'failure.txt').read_text())
- if a.synthetic_fixture_world:
-  assert not (case/'checkpoint.txt').exists() and not (case/'return-checkpoint.txt').exists(),'Geometry-only fixtures cannot certify copied-world replay'
  if ((case/'checkpoint.txt').exists() or (case/'return-checkpoint.txt').exists()) and not(case/'complete.txt').exists() and not return_replay:
   replay_args=[os.sys.executable,Path(__file__).resolve(),'--workspace',root,'--jar',jar,'--name',a.name,'--distance',a.distance,'--mode',a.mode,'--heading',a.heading,'--start-x',a.start_x,'--start-z',a.start_z,'--tick-rate',a.tick_rate,'--replay','--wait']
   if a.craft_boat:replay_args+=['--craft-boat']
@@ -191,6 +190,7 @@ if a.wait:
   if a.java_home:replay_args+=['--java-home',a.java_home.resolve()]
   if a.instance:replay_args+=['--instance',instance]
   if a.max_ticks is not None:replay_args+=['--max-ticks',a.max_ticks]
+  if a.synthetic_fixture_world:replay_args+=['--synthetic-fixture-world']
   run(replay_args)
  else:
   assert (case/'complete.txt').exists(),f'Process exited {code} without a completion receipt'
